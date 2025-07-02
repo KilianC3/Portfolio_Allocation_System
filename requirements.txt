@@ -1,0 +1,13 @@
+alpaca-trade-api>=4.4.0
+pymongo>=4.6.3
+motor>=3.3.0
+pandas>=2.2.2
+numpy>=1.26.4
+python-dotenv>=1.0.1
+requests>=2.32.3
+apscheduler>=3.10.4
+beautifulsoup4>=4.12.3
+playwright>=1.44.0
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+scipy>=1.11.0
