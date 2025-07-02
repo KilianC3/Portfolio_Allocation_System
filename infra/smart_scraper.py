@@ -10,8 +10,22 @@ async def get(url:str)->str:
     if doc and doc["expire"]>dt.datetime.utcnow():
         return doc["payload"]
     async with RATE:
-        r=requests.get(url,headers={"User-Agent":random.choice(USER_AGENTS)},timeout=15)
-        if r.status_code==200:
-            cache.replace_one({"key":k},{"key":k,"payload":r.text,"expire":dt.datetime.utcnow()+dt.timedelta(seconds=TTL)},upsert=True)
+        r = await asyncio.to_thread(
+            requests.get,
+            url,
+            headers={"User-Agent": random.choice(USER_AGENTS)},
+            timeout=15,
+        )
+        if r.status_code == 200:
+            cache.replace_one(
+                {"key": k},
+                {
+                    "key": k,
+                    "payload": r.text,
+                    "expire": dt.datetime.utcnow()
+                    + dt.timedelta(seconds=TTL),
+                },
+                upsert=True,
+            )
             return r.text
         raise RuntimeError(f"Failed {url} {r.status_code}")

@@ -1,12 +1,24 @@
 from alpaca_trade_api import REST
 from logger import get_logger
 from config import ALPACA_API_KEY, ALPACA_API_SECRET, ALPACA_BASE_URL
+import os
+
 _log = get_logger("exec")
 MAX_NOTIONAL=25000
 DAILY_LOSS=0.04
 class ExecutionEngine:
     def __init__(self):
-        self.api=REST(ALPACA_API_KEY,ALPACA_API_SECRET,ALPACA_BASE_URL,api_version="v2")
+        if os.getenv("TESTING"):
+            from unittest.mock import MagicMock
+
+            self.api = MagicMock()
+        else:
+            self.api = REST(
+                ALPACA_API_KEY,
+                ALPACA_API_SECRET,
+                ALPACA_BASE_URL,
+                api_version="v2",
+            )
     def _pv(self):
         return float(self.api.get_account().portfolio_value)
     def _price(self,s): 
