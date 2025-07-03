@@ -15,6 +15,10 @@ DB_NAME           = os.getenv("DB_NAME", "quant_fund")
 MIN_ALLOC         = float(os.getenv("MIN_ALLOCATION", 0.02))
 MAX_ALLOC         = float(os.getenv("MAX_ALLOCATION", 0.40))
 
+# Optional API key used by the HTTP service.  If set, all requests must
+# include this value in the ``x-api-key`` header.
+API_KEY           = os.getenv("API_KEY")
+
 CRON = {
     "monthly": {"day": "1",  "hour": 3, "minute": 0},
     "weekly" : {"day_of_week": "mon", "hour": 3, "minute": 0},
