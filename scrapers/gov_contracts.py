@@ -5,6 +5,7 @@ from config import QUIVER_RATE_SEC
 from infra.rate_limiter import AsyncRateLimiter
 from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll
+from infra.data_store import append_snapshot
 
 contracts_coll = db["gov_contracts"] if db else pf_coll
 rate = AsyncRateLimiter(1, QUIVER_RATE_SEC)
@@ -34,4 +35,10 @@ async def fetch_gov_contracts() -> List[dict]:
                     {"$set": item},
                     upsert=True,
                 )
+    append_snapshot("gov_contracts", data)
     return data
+
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(fetch_gov_contracts())

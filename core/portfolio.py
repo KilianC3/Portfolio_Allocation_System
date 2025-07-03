@@ -6,7 +6,7 @@ import abc
 from typing import Dict
 
 from logger import get_logger
-from execution_gateway import ExecutionGateway
+from execution.gateway import ExecutionGateway
 
 _log = get_logger("portfolio")
 
@@ -23,7 +23,7 @@ class Portfolio(abc.ABC):
         """Assign target weights."""
 
     @abc.abstractmethod
-    def rebalance(self) -> None:
+    async def rebalance(self) -> None:
         """Trigger portfolio rebalancing."""
 
     @abc.abstractmethod

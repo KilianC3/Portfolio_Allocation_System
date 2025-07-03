@@ -75,6 +75,13 @@ Modules in `scrapers/` fetch datasets from QuiverQuant. Each function returns a 
 
 Scrapers share a simple caching mechanism via `infra.smart_scraper.get` and respect rate limits using `infra.rate_limiter.AsyncRateLimiter`.
 
+## Data Store
+
+All scraped records are normalised into a DuckDB database at `data/altdata.duckdb` in
+addition to MongoDB. Each scraper appends its table so historical snapshots are
+versioned automatically. See [docs/data_format.md](docs/data_format.md) for the list
+of tables and columns.
+
 ## Portfolio Management
 
 `core/portfolio.py` provides an abstract `Portfolio` base class. `core/equity.py` implements an `EquityPortfolio` using an execution gateway. The default gateway `AlpacaGateway` wraps Alpaca's REST API and applies basic risk checks.
@@ -103,4 +110,24 @@ An example entry point is provided in `main.py` which demonstrates how to start 
 python main.py
 ```
 This will load any saved portfolios from the database, schedule strategies and run indefinitely until interrupted.
+
+## Quickstart
+
+1. Launch a local MongoDB instance and optional Redis server:
+   ```bash
+   docker run -d --name mongo -p 27017:27017 mongo:7
+   docker run -d --name redis -p 6379:6379 redis:7
+   ```
+2. Set the required environment variables or edit `.env`.
+3. Run scrapers to populate the data store:
+   ```bash
+   python -m scrapers.politician
+   python -m scrapers.lobbying
+   python -m scrapers.wiki
+   python -m scrapers.dc_insider
+   python -m scrapers.gov_contracts
+   ```
+   Each run appends rows to `data/altdata.duckdb` and MongoDB collections.
+4. Start the API server with Uvicorn as shown above. The `/analytics/{portfolio}` endpoint exposes
+   rolling statistics computed from the stored snapshots.
 

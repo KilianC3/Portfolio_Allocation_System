@@ -7,16 +7,23 @@ from pydantic import BaseModel
 import pandas as pd
 
 from logger import get_logger
+from observability import metrics_router
+from ws import ws_router
 from database import pf_coll, trade_coll, metric_coll
 from core.equity import EquityPortfolio
 from execution_gateway import AlpacaGateway
 from scheduler import StrategyScheduler
 from analytics import portfolio_metrics
+from analytics.collector import record_snapshot
+from ledger import MasterLedger
+import httpx
+import redis.asyncio as aioredis
+from config import ALPACA_API_KEY, ALPACA_API_SECRET, ALPACA_BASE_URL
 
 
 log = get_logger("api")
 
-app = FastAPI(title="Portfolio Allocation API", version="1.0")
+app = FastAPI(title="Portfolio Allocation API", version="1.0", openapi_url="/api/v1/openapi.json")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,6 +31,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(metrics_router)
+app.include_router(ws_router)
+
+@app.get("/healthz")
+async def healthz():
+    return {"status": "ok"}
+
+
+@app.get("/readyz")
+async def readyz():
+    try:
+        pf_coll.database.client.admin.command("ping")
+        ledger = MasterLedger()
+        await ledger.redis.ping()
+        async with httpx.AsyncClient() as c:
+            resp = await c.get(
+                f"{ALPACA_BASE_URL}/v2/account",
+                headers={
+                    "APCA-API-KEY-ID": ALPACA_API_KEY or "",
+                    "APCA-API-SECRET-KEY": ALPACA_API_SECRET or "",
+                },
+            )
+            resp.raise_for_status()
+    except Exception as exc:
+        return {"status": "fail", "error": str(exc)}
+    return {"status": "ready"}
 
 # In-memory portfolio objects
 portfolios: Dict[str, EquityPortfolio] = {}
@@ -106,11 +139,11 @@ def set_weights(pf_id: str, data: Weights):
     return {"status": "ok"}
 
 @app.post("/portfolios/{pf_id}/rebalance")
-def rebalance(pf_id: str):
+async def rebalance(pf_id: str):
     pf = portfolios.get(pf_id)
     if not pf:
         raise HTTPException(404, "portfolio not found")
-    pf.rebalance()
+    await pf.rebalance()
     return {"status": "ok"}
 
 
@@ -284,6 +317,24 @@ def show_contracts(limit: int = 50):
         d["_retrieved"] = _iso(d.get("_retrieved"))
         res.append(d)
     return {"records": res}
+
+
+@app.get("/analytics/{pf_id}")
+def get_analytics(pf_id: str):
+    import duckdb
+    con = duckdb.connect("analytics.duckdb")
+    try:
+        df = con.execute(
+            "SELECT * FROM snapshots WHERE portfolio_id=? ORDER BY date",
+            [pf_id],
+        ).df()
+    finally:
+        con.close()
+    if df.empty:
+        return {"analytics": []}
+    df["rolling_30"] = df["value"].rolling(30).mean()
+    df["rolling_90"] = df["value"].rolling(90).mean()
+    return {"analytics": df.to_dict(orient="records")}
 
 if __name__ == "__main__":
     import uvicorn
