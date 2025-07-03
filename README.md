@@ -31,7 +31,6 @@ Environment variables control connections and limits. Create a `.env` file or ex
 
 - `ALPACA_API_KEY` and `ALPACA_API_SECRET` – credentials for Alpaca Trade API.
 - `ALPACA_BASE_URL` – API endpoint (default `https://paper-api.alpaca.markets`).
-- `QUIVER_API_KEY` – API key for QuiverQuant data.
 - `QUIVER_RATE_SEC` – seconds between scraper requests (default `1.1`).
 - `MONGO_URI` – MongoDB connection URI (default `mongodb://localhost:27017`).
 - `DB_NAME` – MongoDB database name (default `quant_fund`).

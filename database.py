@@ -8,7 +8,6 @@ depend on ``database`` without requiring a running MongoDB instance.
 
 import os
 from pymongo import MongoClient, ASCENDING
-from motor.motor_asyncio import AsyncIOMotorClient
 from logger import get_logger
 from config import MONGO_URI, DB_NAME
 
@@ -32,13 +31,10 @@ if os.getenv("TESTING"):
     insider_coll = DummyCollection(name="insider_coll")
     contracts_coll = DummyCollection(name="contracts_coll")
     cache = DummyCollection(name="cache")
-    db = adb = None
+    db = None
 else:
     sync = MongoClient(MONGO_URI)
-    async_db = AsyncIOMotorClient(MONGO_URI)
-
     db = sync[DB_NAME]
-    adb = async_db[DB_NAME]
 
     pf_coll = db["portfolios"]
     trade_coll = db["trades"]
