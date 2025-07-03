@@ -20,7 +20,7 @@ if os.getenv("TESTING"):
     _log.info("Using mocked database collections")
 
     class DummyCollection(MagicMock):
-        def create_index(self, *args, **kwargs):
+        def create_index(self, *_args, **_kwargs):
             return None
 
     pf_coll = DummyCollection(name="pf_coll")

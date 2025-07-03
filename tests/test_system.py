@@ -1,6 +1,5 @@
 from unittest.mock import patch, MagicMock
 from scheduler import StrategyScheduler
-from portfolio import Portfolio
 
 
 class DummyOrder:

@@ -5,7 +5,8 @@ class AsyncRateLimiter:
         self.calls=[]; self.lock=asyncio.Lock()
     async def __aenter__(self):
         await self.acquire(); return self
-    async def __aexit__(self,exc_type,exc,val): pass
+    async def __aexit__(self, _exc_type, _exc, _val):
+        pass
     async def acquire(self):
         while True:
             async with self.lock:

@@ -43,7 +43,7 @@ async def fake_get(url):
 def test_fetch_politician_scrape(monkeypatch):
     monkeypatch.setattr(politician, "scrape_get", fake_get)
     inserted = {}
-    monkeypatch.setattr(api.politician_coll, "update_one", lambda q,u,upsert=None: inserted.update(u["$set"]))
+    monkeypatch.setattr(api.politician_coll, "update_one", lambda q, u, **_: inserted.update(u["$set"]))
     data = asyncio.run(api.fetch_politician_trades())
     assert len(data) == 1
     assert inserted["ticker"] == "AAPL"
@@ -52,7 +52,7 @@ def test_fetch_politician_scrape(monkeypatch):
 def test_fetch_lobbying_scrape(monkeypatch):
     monkeypatch.setattr(lobbying, "scrape_get", fake_get)
     inserted = {}
-    monkeypatch.setattr(api.lobby_coll, "update_one", lambda q,u,upsert=None: inserted.update(u["$set"]))
+    monkeypatch.setattr(api.lobby_coll, "update_one", lambda q, u, **_: inserted.update(u["$set"]))
     data = asyncio.run(api.fetch_lobbying_data())
     assert len(data) == 1
     assert "client" in inserted
@@ -61,7 +61,7 @@ def test_fetch_lobbying_scrape(monkeypatch):
 def test_fetch_wiki_views_scrape(monkeypatch):
     monkeypatch.setattr(wiki, "scrape_get", fake_get)
     inserted = {}
-    monkeypatch.setattr(api.wiki_collection, "update_one", lambda q,u,upsert=None: inserted.update(u["$set"]))
+    monkeypatch.setattr(api.wiki_collection, "update_one", lambda q, u, **_: inserted.update(u["$set"]))
     data = asyncio.run(api.fetch_wiki_views())
     assert len(data) == 1
     assert inserted["ticker"] == "AAPL"
@@ -70,7 +70,7 @@ def test_fetch_wiki_views_scrape(monkeypatch):
 def test_fetch_dc_insider_scrape(monkeypatch):
     monkeypatch.setattr(dc_insider, "scrape_get", fake_get)
     inserted = {}
-    monkeypatch.setattr(api.insider_coll, "update_one", lambda q,u,upsert=None: inserted.update(u["$set"]))
+    monkeypatch.setattr(api.insider_coll, "update_one", lambda q, u, **_: inserted.update(u["$set"]))
     data = asyncio.run(api.fetch_dc_insider_scores())
     assert len(data) == 1
     assert inserted["score"] == "75"
@@ -79,7 +79,7 @@ def test_fetch_dc_insider_scrape(monkeypatch):
 def test_fetch_gov_contracts_scrape(monkeypatch):
     monkeypatch.setattr(gov_contracts, "scrape_get", fake_get)
     inserted = {}
-    monkeypatch.setattr(api.contracts_coll, "update_one", lambda q,u,upsert=None: inserted.update(u["$set"]))
+    monkeypatch.setattr(api.contracts_coll, "update_one", lambda q, u, **_: inserted.update(u["$set"]))
     data = asyncio.run(api.fetch_gov_contracts())
     assert len(data) == 1
     assert inserted["value"] == "$20,000"

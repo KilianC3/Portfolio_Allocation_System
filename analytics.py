@@ -1,4 +1,6 @@
-import numpy as np, pandas as pd, math, scipy.stats as st
+import numpy as np
+import pandas as pd
+import math
 def sharpe(r:pd.Series,rf=0.0):
     if r.std(ddof=0)==0: return 0.0
     return (r.mean()-rf)/r.std(ddof=0)*math.sqrt(252)
