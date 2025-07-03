@@ -19,3 +19,6 @@ structlog>=24.1.0
 opentelemetry-sdk>=1.24.0
 opentelemetry-exporter-jaeger>=1.21.0
 Deprecated>=1.2.13
+scikit-learn>=1.4.2
+aiohttp>=3.9.5
+aioresponses>=0.7.4

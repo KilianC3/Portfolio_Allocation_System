@@ -1,31 +1,82 @@
-import asyncio, hashlib, random, datetime as dt, requests
+"""Resilient async HTTP scraper with caching and rate limits."""
+
+from __future__ import annotations
+
+import asyncio
+import datetime as dt
+import hashlib
+import random
+from typing import Optional
+
+import aiohttp
+
 from infra.rate_limiter import AsyncRateLimiter
 from database import cache
-USER_AGENTS = ["Mozilla/5.0","Chrome/122.0"]
-RATE = AsyncRateLimiter(12,60)
-TTL=900
-async def get(url:str)->str:
-    k=hashlib.md5(url.encode()).hexdigest()
-    doc=cache.find_one({"key":k})
-    if doc and doc["expire"]>dt.datetime.utcnow():
-        return doc["payload"]
-    async with RATE:
-        r = await asyncio.to_thread(
-            requests.get,
-            url,
-            headers={"User-Agent": random.choice(USER_AGENTS)},
-            timeout=15,
+
+
+USER_AGENTS = ["Mozilla/5.0", "Chrome/122.0", "Safari/537.36"]
+"""List of user agents rotated on each request."""
+
+RATE = AsyncRateLimiter(12, 60)
+"""Scrape at most 12 pages per minute."""
+
+TTL = 900
+"""Cache expiry for fetched pages (seconds)."""
+
+_session: Optional[aiohttp.ClientSession] = None
+
+
+async def _get_session() -> aiohttp.ClientSession:
+    """Return a shared :class:`aiohttp.ClientSession`."""
+    global _session
+    if _session is None or _session.closed:
+        _session = aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=15)
         )
-        if r.status_code == 200:
-            cache.replace_one(
-                {"key": k},
-                {
-                    "key": k,
-                    "payload": r.text,
-                    "expire": dt.datetime.utcnow()
-                    + dt.timedelta(seconds=TTL),
-                },
-                upsert=True,
-            )
-            return r.text
-        raise RuntimeError(f"Failed {url} {r.status_code}")
+    return _session
+
+
+async def close_session() -> None:
+    """Close the shared HTTP session."""
+    global _session
+    if _session and not _session.closed:
+        await _session.close()
+    _session = None
+
+
+async def get(url: str, retries: int = 3) -> str:
+    """Fetch ``url`` asynchronously with caching and basic retries."""
+
+    key = hashlib.md5(url.encode()).hexdigest()
+    doc = cache.find_one({"key": key})
+    if doc and doc["expire"] > dt.datetime.utcnow():
+        return doc["payload"]
+
+    backoff = 1.0
+    async with RATE:
+        session = await _get_session()
+        for attempt in range(retries):
+            try:
+                async with session.get(
+                    url,
+                    headers={"User-Agent": random.choice(USER_AGENTS)},
+                ) as resp:
+                    text = await resp.text()
+                    if resp.status == 200:
+                        cache.replace_one(
+                            {"key": key},
+                            {
+                                "key": key,
+                                "payload": text,
+                                "expire": dt.datetime.utcnow()
+                                + dt.timedelta(seconds=TTL),
+                            },
+                            upsert=True,
+                        )
+                        return text
+            except Exception as exc:
+                err = exc
+            await asyncio.sleep(backoff)
+            backoff *= 2
+        raise RuntimeError(f"Failed {url}: {err}")
+
