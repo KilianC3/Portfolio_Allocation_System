@@ -1,8 +1,14 @@
-import asyncio, signal
+import asyncio
+import signal
+import os
+import sentry_sdk
 from logger import get_logger
 from scheduler import StrategyScheduler
+from observability.tracing import setup_tracer
 _log = get_logger("main")
 def main():
+    sentry_sdk.init(dsn=os.getenv("SENTRY_DSN"))
+    setup_tracer()
     sched=StrategyScheduler()
     # example strategies (must exist)
     try:

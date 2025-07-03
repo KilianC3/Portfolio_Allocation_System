@@ -5,6 +5,7 @@ from config import QUIVER_RATE_SEC
 from infra.rate_limiter import AsyncRateLimiter
 from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll
+from infra.data_store import append_snapshot
 
 # fallback to pf_coll when db not available in testing
 insider_coll = db["dc_insider_scores"] if db else pf_coll
@@ -35,4 +36,10 @@ async def fetch_dc_insider_scores() -> List[dict]:
                     {"$set": item},
                     upsert=True,
                 )
+    append_snapshot("dc_insider_scores", data)
     return data
+
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(fetch_dc_insider_scores())

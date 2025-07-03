@@ -1,0 +1,27 @@
+name: CI
+on: [push]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: echo lint
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: echo unit
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: echo integration
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo canary
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [lint, unit, integration, canary]
+    steps:
+      - run: echo deploy

@@ -36,6 +36,6 @@ class StrategyScheduler:
                 if pf:
                     new={sym:pct*wt for sym,pct in pf.weights.items()}
                     pf.set_weights(new)
-                    pf.rebalance()
+                    await pf.rebalance()
         self.scheduler.add_job(realloc_job,"cron",day_of_week="fri",hour=21,minute=0,id="realloc")
         self.scheduler.start()
