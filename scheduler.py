@@ -4,7 +4,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from importlib import import_module
 from logger import get_logger
 from config import CRON
-from portfolio import Portfolio
+from core.equity import EquityPortfolio
+from execution_gateway import AlpacaGateway
 from allocation_engine import compute_weights
 from database import metric_coll
 _log = get_logger("sched")
@@ -13,7 +14,7 @@ class StrategyScheduler:
         self.scheduler=AsyncIOScheduler(); self.portfolios={}
     def add(self, pf_id, name, mod_path, cls_name, cron_key):
         strat_cls = getattr(import_module(mod_path), cls_name)
-        pf = Portfolio(name, pf_id)
+        pf = EquityPortfolio(name, gateway=AlpacaGateway(), pf_id=pf_id)
         self.portfolios[pf_id] = pf
         self.scheduler.add_job(
             strat_cls().build,

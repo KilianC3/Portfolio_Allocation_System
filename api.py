@@ -8,7 +8,8 @@ import pandas as pd
 
 from logger import get_logger
 from database import pf_coll, trade_coll, metric_coll
-from portfolio import Portfolio
+from core.equity import EquityPortfolio
+from execution_gateway import AlpacaGateway
 from scheduler import StrategyScheduler
 from analytics import portfolio_metrics
 
@@ -25,7 +26,7 @@ app.add_middleware(
 )
 
 # In-memory portfolio objects
-portfolios: Dict[str, Portfolio] = {}
+portfolios: Dict[str, EquityPortfolio] = {}
 
 # Scheduler instance to manage strategy tasks
 sched = StrategyScheduler()
@@ -57,7 +58,7 @@ def _iso(o):
 
 def _load_portfolios():
     for doc in pf_coll.find():
-        pf = Portfolio(doc.get("name", "pf"), str(doc.get("_id")))
+        pf = EquityPortfolio(doc.get("name", "pf"), gateway=AlpacaGateway(), pf_id=str(doc.get("_id")))
         portfolios[pf.id] = pf
         if "weights" in doc:
             try:
@@ -90,7 +91,7 @@ def list_portfolios():
 
 @app.post("/portfolios")
 def create_portfolio(data: PortfolioCreate):
-    pf = Portfolio(data.name)
+    pf = EquityPortfolio(data.name, gateway=AlpacaGateway())
     portfolios[pf.id] = pf
     pf_coll.update_one({"_id": pf.id}, {"$set": {"name": data.name}}, upsert=True)
     return {"id": pf.id, "name": data.name}
