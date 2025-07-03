@@ -64,7 +64,7 @@ Modules in `scrapers/` fetch datasets from QuiverQuant. Each function returns a 
 - `politician.py` – congressional trading disclosures
 - `lobbying.py` – corporate lobbying spending
 - `wiki.py` – Wikipedia page view statistics
-- `dc_insider.py` – insider sentiment scores
+- `dc_insider.py` – insider sentiment and investor scores
 - `gov_contracts.py` – government contract awards
 
 Scrapers share a simple caching mechanism via `infra.smart_scraper.get` and respect rate limits using `infra.rate_limiter.AsyncRateLimiter`.
