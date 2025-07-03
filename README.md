@@ -42,7 +42,9 @@ Start the FastAPI server with Uvicorn:
 ```bash
 uvicorn api:app --reload
 ```
-The API exposes endpoints to manage portfolios, trigger scrapers and check scheduled jobs. See `api.py` for full route definitions.
+The API exposes JSON endpoints to manage portfolios, trigger scrapers and check
+scheduled jobs. It is designed to be consumed by a web front end in the future
+without further changes to the backend. See `api.py` for full route definitions.
 
 ## Background Scheduler
 
@@ -56,6 +58,10 @@ sched.add('lobby', 'Lobbying', 'strategies.lobbying_growth', 'LobbyingGrowthStra
 sched.start()
 ```
 The scheduler also runs a weekly rebalancing job that uses metrics stored in MongoDB to compute new allocations via `allocation_engine.compute_weights`.
+Daily performance data can be posted to the `/metrics/{pf_id}` endpoint. The API
+automatically updates trailing statistics such as Sharpe, Sortino, alpha, beta,
+tracking error and drawdown for each portfolio. These metrics feed directly into
+the allocation engine.
 
 ## Scrapers
 
@@ -73,11 +79,18 @@ Scrapers share a simple caching mechanism via `infra.smart_scraper.get` and resp
 
 `portfolio.py` defines the `Portfolio` class which tracks allocations and logs trades executed by `execution.ExecutionEngine`. The engine wraps the Alpaca API and enforces basic risk checks.
 
-Weights are rebalanced to target percentages and all trades are recorded in MongoDB collections.
+Weights are rebalanced to target percentages and all trades are recorded in MongoDB collections. Because Alpaca accounts do not support sub-portfolios, each order is tagged using `client_order_id` with the portfolio's identifier. Positions for a portfolio can be queried via the `/positions/{pf_id}` endpoint which aggregates executed trades.
+
+`Portfolio.rebalance` now closes stale positions as new weights are applied and leverages stored trade history rather than account-wide positions, ensuring clean separation between multiple portfolios hosted on the same Alpaca account.
 
 ## Analytics
 
-`analytics.py` provides helper functions such as portfolio Sharpe ratio calculation and value-at-risk metrics.
+`analytics.py` now exposes a wide range of statistics including Sharpe, Sortino,
+alpha, beta, tracking error, information ratio and maximum drawdown. The
+`allocation_engine.compute_weights` routine combines these measures to size
+portfolios dynamically while respecting volatility targets. Rebalancing jobs use
+the latest scraped data and stored returns so that portfolio adjustments do not
+introduce any look-ahead bias.
 
 ## Testing
 

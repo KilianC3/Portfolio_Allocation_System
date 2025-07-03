@@ -4,10 +4,13 @@ from typing import Dict, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import pandas as pd
+
 from logger import get_logger
 from database import pf_coll, trade_coll, metric_coll
 from portfolio import Portfolio
 from scheduler import StrategyScheduler
+from analytics import portfolio_metrics
 
 
 log = get_logger("api")
@@ -43,6 +46,7 @@ class Weights(BaseModel):
 class MetricEntry(BaseModel):
     date: dt.date
     ret: float
+    benchmark: Optional[float] = None
 
 def _iso(o):
     if isinstance(o, dt.datetime):
@@ -53,8 +57,7 @@ def _iso(o):
 
 def _load_portfolios():
     for doc in pf_coll.find():
-        pf = Portfolio(doc.get("name", "pf"))
-        pf.id = str(doc.get("_id"))
+        pf = Portfolio(doc.get("name", "pf"), str(doc.get("_id")))
         portfolios[pf.id] = pf
         if "weights" in doc:
             try:
@@ -109,6 +112,14 @@ def rebalance(pf_id: str):
     pf.rebalance()
     return {"status": "ok"}
 
+
+@app.get("/positions/{pf_id}")
+def get_positions(pf_id: str):
+    pf = portfolios.get(pf_id)
+    if not pf:
+        raise HTTPException(404, "portfolio not found")
+    return {"positions": pf.positions()}
+
 @app.get("/trades/{pf_id}")
 def get_trades(pf_id: str, limit: int = 50):
     docs = list(trade_coll.find({"portfolio_id": pf_id}).sort("timestamp", -1).limit(limit))
@@ -122,12 +133,31 @@ def get_trades(pf_id: str, limit: int = 50):
 
 @app.post("/metrics/{pf_id}")
 def add_metric(pf_id: str, metric: MetricEntry):
+    update = {"ret": metric.ret}
+    if metric.benchmark is not None:
+        update["benchmark"] = metric.benchmark
+
     metric_coll.update_one(
         {"portfolio_id": pf_id, "date": metric.date},
-        {"$set": {"ret": metric.ret}},
+        {"$set": update},
         upsert=True,
     )
-    return {"status": "ok"}
+
+    docs = list(metric_coll.find({"portfolio_id": pf_id}).sort("date", 1))
+    r = pd.Series([d["ret"] for d in docs], index=[d["date"] for d in docs])
+    bench = None
+    if all("benchmark" in d for d in docs):
+        bench = pd.Series(
+            [d.get("benchmark", 0.0) for d in docs],
+            index=[d["date"] for d in docs],
+        )
+    metrics = portfolio_metrics(r, bench)
+    metric_coll.update_one(
+        {"portfolio_id": pf_id, "date": metric.date},
+        {"$set": metrics},
+        upsert=True,
+    )
+    return {"status": "ok", "metrics": metrics}
 
 @app.get("/metrics/{pf_id}")
 def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = None):
@@ -139,10 +169,13 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
     if end:
         q["date"]["$lte"] = dt.date.fromisoformat(end)
     docs = list(metric_coll.find(q).sort("date", 1))
-    res = [
-        {"date": _iso(d["date"]), "ret": d["ret"]}
-        for d in docs
-    ]
+    res = []
+    for d in docs:
+        entry = {"date": _iso(d["date"]), "ret": d["ret"]}
+        for k in ("sharpe", "alpha", "beta", "max_drawdown", "benchmark"):
+            if k in d:
+                entry[k] = d[k]
+        res.append(entry)
     return {"metrics": res}
 
 # Scheduler management endpoints

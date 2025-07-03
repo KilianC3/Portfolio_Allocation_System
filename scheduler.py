@@ -11,10 +11,17 @@ _log = get_logger("sched")
 class StrategyScheduler:
     def __init__(self):
         self.scheduler=AsyncIOScheduler(); self.portfolios={}
-    def add(self,pf_id,name,mod_path,cls_name,cron_key):
-        strat_cls=getattr(import_module(mod_path),cls_name)
-        pf=Portfolio(name); self.portfolios[pf_id]=pf
-        self.scheduler.add_job(strat_cls().build,"cron",args=[pf],id=pf_id,**CRON[cron_key])
+    def add(self, pf_id, name, mod_path, cls_name, cron_key):
+        strat_cls = getattr(import_module(mod_path), cls_name)
+        pf = Portfolio(name, pf_id)
+        self.portfolios[pf_id] = pf
+        self.scheduler.add_job(
+            strat_cls().build,
+            "cron",
+            args=[pf],
+            id=pf_id,
+            **CRON[cron_key],
+        )
     def start(self):
         async def realloc_job():
             start=dt.datetime.utcnow()-dt.timedelta(days=90)
@@ -27,6 +34,7 @@ class StrategyScheduler:
                 pf=self.portfolios.get(pid)
                 if pf:
                     new={sym:pct*wt for sym,pct in pf.weights.items()}
-                    pf.set_weights(new); pf.rebalance()
+                    pf.set_weights(new)
+                    pf.rebalance()
         self.scheduler.add_job(realloc_job,"cron",day_of_week="fri",hour=21,minute=0,id="realloc")
         self.scheduler.start()
