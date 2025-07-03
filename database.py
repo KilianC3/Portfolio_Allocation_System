@@ -26,6 +26,7 @@ if os.getenv("TESTING"):
     pf_coll = DummyCollection(name="pf_coll")
     trade_coll = DummyCollection(name="trade_coll")
     metric_coll = DummyCollection(name="metric_coll")
+    politician_coll = DummyCollection(name="politician_coll")
     cache = DummyCollection(name="cache")
     db = adb = None
 else:
@@ -38,6 +39,7 @@ else:
     pf_coll = db["portfolios"]
     trade_coll = db["trades"]
     metric_coll = db["metrics"]
+    politician_coll = db["politician_trades"]
     cache = db["cache"]
 
     trade_coll.create_index([("portfolio_id", ASCENDING), ("timestamp", ASCENDING)])
