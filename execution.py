@@ -5,7 +5,6 @@ import os
 
 _log = get_logger("exec")
 MAX_NOTIONAL=25000
-DAILY_LOSS=0.04
 class ExecutionEngine:
     def __init__(self):
         if os.getenv("TESTING"):

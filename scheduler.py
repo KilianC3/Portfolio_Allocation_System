@@ -1,4 +1,5 @@
-import asyncio, datetime as dt, pandas as pd
+import datetime as dt
+import pandas as pd
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from importlib import import_module
 from logger import get_logger

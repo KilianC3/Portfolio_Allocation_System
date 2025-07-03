@@ -1,12 +1,12 @@
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 
 ALPACA_API_KEY    = os.getenv("ALPACA_API_KEY")
 ALPACA_API_SECRET = os.getenv("ALPACA_API_SECRET")
 ALPACA_BASE_URL   = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
 
-QUIVER_API_KEY    = os.getenv("QUIVER_API_KEY")
 QUIVER_RATE_SEC   = float(os.getenv("QUIVER_RATE_SEC", 1.1))
 
 MONGO_URI         = os.getenv("MONGO_URI", "mongodb://localhost:27017")
