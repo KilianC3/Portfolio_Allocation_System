@@ -1,15 +1,14 @@
 import datetime as dt
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
-import requests
-import asyncio
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
 from logger import get_logger
 from database import pf_coll, trade_coll, metric_coll
 from portfolio import Portfolio
+from scheduler import StrategyScheduler
+
 
 log = get_logger("api")
 
@@ -24,6 +23,16 @@ app.add_middleware(
 
 # In-memory portfolio objects
 portfolios: Dict[str, Portfolio] = {}
+
+# Scheduler instance to manage strategy tasks
+sched = StrategyScheduler()
+
+class ScheduleJob(BaseModel):
+    pf_id: str
+    name: str
+    module: str
+    cls: str
+    cron_key: str
 
 class PortfolioCreate(BaseModel):
     name: str
@@ -57,6 +66,7 @@ def _load_portfolios():
 def startup_event():
     try:
         _load_portfolios()
+        sched.start()
     except Exception as e:
         log.warning(f"startup load failed: {e}")
     log.info("api ready")
@@ -135,28 +145,36 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
     ]
     return {"metrics": res}
 
-# Example data collection using Quiver API
-from config import QUIVER_API_KEY, QUIVER_RATE_SEC
-from infra.rate_limiter import AsyncRateLimiter
-from database import db
+# Scheduler management endpoints
+@app.get("/scheduler/jobs")
+def list_jobs():
+    jobs = [
+        {"id": j.id, "next_run": _iso(getattr(j, "next_run_time", None))}
+        for j in sched.scheduler.get_jobs()
+    ]
+    return {"jobs": jobs}
 
-politician_coll = db["politician_trades"] if db else pf_coll  # fallback for tests
-rate = AsyncRateLimiter(1, QUIVER_RATE_SEC)
+@app.post("/scheduler/jobs")
+def add_job(job: ScheduleJob):
+    try:
+        sched.add(job.pf_id, job.name, job.module, job.cls, job.cron_key)
+    except Exception as e:
+        raise HTTPException(400, str(e))
+    return {"status": "scheduled"}
 
-async def fetch_politician_trades() -> List[dict]:
-    if not QUIVER_API_KEY:
-        raise RuntimeError("QUIVER_API_KEY not set")
-    url = "https://api.quiverquant.com/beta/politician/trades"
-    headers = {"accept": "application/json", "x-api-key": QUIVER_API_KEY}
-    async with rate:
-        resp = await asyncio.to_thread(requests.get, url, headers=headers, timeout=15)
-    resp.raise_for_status()
-    data = resp.json()
-    now = dt.datetime.utcnow()
-    for item in data:
-        item["_retrieved"] = now
-        politician_coll.update_one({"id": item.get("id")}, {"$set": item}, upsert=True)
-    return data
+# Data collection using dedicated scraping module
+from scrapers import (
+    fetch_politician_trades,
+    fetch_lobbying_data,
+    fetch_wiki_views,
+    fetch_dc_insider_scores,
+    fetch_gov_contracts,
+    politician_coll,
+    lobby_coll,
+    wiki_collection,
+    insider_coll,
+    contracts_coll,
+)
 
 @app.post("/collect/politician_trades")
 async def collect_politician():
@@ -172,6 +190,66 @@ def show_politician(limit: int = 50):
         d["_retrieved"] = _iso(d.get("_retrieved"))
         res.append(d)
     return {"trades": res}
+
+@app.post("/collect/lobbying")
+async def collect_lobbying():
+    data = await fetch_lobbying_data()
+    return {"records": len(data)}
+
+@app.get("/lobbying")
+def show_lobbying(limit: int = 50):
+    docs = list(lobby_coll.find().sort("_retrieved", -1).limit(limit))
+    res = []
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+        res.append(d)
+    return {"records": res}
+
+@app.post("/collect/wiki_views")
+async def collect_wiki():
+    data = await fetch_wiki_views()
+    return {"records": len(data)}
+
+@app.get("/wiki_views")
+def show_wiki(limit: int = 50):
+    docs = list(wiki_collection.find().sort("_retrieved", -1).limit(limit))
+    res = []
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+        res.append(d)
+    return {"records": res}
+
+@app.post("/collect/dc_insider")
+async def collect_dc_insider():
+    data = await fetch_dc_insider_scores()
+    return {"records": len(data)}
+
+@app.get("/dc_insider")
+def show_dc_insider(limit: int = 50):
+    docs = list(insider_coll.find().sort("_retrieved", -1).limit(limit))
+    res = []
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+        res.append(d)
+    return {"records": res}
+
+@app.post("/collect/gov_contracts")
+async def collect_contracts():
+    data = await fetch_gov_contracts()
+    return {"records": len(data)}
+
+@app.get("/gov_contracts")
+def show_contracts(limit: int = 50):
+    docs = list(contracts_coll.find().sort("_retrieved", -1).limit(limit))
+    res = []
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+        res.append(d)
+    return {"records": res}
 
 if __name__ == "__main__":
     import uvicorn
