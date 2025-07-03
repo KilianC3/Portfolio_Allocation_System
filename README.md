@@ -77,11 +77,15 @@ Scrapers share a simple caching mechanism via `infra.smart_scraper.get` and resp
 
 ## Portfolio Management
 
-`portfolio.py` defines the `Portfolio` class which tracks allocations and logs trades executed by `execution.ExecutionEngine`. The engine wraps the Alpaca API and enforces basic risk checks.
+`core/portfolio.py` provides an abstract `Portfolio` base class. `core/equity.py` implements an `EquityPortfolio` using an execution gateway. The default gateway `AlpacaGateway` wraps Alpaca's REST API and applies basic risk checks.
 
 Weights are rebalanced to target percentages and all trades are recorded in MongoDB collections. Because Alpaca accounts do not support sub-portfolios, each order is tagged using `client_order_id` with the portfolio's identifier. Positions for a portfolio can be queried via the `/positions/{pf_id}` endpoint which aggregates executed trades.
 
 `Portfolio.rebalance` now closes stale positions as new weights are applied and leverages stored trade history rather than account-wide positions, ensuring clean separation between multiple portfolios hosted on the same Alpaca account.
+
+## Risk Management
+
+The new `risk` package calculates exposures, historical VaR and provides a simple `CircuitBreaker` to halt trading after large losses. These utilities operate on the master ledger stored in MongoDB and can be extended for additional controls.
 
 ## Analytics
 
@@ -91,14 +95,6 @@ alpha, beta, tracking error, information ratio and maximum drawdown. The
 portfolios dynamically while respecting volatility targets. Rebalancing jobs use
 the latest scraped data and stored returns so that portfolio adjustments do not
 introduce any look-ahead bias.
-
-## Testing
-
-The project includes a comprehensive test suite. To run the tests:
-```bash
-pytest -q
-```
-All tests should pass without needing network access. Dummy database objects are used when the `TESTING` environment variable is set.
 
 ## Running Example
 
