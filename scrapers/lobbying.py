@@ -1,15 +1,17 @@
 import datetime as dt
 from typing import List
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 from config import QUIVER_RATE_SEC
 from infra.rate_limiter import AsyncRateLimiter
 from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, lobbying_coll
+from pymongo.collection import Collection
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 
 # fallback to pf_coll when db not available in testing
-lobby_coll = lobbying_coll if db else pf_coll
+lobby_coll: Collection = lobbying_coll if db else pf_coll
 rate = AsyncRateLimiter(1, QUIVER_RATE_SEC)
 
 async def fetch_lobbying_data() -> List[dict]:
@@ -23,7 +25,7 @@ async def fetch_lobbying_data() -> List[dict]:
             scrape_errors.labels("lobbying").inc()
             raise
     soup = BeautifulSoup(html, "html.parser")
-    table = soup.find("table")
+    table: Tag | None = soup.find("table")
     data: List[dict] = []
     now = dt.datetime.utcnow()
     if table:

@@ -1,14 +1,16 @@
 import datetime as dt
 from typing import List
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 from config import QUIVER_RATE_SEC
 from infra.rate_limiter import AsyncRateLimiter
 from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll
+from pymongo.collection import Collection
 from infra.data_store import append_snapshot
 
 # fallback to pf_coll when db not available in testing
-insider_coll = db["dc_insider_scores"] if db else pf_coll
+insider_coll: Collection = db["dc_insider_scores"] if db else pf_coll
 rate = AsyncRateLimiter(1, QUIVER_RATE_SEC)
 
 async def fetch_dc_insider_scores() -> List[dict]:
@@ -17,7 +19,7 @@ async def fetch_dc_insider_scores() -> List[dict]:
     async with rate:
         html = await scrape_get(url)
     soup = BeautifulSoup(html, "html.parser")
-    table = soup.find("table")
+    table: Tag | None = soup.find("table")
     data: List[dict] = []
     now = dt.datetime.utcnow()
     if table:
