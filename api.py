@@ -13,7 +13,7 @@ from database import pf_coll, trade_coll, metric_coll
 from core.equity import EquityPortfolio
 from execution_gateway import AlpacaGateway
 from scheduler import StrategyScheduler
-from analytics import portfolio_metrics
+from analytics_utils import portfolio_metrics
 from analytics.collector import record_snapshot
 from ledger import MasterLedger
 import httpx
@@ -153,6 +153,19 @@ def get_positions(pf_id: str):
     if not pf:
         raise HTTPException(404, "portfolio not found")
     return {"positions": pf.positions()}
+
+
+@app.post("/close/{pf_id}/{symbol}")
+async def close_position(pf_id: str, symbol: str):
+    pf = portfolios.get(pf_id)
+    if not pf:
+        raise HTTPException(404, "portfolio not found")
+    weights = pf.weights.copy()
+    weights.pop(symbol, None)
+    pf.set_weights(weights)
+    pf_coll.update_one({"_id": pf_id}, {"$set": {"weights": weights}}, upsert=True)
+    await pf.rebalance()
+    return {"status": "closed"}
 
 @app.get("/trades/{pf_id}")
 def get_trades(pf_id: str, limit: int = 50):

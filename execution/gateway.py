@@ -118,6 +118,8 @@ class AlpacaGateway(ExecutionGateway):
         if abs(diff) / pv < 0.0003:
             return None
         price = await self._price(symbol)
+        if price < 0.5:
+            raise ValueError(f"price below 0.50 for {symbol}")
         qty = round(diff / price, 3)
         if qty == 0:
             return None
