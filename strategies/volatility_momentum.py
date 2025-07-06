@@ -4,7 +4,6 @@ import math
 from typing import Iterable
 
 import pandas as pd
-import yfinance as yf
 
 from core.equity import EquityPortfolio
 
@@ -18,6 +17,7 @@ class VolatilityScaledMomentum:
         self.long_only = long_only
 
     def _fetch_prices(self) -> pd.DataFrame:
+        import yfinance as yf
         df = yf.download(
             self.universe,
             period="13mo",
