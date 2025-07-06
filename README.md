@@ -36,6 +36,8 @@ Environment variables control connections and limits. Create a `.env` file or ex
 - `DB_NAME` – MongoDB database name (default `quant_fund`).
 - `MIN_ALLOCATION` and `MAX_ALLOCATION` – portfolio weight bounds.
 - `LOG_LEVEL` – logging verbosity (default `INFO`).
+- `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` – credentials for the Reddit API.
+- `REDDIT_USER_AGENT` – identifier string for Reddit requests (default `WSB-Strategy/1.0`).
 
 ## Running the API
 
