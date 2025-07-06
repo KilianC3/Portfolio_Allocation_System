@@ -11,6 +11,12 @@ if MONGO_URI.startswith("mongomock://"):
     sync = mongomock.MongoClient()
 else:
     sync = MongoClient(MONGO_URI)
+
+try:
+    sync.admin.command("ping")
+except Exception as e:
+    _log.error(f"Mongo connection failed: {e}")
+
 db = sync[DB_NAME]
 
 pf_coll = db["portfolios"]

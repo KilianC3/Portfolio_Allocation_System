@@ -29,7 +29,7 @@ class EquityPortfolio(Portfolio):
         pf_coll.update_one({"_id": self.id}, {"$set": {"name": self.name}}, upsert=True)
 
     def set_weights(self, weights: Dict[str, float]) -> None:
-        if not math.isclose(sum(weights.values()), 1.0, abs_tol=1e-4):
+        if weights and not math.isclose(sum(weights.values()), 1.0, abs_tol=1e-4):
             raise ValueError("weights must sum to 1")
         self.weights = weights
         pf_coll.update_one({"_id": self.id}, {"$set": {"weights": weights}}, upsert=True)

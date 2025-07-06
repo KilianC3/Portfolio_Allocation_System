@@ -35,6 +35,9 @@ Environment variables control connections and limits. Create a `.env` file or ex
 - `MONGO_URI` – MongoDB connection URI (default `mongodb://localhost:27017`).
 - `DB_NAME` – MongoDB database name (default `quant_fund`).
 - `MIN_ALLOCATION` and `MAX_ALLOCATION` – portfolio weight bounds.
+- `LOG_LEVEL` – logging verbosity (default `INFO`).
+- `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` – credentials for the Reddit API.
+- `REDDIT_USER_AGENT` – identifier string for Reddit requests (default `WSB-Strategy/1.0`).
 
 ## Running the API
 
@@ -87,6 +90,7 @@ of tables and columns.
 `core/portfolio.py` provides an abstract `Portfolio` base class. `core/equity.py` implements an `EquityPortfolio` using an execution gateway. The default gateway `AlpacaGateway` wraps Alpaca's REST API and applies basic risk checks.
 
 Weights are rebalanced to target percentages and all trades are recorded in MongoDB collections. Because Alpaca accounts do not support sub-portfolios, each order is tagged using `client_order_id` with the portfolio's identifier. Positions for a portfolio can be queried via the `/positions/{pf_id}` endpoint which aggregates executed trades.
+Individual positions can be closed via `POST /close/{pf_id}/{symbol}` which removes the symbol from the weight set and issues an order to exit.
 
 `Portfolio.rebalance` now closes stale positions as new weights are applied and leverages stored trade history rather than account-wide positions, ensuring clean separation between multiple portfolios hosted on the same Alpaca account.
 
@@ -96,7 +100,7 @@ The new `risk` package calculates exposures, historical VaR and provides a simpl
 
 ## Analytics
 
-`analytics.py` now exposes a wide range of statistics including Sharpe, Sortino,
+`analytics_utils.py` now exposes a wide range of statistics including Sharpe, Sortino,
 alpha, beta, tracking error, information ratio and maximum drawdown. The
 `allocation_engine.compute_weights` routine combines these measures to size
 portfolios dynamically while respecting volatility targets. Rebalancing jobs use
@@ -105,12 +109,11 @@ introduce any look-ahead bias.
 
 ## Running Example
 
-An example entry point is provided in `main.py` which demonstrates how to start a scheduler and register a sample strategy. Execute:
+An example entry point is provided in `start.py` which launches both the API server and scheduler. Execute:
 ```bash
-python main.py
+python start.py
 ```
-This will load any saved portfolios from the database, schedule strategies and run indefinitely until interrupted.
-
+This will load any saved portfolios from the database and run until interrupted.
 ## Quickstart
 
 1. Launch a local MongoDB instance and optional Redis server:
@@ -138,12 +141,11 @@ The table below lists the data sources used by each strategy and how often each 
 | Strategy | URL(s) | Rebalance Period | One-line description |
 |---------|-------|------------------|---------------------|
 | Congressional-Trading Aggregate | https://www.quiverquant.com/congresstrading/ | Weekly (Mon) | Hold the 20 stocks with the largest net congressional dollar-buys over the last 30 days. |
-| "Follow-the-Leader" Politician Sleeves | Meuser https://www.quiverquant.com/congresstrading/politician/Daniel%20Meuser-M001204 \| Pelosi https://www.quiverquant.com/congresstrading/politician/Nancy%20Pelosi-P000197 \| Gottheimer https://www.quiverquant.com/congresstrading/politician/Josh%20Gottheimer-G000583 | Monthly (first Mon) | Each sleeve mimics the politician’s 10 most-recent disclosed buys. |
+| "Follow-the-Leader" Politician Sleeves | Meuser https://www.quiverquant.com/congresstrading/politician/Daniel%20Meuser-M001204 \| Pelosi https://www.quiverquant.com/congresstrading/politician/Nancy%20Pelosi-P000197 \| Capito https://www.quiverquant.com/congresstrading/politician/Shelley%20Moore%20Capito-C001047 | Monthly (first Mon) | Each sleeve mimics the politician’s entire set of disclosed trades. |
 | DC Insider Score Tilt | https://www.quiverquant.com/scores/dcinsider | Weekly (Mon) | Go long the 30 highest "DC Insider"-scored stocks. |
 | Government-Contracts Momentum | https://www.quiverquant.com/sources/govcontracts | Monthly (first trading day) | Own every firm (max 25) awarded ≥ $50 M in new U.S. federal contracts in the prior month. |
 | Corporate Insider Buying Pulse | https://www.quiverquant.com/insiders/ | Weekly (Mon) | Hold the 25 names with the largest 30-day net executive dollar-buying. |
 | Wikipedia Attention Surge | https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/all-agents/{Page_Title}/daily/{start}/{end} | Weekly (Mon) | Long the 10 S&P 1500 stocks showing the biggest spike in Wikipedia page views (7 d vs 30 d z-score). |
-| Behind the Curtains | https://www.quiverquant.com/sources/behind-the-curtain/ | Monthly | Select up to 25 tickers that appear simultaneously in active bills, lobby spending, and recent congressional trades. |
 | Wall Street Bets Buzz | Reddit API (r/wallstreetbets) | Weekly (Mon) | Go long the 15 symbols with the fastest 7-day growth in subreddit mentions (≥ 500 baseline). |
 | App Reviews Hype Score | https://www.quiverquant.com/sources/appratings | Weekly (Mon) | Own the 20 stocks with the largest week-over-week rise in Quiver’s app-review “hype score.” |
 | Google Trends + News Sentiment | https://www.quiverquant.com/googletrends/ | Monthly (first trading day) | Hold the 30 tickers with the biggest month-over-month search-interest jump and positive news sentiment. |
@@ -195,26 +197,27 @@ Below is a step-by-step guide to running the system on an Ubuntu server. These s
    python -m scrapers.dc_insider
    python -m scrapers.gov_contracts
    ```
-
-8. **Launch the API server**
+8. **Launch the server**
    ```bash
-   uvicorn api:app --host 0.0.0.0 --port 8000 --reload >logs/api.log 2>&1 &
+   python start.py > logs/app.log 2>&1 &
    ```
-   Visit `http://your-server:8000/docs` to confirm it is running.
+   Visit `http://your-server:8000/docs` to confirm it is running. All requests
+   are CORS enabled so a future front end can consume the API directly.
 
-9. **Start the scheduler**
+9. *(Optional)* **Expose with Cloudflare Tunnel**
    ```bash
-   python main.py >logs/scheduler.log 2>&1 &
+   cloudflared tunnel --url http://localhost:8000
    ```
-   This process loads configured strategies and will log `{"running":true}` once initialised.
+   This hides your IP while still allowing secure access through a public URL.
 
 10. **Check logs for errors**
-    - `logs/api.log` – REST API requests and exceptions
-    - `logs/scheduler.log` – strategy execution, portfolio rebalances and any Alpaca errors
-    - Most functions also emit structured JSON to stdout which can be tailed with `journalctl` or `tail -f`.
+    - `logs/app.log` collects both API and scheduler messages
+    - Use `tail -f logs/app.log` to monitor activity in real time
+
+Databases and required collections are created automatically on first run.
 
 11. **Stopping services**
-    Use `pkill -f uvicorn` and `pkill -f main.py` or stop the processes via systemd if you create service files.
+    Use `pkill -f uvicorn` and `pkill -f start.py` or stop the processes via systemd if you create service files.
 
 ### Potential Pitfalls
 - Ensure system time is synced (use `timedatectl status`). Time drift can break signing for Alpaca requests.
