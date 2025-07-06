@@ -64,7 +64,9 @@ The scheduler also runs a weekly rebalancing job that uses metrics stored in Mon
 Daily performance data can be posted to the `/metrics/{pf_id}` endpoint. The API
 automatically updates trailing statistics such as Sharpe, Sortino, alpha, beta,
 tracking error and drawdown for each portfolio. These metrics feed directly into
-the allocation engine.
+the allocation engine. You can refresh statistics for all portfolios with
+`/collect/metrics`, which downloads latest prices and updates each portfolio's
+metrics even when no positions are held.
 
 ## Scrapers
 
@@ -131,8 +133,7 @@ This will load any saved portfolios from the database and run until interrupted.
    python -m scrapers.gov_contracts
    ```
    Each run appends rows to `data/altdata.duckdb` and MongoDB collections.
-4. Start the API server with Uvicorn as shown above. The `/analytics/{portfolio}` endpoint exposes
-   rolling statistics computed from the stored snapshots.
+4. Start the API server with Uvicorn as shown above. The `/health` endpoint reports service status and `/metrics` exposes Prometheus data. The `/analytics/{portfolio}` endpoint returns rolling statistics computed from the stored snapshots.
 
 ## Strategy Reference
 

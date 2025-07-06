@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Mapping, Optional
+from typing import Mapping, Optional, Literal
 
 import numpy as np
 import pandas as pd
-from sklearn.covariance import LedoitWolf
+
+from analytics.covariance import estimate_covariance
+from analytics.blacklitterman import market_implied_returns, black_litterman_posterior
 
 from config import MAX_ALLOC, MIN_ALLOC
 from database import db
@@ -84,6 +86,9 @@ def compute_weights(
     score_power: float = 1.0,
     sector_map: Optional[Mapping[str, str]] = None,
     sector_caps: Optional[Mapping[str, float]] = None,
+    signals: Optional[pd.Series] = None,
+    market_caps: Optional[pd.Series] = None,
+    cov_method: Literal["ledoit", "pca"] = "ledoit",
 ) -> dict[str, float]:
     """Compute dynamic portfolio weights.
 
@@ -109,6 +114,12 @@ def compute_weights(
         Map from symbol to sector name.
     sector_caps: Mapping[str, float] | None
         Maximum weight per sector.
+    signals: pd.Series | None
+        Expected return views for Black-Litterman adjustment.
+    market_caps: pd.Series | None
+        Market capitalisation weights for equilibrium returns.
+    cov_method: str
+        Covariance estimation method ("ledoit" or "pca").
 
     Returns
     -------
@@ -149,7 +160,19 @@ def compute_weights(
     w.loc[dd <= thresh] *= 0.5
     w /= w.sum()
 
-    cov = pd.DataFrame(LedoitWolf().fit(hist).covariance_, index=hist.columns, columns=hist.columns) * 252
+    cov = estimate_covariance(hist, method=cov_method)
+
+    if signals is not None and market_caps is not None:
+        market_caps = market_caps.reindex(hist.columns).fillna(0)
+        market_weights = market_caps / market_caps.sum()
+        pi = market_implied_returns(cov, market_weights)
+        P = pd.DataFrame(np.eye(len(signals)), index=signals.index, columns=signals.index)
+        Q = signals.reindex(signals.index)
+        bl_mu = black_litterman_posterior(cov, pi, P, Q)
+        score = bl_mu.clip(lower=0.0)
+        if score.sum() == 0:
+            score += 1
+        w = score / score.sum()
 
     w = _risk_parity(w, cov)
 

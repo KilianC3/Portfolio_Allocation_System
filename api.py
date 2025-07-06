@@ -1,5 +1,5 @@
 import datetime as dt
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +14,9 @@ from core.equity import EquityPortfolio
 from execution_gateway import AlpacaGateway
 from scheduler import StrategyScheduler
 from analytics_utils import portfolio_metrics
+from metrics import rebalance_latency
 from analytics.collector import record_snapshot
+from analytics import update_all_metrics
 from ledger import MasterLedger
 import httpx
 import redis.asyncio as aioredis
@@ -34,8 +36,8 @@ app.add_middleware(
 app.include_router(metrics_router)
 app.include_router(ws_router)
 
-@app.get("/healthz")
-async def healthz():
+@app.get("/health")
+async def health() -> dict:
     return {"status": "ok"}
 
 
@@ -143,7 +145,8 @@ async def rebalance(pf_id: str):
     pf = portfolios.get(pf_id)
     if not pf:
         raise HTTPException(404, "portfolio not found")
-    await pf.rebalance()
+    with rebalance_latency.labels(pf_id=pf_id).time():
+        await pf.rebalance()
     return {"status": "ok"}
 
 
@@ -208,7 +211,7 @@ def add_metric(pf_id: str, metric: MetricEntry):
 
 @app.get("/metrics/{pf_id}")
 def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = None):
-    q = {"portfolio_id": pf_id}
+    q: Dict[str, Any] = {"portfolio_id": pf_id}
     if start or end:
         q["date"] = {}
     if start:
@@ -224,6 +227,11 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
                 entry[k] = d[k]
         res.append(entry)
     return {"metrics": res}
+
+@app.post("/collect/metrics")
+def collect_all_metrics(days: int = 90):
+    update_all_metrics(days)
+    return {"status": "ok"}
 
 # Scheduler management endpoints
 @app.get("/scheduler/jobs")

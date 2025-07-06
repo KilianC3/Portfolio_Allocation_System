@@ -15,6 +15,7 @@ from database import trade_coll
 from ledger import MasterLedger
 from risk import PositionRisk
 from opentelemetry import trace
+from metrics import trade_slippage
 
 _log = get_logger("exec_gateway")
 
@@ -144,6 +145,12 @@ class AlpacaGateway(ExecutionGateway):
         resp = await self._request("POST", "/v2/orders", json=payload)
         if ledger and key is not None:
             await ledger.commit(key, qty)
+        try:
+            fill_price = float(resp.get("filled_avg_price", price))
+            slippage = (fill_price - price) / price * 10_000
+            trade_slippage.observe(slippage)
+        except Exception:
+            trade_slippage.observe(0)
         return resp
 
 __all__ = ["ExecutionGateway", "AlpacaGateway"]
