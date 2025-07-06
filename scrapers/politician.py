@@ -1,13 +1,15 @@
 import datetime as dt
-from typing import List
+from typing import List, Optional, cast
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 from config import QUIVER_RATE_SEC
 from infra.rate_limiter import AsyncRateLimiter
 from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll
+from pymongo.collection import Collection
 from infra.data_store import append_snapshot
 
-politician_coll = db["politician_trades"] if db else pf_coll
+politician_coll: Collection = db["politician_trades"] if db else pf_coll
 rate = AsyncRateLimiter(1, QUIVER_RATE_SEC)
 
 async def fetch_politician_trades() -> List[dict]:
@@ -15,11 +17,11 @@ async def fetch_politician_trades() -> List[dict]:
     async with rate:
         html = await scrape_get(url)
     soup = BeautifulSoup(html, "html.parser")
-    table = soup.find("table")
+    table = cast(Optional[Tag], soup.find("table"))
     data = []
     now = dt.datetime.utcnow()
     if table:
-        for row in table.find_all("tr")[1:]:
+        for row in cast(List[Tag], table.find_all("tr"))[1:]:
             cells = [c.get_text(strip=True) for c in row.find_all("td")]
             if len(cells) >= 5:
                 item = {

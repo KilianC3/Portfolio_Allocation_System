@@ -7,7 +7,7 @@ from typing import Sequence
 
 import numpy as np
 import pandas as pd
-from prometheus_client import Gauge
+from prometheus_client import Gauge, Histogram, Counter
 
 alpha_gauge = Gauge("strategy_alpha", "Alpha")
 beta_gauge = Gauge("strategy_beta", "Beta")
@@ -15,6 +15,17 @@ maxdd_gauge = Gauge("strategy_max_drawdown", "Maximum drawdown")
 var_gauge = Gauge("strategy_var", "Value at Risk")
 cvar_gauge = Gauge("strategy_cvar", "Conditional Value at Risk")
 tail_gauge = Gauge("strategy_tail_ratio", "Tail ratio")
+
+scrape_latency = Histogram(
+    "scraper_latency_seconds", "Scraper latency", ["name"]
+)
+scrape_errors = Counter("scraper_errors_total", "Scraper errors", ["name"])
+rebalance_latency = Histogram(
+    "rebalance_latency_seconds", "Rebalance duration", ["pf_id"]
+)
+trade_slippage = Histogram(
+    "trade_slippage_bp", "Trade slippage in basis points"
+)
 
 
 def alpha_beta(r: pd.Series, benchmark: pd.Series) -> tuple[float, float]:
@@ -70,4 +81,8 @@ __all__ = [
     "var_gauge",
     "cvar_gauge",
     "tail_gauge",
+    "scrape_latency",
+    "scrape_errors",
+    "rebalance_latency",
+    "trade_slippage",
 ]

@@ -6,7 +6,7 @@ import datetime as dt
 import uuid
 import math
 from types import SimpleNamespace
-from typing import Dict
+from typing import Any, Dict
 
 from database import trade_coll, pf_coll
 from execution.gateway import ExecutionGateway
@@ -35,7 +35,7 @@ class EquityPortfolio(Portfolio):
         pf_coll.update_one({"_id": self.id}, {"$set": {"weights": weights}}, upsert=True)
         _log.info({"set": weights, "pf": self.name})
 
-    def _log_trade(self, order: object) -> None:
+    def _log_trade(self, order: Any) -> None:
         trade_coll.insert_one({
             "portfolio_id": self.id,
             "timestamp": dt.datetime.utcnow(),

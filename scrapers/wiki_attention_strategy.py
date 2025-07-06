@@ -8,7 +8,7 @@ import re
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
-import requests
+import requests  # type: ignore[import-untyped]
 import wikipedia
 import yfinance as yf
 from tqdm import tqdm
