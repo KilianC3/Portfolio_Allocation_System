@@ -9,7 +9,8 @@ Key features include:
 - Scheduler that can be started or stopped via API or `AUTO_START_SCHED`
 - Safety checks for Alpaca paper vs live trading endpoints
 - Continuous analytics for each strategy and overall account equity
-- Optional API token authentication and real-time SSE/WebSocket streams
+- Daily account tracking and a `/stream/account` SSE endpoint
+- Optional API token authentication and real-time WebSocket streams
 
 ## Prerequisites
 
@@ -118,13 +119,13 @@ Individual positions can be closed via `POST /close/{pf_id}/{symbol}` which remo
 
 ## Risk Management
 
-The `risk` package includes dynamic correlation regime detection. Rolling
-correlations are fed into a Gaussian mixture model to spot regime shifts. During
-high-correlation crises the allocation engine automatically de-leverages.
-Existing utilities still calculate exposures, historical VaR and offer a
-`CircuitBreaker` to halt trading after large losses. Covariance estimates use
-Ledoit–Wolf shrinkage by default with an optional min–max solver to guard
-against estimation error.
+The `risk` package provides dynamic correlation regime detection using a
+Gaussian mixture model. You may swap in a Hidden Markov Model if desired.
+Rolling correlations trigger a de‑leveraging step when the market enters a
+high-correlation crisis regime. Covariance estimates rely on Ledoit–Wolf
+shrinkage by default with an optional min–max solver to guard against
+estimation error. Additional utilities calculate exposures, historical VaR and
+offer a `CircuitBreaker` to halt trading after large losses.
 
 ## Analytics
 
@@ -133,7 +134,8 @@ alpha, beta, tracking error, information ratio and maximum drawdown. The
 `allocation_engine.compute_weights` routine combines these measures to size
 portfolios dynamically while respecting volatility targets. Rebalancing jobs use
 the latest scraped data and stored returns so that portfolio adjustments do not
-introduce any look-ahead bias.
+introduce any look-ahead bias. Metrics are collected daily even when a
+portfolio holds no positions so performance history is always up to date.
 
 Account-level equity is also recorded daily. The scheduler calls
 `record_account` which stores equity and last equity for the configured

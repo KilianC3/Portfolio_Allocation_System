@@ -66,3 +66,5 @@ Additional rules:
 - Run `pytest -q` and include tests for new features when possible.
 - Update the README or docs whenever behaviour or configuration changes.
 - Keep commits focused and messages concise.
+- If tests fail due to missing services (e.g. MongoDB) note the failure and
+  reason in the PR summary.
