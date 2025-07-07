@@ -35,3 +35,7 @@ transformers>=4.41.1
 sentencepiece>=0.2.0
 rich>=13.7.1
 mypy>=1.8.0
+
+pydantic>=2.5.0
+pyarrow>=14.0.2
+sentry-sdk>=2.0.0
