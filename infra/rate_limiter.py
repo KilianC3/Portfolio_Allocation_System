@@ -30,3 +30,22 @@ class AsyncRateLimiter:
                     self.cond.notify_all()
                     return
                 await self.cond.wait()
+
+
+class DynamicRateLimiter(AsyncRateLimiter):
+    """Rate limiter that expands the waiting period when backoff is triggered."""
+
+    def __init__(self, max_calls: int, period: float, factor: float = 2.0, max_period: float = 60.0) -> None:
+        super().__init__(max_calls, period)
+        self.base_period = period
+        self.factor = factor
+        self.max_period = max_period
+
+    def backoff(self) -> None:
+        """Increase the period exponentially up to ``max_period``."""
+        self.period = min(self.period * self.factor, self.max_period)
+
+    def reset(self) -> None:
+        """Reset the period to the original value."""
+        self.period = self.base_period
+

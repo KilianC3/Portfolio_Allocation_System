@@ -6,10 +6,10 @@ from typing import Iterable, List
 import pandas as pd
 
 from infra.smart_scraper import get as scrape_get
-from infra.rate_limiter import AsyncRateLimiter
+from infra.rate_limiter import DynamicRateLimiter
 from config import QUIVER_RATE_SEC
 
-rate = AsyncRateLimiter(1, QUIVER_RATE_SEC)
+rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 
 async def _fetch_ticker(sym: str) -> pd.DataFrame:

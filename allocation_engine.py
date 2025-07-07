@@ -9,6 +9,8 @@ import pandas as pd
 
 from analytics.covariance import estimate_covariance
 from analytics.blacklitterman import market_implied_returns, black_litterman_posterior
+from analytics.robust import minmax_portfolio
+from risk.corr_regime import correlation_regime
 
 from config import MAX_ALLOC, MIN_ALLOC
 from database import db
@@ -89,6 +91,7 @@ def compute_weights(
     signals: Optional[pd.Series] = None,
     market_caps: Optional[pd.Series] = None,
     cov_method: Literal["ledoit", "pca"] = "ledoit",
+    robust: bool = False,
 ) -> dict[str, float]:
     """Compute dynamic portfolio weights.
 
@@ -120,6 +123,8 @@ def compute_weights(
         Market capitalisation weights for equilibrium returns.
     cov_method: str
         Covariance estimation method ("ledoit" or "pca").
+    robust: bool
+        Use min-max optimisation to guard against covariance uncertainty.
 
     Returns
     -------
@@ -168,13 +173,21 @@ def compute_weights(
         pi = market_implied_returns(cov, market_weights)
         P = pd.DataFrame(np.eye(len(signals)), index=signals.index, columns=signals.index)
         Q = signals.reindex(signals.index)
-        bl_mu = black_litterman_posterior(cov, pi, P, Q)
+        tau_adj = 0.05 * (1 + signals.std())
+        bl_mu = black_litterman_posterior(cov, pi, P, Q, tau=tau_adj)
         score = bl_mu.clip(lower=0.0)
         if score.sum() == 0:
             score += 1
         w = score / score.sum()
 
     w = _risk_parity(w, cov)
+    if robust:
+        w = minmax_portfolio(score, cov, gamma=2.0)
+
+    regime = correlation_regime(hist)
+    if regime == "high":
+        w *= 0.5
+        w /= w.sum()
 
     if w_prev is not None and lambda_fee > 0:
         prev = pd.Series(w_prev).reindex(w.index).fillna(0)
