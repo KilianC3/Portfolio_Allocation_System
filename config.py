@@ -9,10 +9,8 @@ ALPACA_BASE_URL = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets
 
 QUIVER_RATE_SEC = float(os.getenv("QUIVER_RATE_SEC", 1.1))
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost/quant_fund",
-)
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+DB_NAME = os.getenv("DB_NAME", "quant_fund")
 
 MIN_ALLOC = float(os.getenv("MIN_ALLOCATION", 0.02))
 MAX_ALLOC = float(os.getenv("MAX_ALLOCATION", 0.40))

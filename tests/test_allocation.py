@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["MONGO_URI"] = "mongomock://localhost"
 
 from allocation_engine import compute_weights
 

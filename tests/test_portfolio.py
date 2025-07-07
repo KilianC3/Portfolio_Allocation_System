@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["MONGO_URI"] = "mongomock://localhost"
 
 from execution.gateway import ExecutionGateway
 from core.equity import EquityPortfolio

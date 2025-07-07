@@ -1,6 +1,6 @@
 import os
 
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["MONGO_URI"] = "mongomock://localhost"
 
 import pytest
 from aioresponses import aioresponses

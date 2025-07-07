@@ -3,7 +3,7 @@ import asyncio
 import pandas as pd
 import numpy as np
 
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["MONGO_URI"] = "mongomock://localhost"
 
 from strategies.volatility_momentum import VolatilityScaledMomentum
 

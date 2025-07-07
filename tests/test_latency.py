@@ -6,7 +6,7 @@ import pytest
 import respx
 import httpx
 
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["MONGO_URI"] = "mongomock://localhost"
 
 from execution.gateway import AlpacaGateway
 

@@ -1,7 +1,7 @@
 import os
 import datetime as dt
 
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+os.environ["MONGO_URI"] = "mongomock://localhost"
 os.environ["API_TOKEN"] = "secret"
 
 from fastapi.testclient import TestClient
