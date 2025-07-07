@@ -3,7 +3,7 @@ import asyncio
 import pandas as pd
 import numpy as np
 
-os.environ['MONGO_URI'] = 'mongomock://localhost'
+os.environ["MONGO_URI"] = "mongomock://localhost"
 
 from strategies.volatility_momentum import VolatilityScaledMomentum
 
@@ -21,11 +21,13 @@ class DummyPF:
 
 async def _run():
     strat = VolatilityScaledMomentum(["A", "B", "C"], n=1, long_only=True)
-    prices = pd.DataFrame({
-        "A": np.linspace(1, 2, 260),
-        "B": np.linspace(1, 1.2, 260),
-        "C": np.linspace(1, 0.8, 260),
-    })
+    prices = pd.DataFrame(
+        {
+            "A": np.linspace(1, 2, 260),
+            "B": np.linspace(1, 1.2, 260),
+            "C": np.linspace(1, 0.8, 260),
+        }
+    )
     strat._fetch_prices = lambda: prices
     pf = DummyPF()
     await strat.build(pf)

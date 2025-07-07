@@ -27,4 +27,3 @@ async def _run():
 def test_event_weights():
     weights = asyncio.run(_run())
     assert weights == {"ABC": 1.0}
-

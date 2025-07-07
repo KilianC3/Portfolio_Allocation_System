@@ -1,10 +1,12 @@
 import os
-os.environ['MONGO_URI'] = 'mongomock://localhost'
+
+os.environ["MONGO_URI"] = "mongomock://localhost"
 
 from fastapi.testclient import TestClient
 from api import app
 
 client = TestClient(app)
+
 
 def test_close_position_endpoint():
     # create portfolio

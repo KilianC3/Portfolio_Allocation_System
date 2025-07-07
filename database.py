@@ -28,6 +28,7 @@ trade_coll: Collection = db["trades"]
 metric_coll: Collection = db["metrics"]
 politician_coll: Collection = db["politician_trades"]
 lobbying_coll: Collection = db["lobbying"]
+lobby_coll = lobbying_coll  # backward compatibility alias
 wiki_coll: Collection = db["wiki_views"]
 insider_coll: Collection = db["dc_insider_scores"]
 contracts_coll: Collection = db["gov_contracts"]
