@@ -6,7 +6,7 @@ import pytest
 import respx
 import httpx
 
-os.environ["MONGO_URI"] = "mongomock://localhost"
+os.environ["PG_URI"] = "postgresql://localhost/test"
 
 from execution.gateway import AlpacaGateway
 

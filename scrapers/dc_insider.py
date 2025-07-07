@@ -6,12 +6,12 @@ from config import QUIVER_RATE_SEC
 from infra.rate_limiter import DynamicRateLimiter
 from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll
-from pymongo.collection import Collection
 from infra.data_store import append_snapshot
 
 # fallback to pf_coll when db not available in testing
-insider_coll: Collection = db["dc_insider_scores"] if db else pf_coll
+insider_coll = db["dc_insider_scores"] if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
+
 
 async def fetch_dc_insider_scores() -> List[dict]:
     """Scrape DC Insider scores from QuiverQuant."""
@@ -44,4 +44,5 @@ async def fetch_dc_insider_scores() -> List[dict]:
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(fetch_dc_insider_scores())

@@ -13,7 +13,7 @@ from analytics.robust import minmax_portfolio
 from risk.corr_regime import correlation_regime
 
 from config import MAX_ALLOC, MIN_ALLOC
-from database import db
+from database import db, alloc_log_coll
 from logger import get_logger
 
 _log = get_logger("alloc")
@@ -68,13 +68,15 @@ def _risk_parity(w: pd.Series, cov: pd.DataFrame) -> pd.Series:
     return pd.Series(arr, index=w.index)
 
 
-def _log_to_mongo(table: pd.DataFrame) -> None:
+def _log_to_db(table: pd.DataFrame) -> None:
     """Persist scoring table for audit; ignore failures."""
     try:
-        coll = db["alloc_log"]
-        coll.insert_one(table.reset_index().rename(columns={"index": "symbol"}).to_dict())
+        coll = alloc_log_coll if alloc_log_coll else db["alloc_log"]
+        coll.insert_one(
+            table.reset_index().rename(columns={"index": "symbol"}).to_dict()
+        )
     except Exception as exc:  # pragma: no cover - logging should not fail tests
-        _log.warning({"mongo_error": str(exc)})
+        _log.warning({"db_error": str(exc)})
 
 
 def compute_weights(
@@ -139,7 +141,9 @@ def compute_weights(
     # Exponentially weighted statistics
     mean = hist.ewm(alpha=alpha, adjust=False).mean().iloc[-1]
     vol = hist.ewm(alpha=alpha, adjust=False).std(bias=False).iloc[-1]
-    downside = hist.clip(upper=0).ewm(alpha=alpha, adjust=False).std(bias=False).iloc[-1]
+    downside = (
+        hist.clip(upper=0).ewm(alpha=alpha, adjust=False).std(bias=False).iloc[-1]
+    )
 
     sharpe_scores = (mean / vol.replace(0, np.nan)).fillna(0) * np.sqrt(252)
     sortino_scores = (mean / downside.replace(0, np.nan)).fillna(0) * np.sqrt(252)
@@ -171,7 +175,9 @@ def compute_weights(
         market_caps = market_caps.reindex(hist.columns).fillna(0)
         market_weights = market_caps / market_caps.sum()
         pi = market_implied_returns(cov, market_weights)
-        P = pd.DataFrame(np.eye(len(signals)), index=signals.index, columns=signals.index)
+        P = pd.DataFrame(
+            np.eye(len(signals)), index=signals.index, columns=signals.index
+        )
         Q = signals.reindex(signals.index)
         tau_adj = 0.05 * (1 + signals.std())
         bl_mu = black_litterman_posterior(cov, pi, P, Q, tau=tau_adj)
@@ -226,16 +232,18 @@ def compute_weights(
     if np.sqrt(float(w @ cov @ w)) > target_vol * 1.1:
         raise ValueError("volatility target unattainable")
 
-    table = pd.DataFrame({
-        "sharpe": sharpe_scores,
-        "sortino": sortino_scores,
-        "drawdown": dd,
-        "weight": w,
-    })
+    table = pd.DataFrame(
+        {
+            "sharpe": sharpe_scores,
+            "sortino": sortino_scores,
+            "drawdown": dd,
+            "weight": w,
+        }
+    )
     if ab is not None:
         table.loc["alpha"] = ab.loc["alpha"]
         table.loc["beta"] = ab.loc["beta"]
-    _log_to_mongo(table.T)
+    _log_to_db(table.T)
 
     _log.info({"weights": w.to_dict(), "vol": port_vol, "scale": k})
     return w.to_dict()

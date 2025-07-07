@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 
-os.environ["MONGO_URI"] = "mongomock://localhost"
+os.environ["PG_URI"] = "postgresql://localhost/test"
 
 from allocation_engine import compute_weights
 

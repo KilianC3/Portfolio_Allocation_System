@@ -1,7 +1,7 @@
 import os
 import datetime as dt
 
-os.environ["MONGO_URI"] = "mongomock://localhost"
+os.environ["PG_URI"] = "postgresql://localhost/test"
 os.environ["API_TOKEN"] = "secret"
 
 from fastapi.testclient import TestClient
