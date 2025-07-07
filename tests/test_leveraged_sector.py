@@ -18,12 +18,14 @@ class DummyPF:
 
 async def _run():
     strat = LeveragedSectorMomentum(["A", "B", "C", "D"])
-    prices = pd.DataFrame({
-        "A": np.linspace(1, 2, 70),
-        "B": np.linspace(1, 3, 70),
-        "C": np.linspace(1, 1.5, 70),
-        "D": np.linspace(1, 4, 70),
-    })
+    prices = pd.DataFrame(
+        {
+            "A": np.linspace(1, 2, 70),
+            "B": np.linspace(1, 3, 70),
+            "C": np.linspace(1, 1.5, 70),
+            "D": np.linspace(1, 4, 70),
+        }
+    )
     strat._fetch_prices = lambda: prices
     pf = DummyPF()
     await strat.build(pf)
@@ -33,5 +35,4 @@ async def _run():
 def test_leveraged_weights():
     weights = asyncio.run(_run())
     assert set(weights) == {"B", "D", "A"}
-    assert all(abs(v - 1/3) < 1e-6 for v in weights.values())
-
+    assert all(abs(v - 1 / 3) < 1e-6 for v in weights.values())

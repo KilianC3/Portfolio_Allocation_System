@@ -1,6 +1,6 @@
 import os
 
-os.environ["MONGO_URI"] = "mongomock://localhost"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
 import asyncio
 import datetime as dt

@@ -5,7 +5,9 @@ from analytics.blacklitterman import market_implied_returns, black_litterman_pos
 
 
 def test_black_litterman_posterior():
-    cov = pd.DataFrame([[0.04, 0.006], [0.006, 0.09]], index=["A", "B"], columns=["A", "B"])
+    cov = pd.DataFrame(
+        [[0.04, 0.006], [0.006, 0.09]], index=["A", "B"], columns=["A", "B"]
+    )
     mkt_w = pd.Series([0.6, 0.4], index=["A", "B"])
     pi = market_implied_returns(cov, mkt_w, risk_aversion=2.5)
     P = pd.DataFrame(np.eye(2), index=["A", "B"], columns=["A", "B"])

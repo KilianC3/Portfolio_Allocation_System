@@ -1,13 +1,13 @@
 # Portfolio Allocation System
 
-The Portfolio Allocation System is a Python service for running data-driven trading strategies.  A FastAPI server exposes REST endpoints while a background scheduler executes portfolio updates.  Data scrapers load alternative data into MongoDB and DuckDB, and the execution gateway places orders through the Alpaca API.  Logging, metrics and optional distributed tracing provide full observability.
+The Portfolio Allocation System is a Python service for running data-driven trading strategies.  A FastAPI server exposes REST endpoints while a background scheduler executes portfolio updates.  Data scrapers load alternative data into PostgreSQL/TimescaleDB and DuckDB, and the execution gateway places orders through the Alpaca API.  Logging, metrics and optional distributed tracing provide full observability.
 
 ## Technical Features
 
 - **FastAPI Service** – async HTTP interface with token authentication
 - **APScheduler** – cron-like scheduler for strategy execution
 - **Alpaca Gateway** – unified wrapper around the Alpaca REST API with paper/live detection
-- **MongoDB + DuckDB** – persistent storage for trades, snapshots and alt-data
+- **PostgreSQL/TimescaleDB + DuckDB** – persistent storage for trades, snapshots and alt-data
 - **Dynamic Scrapers** – rate limited fetchers for QuiverQuant datasets
 - **Risk Models** – covariance estimation, correlation regime detection and VaR
 - **Analytics** – daily statistics, Prometheus metrics and OpenTelemetry tracing

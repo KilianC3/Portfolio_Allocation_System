@@ -3,6 +3,8 @@ from .upgrade_momentum import UpgradeMomentumStrategy
 from .sector_momentum import SectorRiskParityMomentum
 from .leveraged_sector import LeveragedSectorMomentum
 from .biotech_event import BiotechBinaryEventBasket
+from .lobbying_growth import LobbyingGrowthStrategy
+from .wallstreetbets import RedditBuzzStrategy
 
 __all__ = [
     "VolatilityScaledMomentum",
@@ -10,4 +12,6 @@ __all__ = [
     "SectorRiskParityMomentum",
     "LeveragedSectorMomentum",
     "BiotechBinaryEventBasket",
+    "LobbyingGrowthStrategy",
+    "RedditBuzzStrategy",
 ]

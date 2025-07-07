@@ -15,12 +15,14 @@ class DummyPF:
 
 
 async def fake_rank(self, *args, **kwargs):
-    data = pd.DataFrame({
-        "symbol": [f"S{i}" for i in range(10)],
-        "upgrades": list(range(10)),
-        "downgrades": [0]*10,
-        "total": [1]*10,
-    })
+    data = pd.DataFrame(
+        {
+            "symbol": [f"S{i}" for i in range(10)],
+            "upgrades": list(range(10)),
+            "downgrades": [0] * 10,
+            "total": [1] * 10,
+        }
+    )
     data["ratio"] = data["upgrades"] / data["total"]
     return data.sort_values("ratio", ascending=False)
 

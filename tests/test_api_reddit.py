@@ -1,10 +1,12 @@
 import os
-os.environ['MONGO_URI'] = 'mongomock://localhost'
+
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 
 from fastapi.testclient import TestClient
 from api import app, sched
 
 client = TestClient(app)
+
 
 def test_schedule_reddit_strategy():
     resp = client.post(

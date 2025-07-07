@@ -4,6 +4,7 @@ import pytest
 
 from metrics import alpha_beta, max_drawdown, value_at_risk, conditional_var, tail_ratio
 
+
 @pytest.mark.asyncio
 async def test_metrics_values():
     r = pd.Series([0.02, -0.01, 0.03, -0.02, 0.01])
