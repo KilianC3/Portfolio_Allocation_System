@@ -12,7 +12,7 @@ import pandas as pd
 from logger import get_logger
 from observability import metrics_router
 from ws import ws_router
-from database import pf_coll, trade_coll, metric_coll
+from database import pf_coll, trade_coll, metric_coll, init_db
 from core.equity import EquityPortfolio
 from execution_gateway import AlpacaGateway
 from scheduler import StrategyScheduler
@@ -138,6 +138,7 @@ def _load_portfolios():
 @app.on_event("startup")
 def startup_event():
     try:
+        init_db()
         _load_portfolios()
         if AUTO_START_SCHED:
             sched.start()

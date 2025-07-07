@@ -3,7 +3,7 @@ import asyncio
 import pandas as pd
 import numpy as np
 
-os.environ["MONGO_URI"] = "mongomock://localhost"
+os.environ["PG_URI"] = "postgresql://localhost/test"
 
 from strategies.volatility_momentum import VolatilityScaledMomentum
 

@@ -1,6 +1,6 @@
 import os
 
-os.environ["MONGO_URI"] = "mongomock://localhost"
+os.environ["PG_URI"] = "postgresql://localhost/test"
 
 import asyncio
 import datetime as dt

@@ -6,13 +6,13 @@ from config import QUIVER_RATE_SEC
 from infra.rate_limiter import DynamicRateLimiter
 from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, lobbying_coll
-from pymongo.collection import Collection
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 
 # fallback to pf_coll when db not available in testing
-lobby_coll: Collection = lobbying_coll if db else pf_coll
+lobby_coll = lobbying_coll if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
+
 
 async def fetch_lobbying_data() -> List[dict]:
     """Scrape corporate lobbying spending from QuiverQuant."""
@@ -51,4 +51,5 @@ async def fetch_lobbying_data() -> List[dict]:
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(fetch_lobbying_data())
