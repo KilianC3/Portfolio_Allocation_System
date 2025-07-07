@@ -335,17 +335,17 @@ def init_db() -> None:
         )
 
 
-db = PGDatabase(_conn) if _conn else None
+db = PGDatabase(_conn)
 
-pf_coll = db["portfolios"] if db else None
-trade_coll = db["trades"] if db else None
-metric_coll = db["metrics"] if db else None
-politician_coll = db["politician_trades"] if db else None
-lobbying_coll = db["lobbying"] if db else None
+pf_coll = db["portfolios"]
+trade_coll = db["trades"]
+metric_coll = db["metrics"]
+politician_coll = db["politician_trades"]
+lobbying_coll = db["lobbying"]
 lobby_coll = lobbying_coll
-wiki_coll = db["wiki_views"] if db else None
-insider_coll = db["dc_insider_scores"] if db else None
-contracts_coll = db["gov_contracts"] if db else None
-alloc_log_coll = db["alloc_log"] if db else None
-cache = db["cache"] if db else None
-account_coll = db["account_metrics"] if db else None
+wiki_coll = db["wiki_views"]
+insider_coll = db["dc_insider_scores"]
+contracts_coll = db["gov_contracts"]
+alloc_log_coll = db["alloc_log"]
+cache = db["cache"]
+account_coll = db["account_metrics"]
