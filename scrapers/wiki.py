@@ -3,7 +3,7 @@ from typing import List, Optional, cast
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from config import QUIVER_RATE_SEC
-from infra.rate_limiter import AsyncRateLimiter
+from infra.rate_limiter import DynamicRateLimiter
 from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, wiki_coll
 from pymongo.collection import Collection
@@ -11,7 +11,7 @@ from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 
 wiki_collection: Collection = wiki_coll if db else pf_coll
-rate = AsyncRateLimiter(1, QUIVER_RATE_SEC)
+rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 async def fetch_wiki_views() -> List[dict]:
     """Scrape most viewed company pages from QuiverQuant."""

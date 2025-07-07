@@ -10,14 +10,14 @@ from typing import Optional
 
 import aiohttp
 
-from infra.rate_limiter import AsyncRateLimiter
+from infra.rate_limiter import DynamicRateLimiter
 from database import cache
 
 
 USER_AGENTS = ["Mozilla/5.0", "Chrome/122.0", "Safari/537.36"]
 """List of user agents rotated on each request."""
 
-RATE = AsyncRateLimiter(12, 60)
+RATE = DynamicRateLimiter(12, 60)
 """Scrape at most 12 pages per minute."""
 
 TTL = 900
@@ -73,9 +73,13 @@ async def get(url: str, retries: int = 3) -> str:
                             },
                             upsert=True,
                         )
+                        RATE.reset()
                         return text
+                    else:
+                        RATE.backoff()
             except Exception as exc:
                 err = exc
+                RATE.backoff()
             await asyncio.sleep(backoff)
             backoff *= 2
         raise RuntimeError(f"Failed {url}: {err}")

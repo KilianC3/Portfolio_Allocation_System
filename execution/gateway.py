@@ -19,6 +19,7 @@ from metrics import trade_slippage
 
 _log = get_logger("exec_gateway")
 
+
 class ExecutionGateway:
     """Abstract execution gateway interface."""
 
@@ -35,12 +36,18 @@ class ExecutionGateway:
     async def submit_batch(self, orders: List[Dict]):
         raise NotImplementedError
 
+
 class AlpacaGateway(ExecutionGateway):
     """Alpaca REST implementation using httpx.AsyncClient."""
 
     MAX_NOTIONAL = 25_000
 
-    def __init__(self) -> None:
+    def __init__(self, allow_live: bool = False) -> None:
+        self.paper = "paper-api" in ALPACA_BASE_URL
+        if not self.paper and not allow_live:
+            raise RuntimeError(
+                "Live trading endpoint configured; pass allow_live=True to enable"
+            )
         self.client = httpx.AsyncClient(
             base_url=ALPACA_BASE_URL,
             headers={
@@ -69,8 +76,12 @@ class AlpacaGateway(ExecutionGateway):
             return resp.json()
 
     async def _pv(self) -> float:
-        data = await self._request("GET", "/v2/account")
+        data = await self.account()
         return float(data.get("portfolio_value", 0))
+
+    async def account(self) -> Dict:
+        """Return account details from Alpaca."""
+        return await self._request("GET", "/v2/account")
 
     async def _price(self, symbol: str) -> float:
         data = await self._request("GET", f"/v2/stocks/{symbol}/trades/latest")
@@ -152,5 +163,6 @@ class AlpacaGateway(ExecutionGateway):
         except Exception:
             trade_slippage.observe(0)
         return resp
+
 
 __all__ = ["ExecutionGateway", "AlpacaGateway"]

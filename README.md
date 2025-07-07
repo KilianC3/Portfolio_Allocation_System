@@ -2,6 +2,15 @@
 
 This project implements a minimal portfolio management API and scraping suite built with Python. It provides tools to schedule trading strategies, collect alternative data and record trades in a MongoDB database.
 
+Key features include:
+- Dynamic rate limiting with exponential backoff for all scrapers
+- Rolling correlation regime detection using a Gaussian mixture model
+- Robust portfolio optimisation with optional min–max solver
+- Scheduler that can be started or stopped via API or `AUTO_START_SCHED`
+- Safety checks for Alpaca paper vs live trading endpoints
+- Continuous analytics for each strategy and overall account equity
+- Optional API token authentication and real-time SSE/WebSocket streams
+
 ## Prerequisites
 
 - Python 3.12+
@@ -30,7 +39,7 @@ This project implements a minimal portfolio management API and scraping suite bu
 Environment variables control connections and limits. Create a `.env` file or export variables in your shell.
 
 - `ALPACA_API_KEY` and `ALPACA_API_SECRET` – credentials for Alpaca Trade API.
-- `ALPACA_BASE_URL` – API endpoint (default `https://paper-api.alpaca.markets`).
+- `ALPACA_BASE_URL` – API endpoint (default `https://paper-api.alpaca.markets`). Use the paper URL for testing and the live URL only when ready to trade.
 - `QUIVER_RATE_SEC` – seconds between scraper requests (default `1.1`).
 - `MONGO_URI` – MongoDB connection URI (default `mongodb://localhost:27017`).
 - `DB_NAME` – MongoDB database name (default `quant_fund`).
@@ -38,6 +47,9 @@ Environment variables control connections and limits. Create a `.env` file or ex
 - `LOG_LEVEL` – logging verbosity (default `INFO`).
 - `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` – credentials for the Reddit API.
 - `REDDIT_USER_AGENT` – identifier string for Reddit requests (default `WSB-Strategy/1.0`).
+- `AUTO_START_SCHED` – set to `true` to launch the scheduler automatically when
+  the API starts. Otherwise call `/scheduler/start` once ready to trade.
+- `API_TOKEN` – if set, all endpoints require `Authorization: Bearer <token>`.
 
 ## Running the API
 
@@ -58,15 +70,17 @@ Example usage:
 from scheduler import StrategyScheduler
 sched = StrategyScheduler()
 sched.add('lobby', 'Lobbying', 'strategies.lobbying_growth', 'LobbyingGrowthStrategy', 'monthly')
-sched.start()
+sched.start()  # or call `/scheduler/start` via the API
 ```
-The scheduler also runs a weekly rebalancing job that uses metrics stored in MongoDB to compute new allocations via `allocation_engine.compute_weights`.
+The scheduler also runs a weekly rebalancing job that uses metrics stored in MongoDB to compute new allocations via `allocation_engine.compute_weights`. When finished trading you can stop all jobs with `/scheduler/stop`.
 Daily performance data can be posted to the `/metrics/{pf_id}` endpoint. The API
 automatically updates trailing statistics such as Sharpe, Sortino, alpha, beta,
 tracking error and drawdown for each portfolio. These metrics feed directly into
 the allocation engine. You can refresh statistics for all portfolios with
 `/collect/metrics`, which downloads latest prices and updates each portfolio's
-metrics even when no positions are held.
+metrics even when no positions are held. A daily scheduler task calls this
+endpoint automatically so strategy analytics are always captured even if the
+portfolio is inactive.
 
 ## Scrapers
 
@@ -78,7 +92,10 @@ Modules in `scrapers/` fetch datasets from QuiverQuant. Each function returns a 
 - `dc_insider.py` – insider sentiment and investor scores
 - `gov_contracts.py` – government contract awards
 
-Scrapers share a simple caching mechanism via `infra.smart_scraper.get` and respect rate limits using `infra.rate_limiter.AsyncRateLimiter`.
+Scrapers share a simple caching mechanism via `infra.smart_scraper.get` and now
+use a dynamic rate limiter with exponential backoff
+(`infra.rate_limiter.DynamicRateLimiter`). This adapts to transient 429 responses
+so scraping continues smoothly under heavy load.
 
 ## Data Store
 
@@ -91,6 +108,9 @@ of tables and columns.
 
 `core/portfolio.py` provides an abstract `Portfolio` base class. `core/equity.py` implements an `EquityPortfolio` using an execution gateway. The default gateway `AlpacaGateway` wraps Alpaca's REST API and applies basic risk checks.
 
+`AlpacaGateway` automatically detects whether the configured endpoint is the paper trading API. When a live endpoint is used you must pass `allow_live=True` to its constructor, preventing accidental real-money trades.
+It also exposes an `account()` method to obtain equity information for both paper and live accounts.
+
 Weights are rebalanced to target percentages and all trades are recorded in MongoDB collections. Because Alpaca accounts do not support sub-portfolios, each order is tagged using `client_order_id` with the portfolio's identifier. Positions for a portfolio can be queried via the `/positions/{pf_id}` endpoint which aggregates executed trades.
 Individual positions can be closed via `POST /close/{pf_id}/{symbol}` which removes the symbol from the weight set and issues an order to exit.
 
@@ -98,7 +118,13 @@ Individual positions can be closed via `POST /close/{pf_id}/{symbol}` which remo
 
 ## Risk Management
 
-The new `risk` package calculates exposures, historical VaR and provides a simple `CircuitBreaker` to halt trading after large losses. These utilities operate on the master ledger stored in MongoDB and can be extended for additional controls.
+The `risk` package includes dynamic correlation regime detection. Rolling
+correlations are fed into a Gaussian mixture model to spot regime shifts. During
+high-correlation crises the allocation engine automatically de-leverages.
+Existing utilities still calculate exposures, historical VaR and offer a
+`CircuitBreaker` to halt trading after large losses. Covariance estimates use
+Ledoit–Wolf shrinkage by default with an optional min–max solver to guard
+against estimation error.
 
 ## Analytics
 
@@ -109,6 +135,10 @@ portfolios dynamically while respecting volatility targets. Rebalancing jobs use
 the latest scraped data and stored returns so that portfolio adjustments do not
 introduce any look-ahead bias.
 
+Account-level equity is also recorded daily. The scheduler calls
+`record_account` which stores equity and last equity for the configured
+Alpaca account, distinguishing between paper and live trading URLs.
+
 ## Running Example
 
 An example entry point is provided in `start.py` which launches both the API server and scheduler. Execute:
@@ -116,6 +146,20 @@ An example entry point is provided in `start.py` which launches both the API ser
 python start.py
 ```
 This will load any saved portfolios from the database and run until interrupted.
+
+### Key API Endpoints
+
+- `GET /portfolios` – list existing portfolios
+- `POST /portfolios` – create a new portfolio
+- `PUT /portfolios/{id}/weights` – update target weights
+- `POST /portfolios/{id}/rebalance` – place trades to match weights
+- `GET /positions/{id}` – current holdings
+- `POST /scheduler/start` and `POST /scheduler/stop` – control the allocation scheduler
+- `POST /close/{id}/{symbol}` – close a single position
+- `GET /metrics/{id}` – historical returns and statistics
+- `GET /var?start=&end=` – portfolio VaR and CVaR over a date range
+- `GET /correlations?start=&end=` – return correlation matrix of portfolio returns
+- `GET /stream/account` – server-sent events stream of account equity
 ## Quickstart
 
 1. Launch a local MongoDB instance and optional Redis server:
@@ -152,6 +196,12 @@ The table below lists the data sources used by each strategy and how often each 
 | Google Trends + News Sentiment | https://www.quiverquant.com/googletrends/ | Monthly (first trading day) | Hold the 30 tickers with the biggest month-over-month search-interest jump and positive news sentiment. |
 
 
+| Sector Risk-Parity Momentum | Yahoo Finance | Weekly (Fri) | Rotate among S&P 500 sector ETFs using risk-parity weights. |
+| Leveraged Sector Momentum | Yahoo Finance | Weekly (Fri) | Momentum rotation among leveraged sector ETFs. |
+| Volatility-Scaled Momentum | Yahoo Finance | Weekly (Fri) | Rank stocks by twelve-month return scaled by volatility. |
+| Upgrade Momentum | Quiver Analyst Ratings | Weekly (Mon) | Tilt towards names with a surge in analyst upgrades. |
+| Biotech Binary Event Basket | Various filings | Monthly | Basket of biotech stocks ahead of binary catalysts. |
+| Lobbying Growth (example) | Quiver Lobbying | Monthly | Placeholder using companies with strong lobbying growth. |
 ## Deployment on Ubuntu
 
 Below is a step-by-step guide to running the system on an Ubuntu server. These steps assume a fresh VM with Python 3.12 installed.

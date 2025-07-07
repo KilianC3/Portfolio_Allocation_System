@@ -32,10 +32,15 @@ wiki_coll: Collection = db["wiki_views"]
 insider_coll: Collection = db["dc_insider_scores"]
 contracts_coll: Collection = db["gov_contracts"]
 cache: Collection = db["cache"]
+account_coll: Collection = db["account_metrics"]
 
 trade_coll.create_index([("portfolio_id", ASCENDING), ("timestamp", ASCENDING)])
-metric_coll.create_index([
-    ("portfolio_id", ASCENDING),
-    ("date", ASCENDING),
-], unique=True)
+metric_coll.create_index(
+    [
+        ("portfolio_id", ASCENDING),
+        ("date", ASCENDING),
+    ],
+    unique=True,
+)
 cache.create_index("expire", expireAfterSeconds=0)
+account_coll.create_index("timestamp")
