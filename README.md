@@ -55,18 +55,14 @@ Determines portfolio weights by trading off expected return against predicted ri
 
 ### Historical VaR
 
-Formula:  
-
-![VaR Formula](https://latex.codecogs.com/svg.latex?\text{VaR}_\alpha%20%3D%20-%5Coperatorname%7Bquantile%7D_%7B1-%5Calpha%7D(r_t))
+Formula:  ![VaR Formula](https://latex.codecogs.com/svg.latex?%5Ctext%7BVaR%7D_%5Calpha%20%3D%20-%5Coperatorname%7Bquantile%7D_%7B1-%5Calpha%7D%28r_t%29)
 
 Estimates the loss threshold not exceeded with probability $\alpha$ over the
 sample distribution of returns.
 
 ### Conditional VaR
 
-Formula:
-
-![CVaR Formula](https://latex.codecogs.com/svg.latex?\text{CVaR}_\alpha%20%3D%20-%5Cmathbb%7BE%7D%5Br_t%20%7C%20r_t%20%5Cle%20-%5Ctext%7BVaR%7D_%5Calpha%5D)
+Formula: ![CVaR Formula](https://latex.codecogs.com/svg.latex?%5Ctext%7BCVaR%7D_%5Calpha%20%3D%20-%5Cmathbb%7BE%7D%5Br_t%20%7C%20r_t%20%5Cle%20-%5Ctext%7BVaR%7D_%5Calpha%5D)
 
 Measures the expected loss in the tail beyond the VaR level, providing a sense
 of worst-case risk.
