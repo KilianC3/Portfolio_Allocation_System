@@ -34,3 +34,5 @@ mypy>=1.8.0
 pydantic>=2.5.0
 pyarrow>=14.0.2
 sentry-sdk>=2.0.0
+pydantic-settings>=2.0.3
+Deprecated>=1.2.13

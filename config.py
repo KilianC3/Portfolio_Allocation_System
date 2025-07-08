@@ -34,7 +34,8 @@ class Settings(BaseSettings):
     }
 
 
-settings = Settings()  # will raise ValidationError on bad env values
+# Pass defaults explicitly so mypy recognises optional fields
+settings = Settings(MIN_ALLOCATION=0.02, MAX_ALLOCATION=0.40)
 
 ALPACA_API_KEY = settings.ALPACA_API_KEY
 ALPACA_API_SECRET = settings.ALPACA_API_SECRET
