@@ -55,14 +55,22 @@ Determines portfolio weights by trading off expected return against predicted ri
 
 ### Historical VaR
 
-**Formula**: $\text{VaR}_\alpha = -\operatorname{quantile}_{1-\alpha}(r_t)$
+Formula:
+
+$$
+\text{VaR}_\alpha = -\operatorname{quantile}_{1-\alpha}(r_t)
+$$
 
 Estimates the loss threshold not exceeded with probability $\alpha$ over the
 sample distribution of returns.
 
 ### Conditional VaR
 
-**Formula**: $\text{CVaR}_\alpha = -\mathbb{E}[r_t \mid r_t \le -\text{VaR}_\alpha]$
+Formula:
+
+$$
+\text{CVaR}_\alpha = -\mathbb{E}[r_t \mid r_t \le -\text{VaR}_\alpha]
+$$
 
 Measures the expected loss in the tail beyond the VaR level, providing a sense
 of worst-case risk.
@@ -107,7 +115,8 @@ Data sources and rebalance frequency for each strategy are shown below.
 
 ### Configuration
 
-Create a `.env` file and define the required environment variables:
+Application settings live in `config.py`, which loads environment variables from
+a local `.env` file if present. Define the required environment variables:
 
 - `ALPACA_API_KEY` and `ALPACA_API_SECRET` – credentials for the Alpaca API
 - `ALPACA_BASE_URL` – broker endpoint (`https://paper-api.alpaca.markets` by default)
@@ -115,7 +124,9 @@ Create a `.env` file and define the required environment variables:
 - `PG_URI` – Postgres connection string, e.g. `postgresql://user:pass@localhost:5432/quant_fund`
 - `API_TOKEN` – optional bearer token protecting REST endpoints
 
-Other optional settings can be found in `config.py`.
+The `config.py` module also exposes defaults such as rate limits and schedule
+definitions, so both files work together: `.env` stores secrets while
+`config.py` provides type-checked access to them.
 
 ## Quickstart
 
@@ -178,13 +189,17 @@ database so future allocations can learn from realised performance.
 ### Allocation Logic
 
 Every strategy ultimately produces a vector of expected returns `\mu` and a
-covariance matrix `\Sigma`. The allocation engine solves a min--max problem
-that balances return against predicted risk:
+covariance matrix `\Sigma`. The analytics layer applies the models listed above:
+Sharpe and Sortino ratios inform expected returns, Ledoit--Wolf shrinkage
+estimates covariance, Black--Litterman views adjust the forecasts, and
+VaR/CVaR metrics bound the risk budget. The allocation engine then solves a
+min--max problem that balances return against predicted risk:
 
 $$w^* = \arg\max_w\; w^\top \mu - \gamma(1+\delta) w^\top \Sigma w$$
 
 where `\gamma` represents overall risk aversion and `\delta` reflects current
 volatility regime. The resulting weights are normalised and passed through the
 risk-parity module so that each position contributes equally to portfolio
-volatility. Combined with the Black--Litterman adjustments described above, this
-framework aims to generate maximum risk-adjusted returns across all strategies.
+volatility. Combined with the Black--Litterman and risk measures noted above,
+this framework aims to generate maximum risk-adjusted returns across all
+strategies.
