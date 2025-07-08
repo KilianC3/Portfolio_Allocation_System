@@ -5,7 +5,7 @@ os.environ["PG_URI"] = "postgresql://localhost/test"
 import pytest
 
 aiohttp = pytest.importorskip("aiohttp")
-aioresponses = pytest.importorskip("aioresponses")
+aioresponses = pytest.importorskip("aioresponses").aioresponses
 
 from infra.smart_scraper import get
 
