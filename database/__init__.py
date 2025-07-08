@@ -22,6 +22,24 @@ except Exception as e:  # pragma: no cover - db may not exist in tests
     _conn = None
 
 
+class InMemoryCollection:
+    """Minimal in-memory fallback used when Postgres is unavailable."""
+
+    def __init__(self) -> None:
+        self._store: dict[str, dict[str, Any]] = {}
+
+    def find_one(self, q: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        key = q.get("key")
+        if not isinstance(key, str):
+            return None
+        return self._store.get(key)
+
+    def replace_one(
+        self, match: Dict[str, Any], doc: Dict[str, Any], upsert: bool = False
+    ) -> None:
+        self._store[match["key"]] = doc
+
+
 class PGClient:
     def __init__(self, conn):
         self._conn = conn
@@ -347,5 +365,5 @@ wiki_coll = db["wiki_views"]
 insider_coll = db["dc_insider_scores"]
 contracts_coll = db["gov_contracts"]
 alloc_log_coll = db["alloc_log"]
-cache = db["cache"]
+cache = db["cache"] if _conn else InMemoryCollection()
 account_coll = db["account_metrics"]

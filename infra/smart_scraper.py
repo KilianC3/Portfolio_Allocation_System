@@ -6,7 +6,6 @@ import asyncio
 import datetime as dt
 import hashlib
 import random
-from typing import Optional
 
 import aiohttp
 
@@ -23,26 +22,6 @@ RATE = DynamicRateLimiter(12, 60)
 TTL = 900
 """Cache expiry for fetched pages (seconds)."""
 
-_session: Optional[aiohttp.ClientSession] = None
-
-
-async def _get_session() -> aiohttp.ClientSession:
-    """Return a shared :class:`aiohttp.ClientSession`."""
-    global _session
-    if _session is None or _session.closed:
-        _session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=15)
-        )
-    return _session
-
-
-async def close_session() -> None:
-    """Close the shared HTTP session."""
-    global _session
-    if _session and not _session.closed:
-        await _session.close()
-    _session = None
-
 
 async def get(url: str, retries: int = 3) -> str:
     """Fetch ``url`` asynchronously with caching and basic retries."""
@@ -54,15 +33,18 @@ async def get(url: str, retries: int = 3) -> str:
 
     backoff = 1.0
     async with RATE:
-        session = await _get_session()
-        for attempt in range(retries):
-            try:
-                async with session.get(
-                    url,
-                    headers={"User-Agent": random.choice(USER_AGENTS)},
-                ) as resp:
-                    text = await resp.text()
-                    if resp.status == 200:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=15)
+        ) as session:
+            error: Exception | None = None
+            for attempt in range(retries):
+                try:
+                    async with session.get(
+                        url,
+                        headers={"User-Agent": random.choice(USER_AGENTS)},
+                    ) as resp:
+                        resp.raise_for_status()
+                        text = await resp.text()
                         cache.replace_one(
                             {"key": key},
                             {
@@ -75,12 +57,9 @@ async def get(url: str, retries: int = 3) -> str:
                         )
                         RATE.reset()
                         return text
-                    else:
-                        RATE.backoff()
-            except Exception as exc:
-                err = exc
-                RATE.backoff()
-            await asyncio.sleep(backoff)
-            backoff *= 2
-        raise RuntimeError(f"Failed {url}: {err}")
-
+                except Exception as exc:
+                    RATE.backoff()
+                    error = exc
+                    await asyncio.sleep(backoff)
+                    backoff *= 2
+            raise RuntimeError(f"Failed {url}: {error}")
