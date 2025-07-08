@@ -5,6 +5,7 @@ from .leveraged_sector import LeveragedSectorMomentum
 from .biotech_event import BiotechBinaryEventBasket
 from .lobbying_growth import LobbyingGrowthStrategy
 from .wallstreetbets import RedditBuzzStrategy
+from .wiki_attention import build_wiki_portfolio
 
 __all__ = [
     "VolatilityScaledMomentum",
@@ -14,4 +15,5 @@ __all__ = [
     "BiotechBinaryEventBasket",
     "LobbyingGrowthStrategy",
     "RedditBuzzStrategy",
+    "build_wiki_portfolio",
 ]

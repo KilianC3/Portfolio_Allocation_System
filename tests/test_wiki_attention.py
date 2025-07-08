@@ -3,11 +3,15 @@ import os
 os.environ["PG_URI"] = "postgresql://localhost/test"
 
 import pytest
+
+pytest.importorskip("pandas")
+pytest.importorskip("yfinance")
+pytest.importorskip("wikipedia")
 from unittest.mock import patch
 
 import pandas as pd
 
-import scrapers.wiki_attention_strategy as wiki
+import strategies.wiki_attention as wiki
 
 
 def test_trending_candidates_error():
