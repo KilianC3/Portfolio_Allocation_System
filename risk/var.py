@@ -2,17 +2,21 @@
 
 The functions implement basic risk metrics used throughout the project.
 
-*Historical VaR*
-\[VaR\_\alpha = -\operatorname{quantile}\_{1-\alpha}(r\_t)\]
+Historical VaR is defined as
 
-Estimates the loss threshold not exceeded with probability ``alpha`` over the
-sample of returns ``r_t``.
+.. math::
+    \text{VaR}_{\alpha} = -\operatorname{quantile}_{1-\alpha}(r_t)
 
-*Conditional VaR*
-\[CVaR\_\alpha = -\mathbb{E}\big[r\_t \mid r\_t \le -VaR\_\alpha\big]\]
+which estimates the loss threshold not exceeded with probability ``alpha`` over
+the sample of returns ``r_t``.
 
-Measures the expected loss given that returns fall below the corresponding VaR
-level.
+Conditional VaR is
+
+.. math::
+    \text{CVaR}_{\alpha} = -\mathbb{E}[r_t \mid r_t \le -\text{VaR}_{\alpha}]
+
+and measures the expected loss given that returns fall below the corresponding
+VaR level.
 """
 
 from __future__ import annotations
