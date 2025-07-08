@@ -36,7 +36,7 @@ async def get(url: str, retries: int = 3) -> str:
         async with aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=15)
         ) as session:
-            err: Exception | None = None
+            error: Exception | None = None
             for attempt in range(retries):
                 try:
                     async with session.get(
@@ -57,8 +57,9 @@ async def get(url: str, retries: int = 3) -> str:
                         )
                         RATE.reset()
                         return text
-                except Exception as err:
+                except Exception as exc:
                     RATE.backoff()
-                await asyncio.sleep(backoff)
-                backoff *= 2
-            raise RuntimeError(f"Failed {url}: {err}")
+                    error = exc
+                    await asyncio.sleep(backoff)
+                    backoff *= 2
+            raise RuntimeError(f"Failed {url}: {error}")
