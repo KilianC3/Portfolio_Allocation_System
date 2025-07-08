@@ -16,15 +16,54 @@ The Portfolio Allocation System is a Python service for running data-driven trad
 
 Return and risk estimates feed into the allocation engine.  Let $r_t$ denote daily returns.
 
-- **Sharpe Ratio** $\displaystyle S = \frac{\mathbb{E}[r_t]}{\sigma[r_t]}\sqrt{252}$ – risk‑adjusted return of the portfolio.
-- **Sortino Ratio** $\displaystyle S^- = \frac{\mathbb{E}[r_t]}{\sigma[r_t\,|\,r_t<0]}\sqrt{252}$ – focuses only on downside volatility.
-- **Ledoit–Wolf Covariance** $\Sigma = 252\,\text{LW}(r_t)$ – shrinkage estimator for stable covariance matrices.
-- **Black–Litterman Posterior** \[\mu = ( (\tau\Sigma)^{-1} + P^\top\Omega^{-1}P )^{-1}( (\tau\Sigma)^{-1}\pi + P^\top\Omega^{-1}Q )\] – blends market equilibrium with subjective views.
-- **Risk Parity** – weights scaled so $w_i(\Sigma w)_i$ are equal, balancing marginal risk.
-- **Min–Max Optimisation** \[w^* = \arg\max_w\; w^\top\mu - \gamma(1+\delta)w^\top\Sigma w\] – trades off expected return and risk.
-- **Historical VaR** $\displaystyle \text{VaR}_\alpha=-\text{quantile}_{1-\alpha}(r_t)$ – loss threshold not exceeded with probability $\alpha$.
-- **Conditional VaR** $\displaystyle \text{CVaR}_\alpha=-\mathbb{E}[r_t\,|\,r_t\le-\text{VaR}_\alpha]$ – average loss in the tail beyond VaR.
 
+### Sharpe Ratio
+
+**Formula**: $\displaystyle S = \frac{\mathbb{E}[r_t]}{\sigma[r_t]}\sqrt{252}$
+
+Measures the expected excess return per unit of volatility. A higher Sharpe ratio indicates more efficient risk-adjusted performance.
+
+### Sortino Ratio
+
+**Formula**: $\displaystyle S^- = \frac{\mathbb{E}[r_t]}{\sigma[r_t\,|\,r_t<0]}\sqrt{252}$
+
+Focuses on downside deviation rather than total volatility, rewarding portfolios that avoid large losses.
+
+### Ledoit--Wolf Covariance
+
+**Formula**: $\Sigma = 252\,\text{LW}(r_t)$
+
+Provides a shrinkage estimator for the return covariance matrix, yielding more stable risk estimates from limited data.
+
+### Black--Litterman Posterior
+
+**Formula**: $\mu = ((\tau\Sigma)^{-1} + P^\top\Omega^{-1}P)^{-1}\big((\tau\Sigma)^{-1}\pi + P^\top\Omega^{-1}Q\big)$
+
+Combines market equilibrium returns with subjective views to produce a balanced forecast of expected returns.
+
+### Risk Parity
+
+**Formula**: weights scaled so $w_i(\Sigma w)_i$ are equal
+
+Scales positions such that each contributes the same amount of variance, promoting diversification across assets.
+
+### Min--Max Optimisation
+
+**Formula**: $w^* = \arg\max_w\; w^\top\mu - \gamma(1+\delta)w^\top\Sigma w$
+
+Determines portfolio weights by trading off expected return against predicted risk under current volatility conditions.
+
+### Historical VaR
+
+**Formula**: $\displaystyle \text{VaR}_\alpha=-\text{quantile}_{1-\alpha}(r_t)$
+
+Estimates the threshold loss not exceeded with probability $\alpha$ over the sample distribution of returns.
+
+### Conditional VaR
+
+**Formula**: $\displaystyle \text{CVaR}_\alpha=-\mathbb{E}[r_t\,|\,r_t\le-\text{VaR}_\alpha]$
+
+Measures the average loss in the tail beyond the VaR level, providing a sense of worst-case risk.
 ## Strategy Reference
 
 Data sources and rebalance frequency for each strategy are shown below.
