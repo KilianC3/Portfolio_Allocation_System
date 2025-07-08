@@ -55,15 +55,17 @@ Determines portfolio weights by trading off expected return against predicted ri
 
 ### Historical VaR
 
-**Formula**: $\displaystyle \text{VaR}_\alpha=-\text{quantile}_{1-\alpha}(r_t)$
+**Formula**: $\text{VaR}_\alpha = -\operatorname{quantile}_{1-\alpha}(r_t)$
 
-Estimates the threshold loss not exceeded with probability $\alpha$ over the sample distribution of returns.
+Estimates the loss threshold not exceeded with probability $\alpha$ over the
+sample distribution of returns.
 
 ### Conditional VaR
 
-**Formula**: $\displaystyle \text{CVaR}_\alpha=-\mathbb{E}[r_t\,|\,r_t\le-\text{VaR}_\alpha]$
+**Formula**: $\text{CVaR}_\alpha = -\mathbb{E}[r_t \mid r_t \le -\text{VaR}_\alpha]$
 
-Measures the average loss in the tail beyond the VaR level, providing a sense of worst-case risk.
+Measures the expected loss in the tail beyond the VaR level, providing a sense
+of worst-case risk.
 ## Strategy Reference
 
 Data sources and rebalance frequency for each strategy are shown below.
@@ -103,7 +105,17 @@ Data sources and rebalance frequency for each strategy are shown below.
    pip install -r requirements.txt
    ```
 
-Set `ALPACA_API_KEY`, `ALPACA_API_SECRET`, `PG_URI` and other variables in a `.env` file or the shell before running.
+### Configuration
+
+Create a `.env` file and define the required environment variables:
+
+- `ALPACA_API_KEY` and `ALPACA_API_SECRET` – credentials for the Alpaca API
+- `ALPACA_BASE_URL` – broker endpoint (`https://paper-api.alpaca.markets` by default)
+- `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` – Reddit API keys for the WSB scraper
+- `PG_URI` – Postgres connection string, e.g. `postgresql://user:pass@localhost:5432/quant_fund`
+- `API_TOKEN` – optional bearer token protecting REST endpoints
+
+Other optional settings can be found in `config.py`.
 
 ## Quickstart
 
@@ -114,6 +126,29 @@ python start.py
 ```
 
 APScheduler jobs rebalance portfolios according to the active strategies.  REST endpoints under `/docs` allow manual portfolio management and data collection.
+
+### Running in an LXC Container
+
+The system can run inside a lightweight Ubuntu container:
+
+1. Launch and enter the container
+   ```bash
+   lxc launch images:ubuntu/22.04 portfolio-box
+   lxc exec portfolio-box -- bash
+   ```
+2. Install system packages
+   ```bash
+   apt update && apt install -y git python3-venv postgresql
+   ```
+3. Create a Postgres user and database
+   ```bash
+   sudo -u postgres createuser --password portfolio
+   sudo -u postgres createdb -O portfolio quant_fund
+   ```
+   The connection string is then:
+   `postgresql://portfolio:<password>@localhost:5432/quant_fund`
+4. Follow the [Installation](#installation) steps inside the container and set the
+   environment variables in a `.env` file using the PG_URI from above.
 
 ## Repository Structure
 

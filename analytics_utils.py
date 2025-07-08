@@ -8,6 +8,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+
 def sharpe(r: pd.Series, rf: float = 0.0) -> float:
     """Annualised Sharpe ratio of a returns series."""
     if r.std(ddof=0) == 0:
@@ -16,7 +17,16 @@ def sharpe(r: pd.Series, rf: float = 0.0) -> float:
 
 
 def var_cvar(r: pd.Series, level: float = 0.95) -> tuple[float, float]:
-    """Value-at-Risk and Conditional VaR at the given confidence level."""
+    """Return VaR and CVaR for a return series.
+
+    The metrics follow the definitions used throughout the documentation:
+
+    .. math::
+        VaR_\alpha = -\operatorname{quantile}_{1-\alpha}(r_t)
+
+    .. math::
+        CVaR_\alpha = -\mathbb{E}[r_t \mid r_t \le -VaR_\alpha]
+    """
     var = np.quantile(r, 1 - level)
     cvar = r[r <= var].mean()
     return var, cvar
