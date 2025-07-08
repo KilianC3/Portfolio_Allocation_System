@@ -16,16 +16,14 @@ The Portfolio Allocation System is a Python service for running data-driven trad
 
 Return and risk estimates feed into the allocation engine.  Let $r_t$ denote daily returns.
 
-- **Sharpe Ratio** $\displaystyle S = \frac{\mathbb{E}[r_t]}{\sigma[r_t]}\sqrt{252}$
-- **Sortino Ratio** $\displaystyle S^- = \frac{\mathbb{E}[r_t]}{\sigma[r_t\,|\,r_t<0]}\sqrt{252}$
-- **Ledoit–Wolf Covariance** $\Sigma = 252\,\text{LW}(r_t)$
-- **Black–Litterman Posterior**
-  \[\mu = ( (\tau\Sigma)^{-1} + P^\top\Omega^{-1}P )^{-1}( (\tau\Sigma)^{-1}\pi + P^\top\Omega^{-1}Q )\]
-- **Risk Parity** – weights scaled so $w_i(\Sigma w)_i$ are equal
-- **Min–Max Optimisation**
-  \[w^* = \arg\max_w\; w^\top\mu - \gamma(1+\delta)w^\top\Sigma w\]
-- **Historical VaR** $\displaystyle \text{VaR}_\alpha=-\text{quantile}_{1-\alpha}(r_t)$
-- **Conditional VaR** $\displaystyle \text{CVaR}_\alpha=-\mathbb{E}[r_t\,|\,r_t\le-\text{VaR}_\alpha]$
+- **Sharpe Ratio** $\displaystyle S = \frac{\mathbb{E}[r_t]}{\sigma[r_t]}\sqrt{252}$ – risk‑adjusted return of the portfolio.
+- **Sortino Ratio** $\displaystyle S^- = \frac{\mathbb{E}[r_t]}{\sigma[r_t\,|\,r_t<0]}\sqrt{252}$ – focuses only on downside volatility.
+- **Ledoit–Wolf Covariance** $\Sigma = 252\,\text{LW}(r_t)$ – shrinkage estimator for stable covariance matrices.
+- **Black–Litterman Posterior** \[\mu = ( (\tau\Sigma)^{-1} + P^\top\Omega^{-1}P )^{-1}( (\tau\Sigma)^{-1}\pi + P^\top\Omega^{-1}Q )\] – blends market equilibrium with subjective views.
+- **Risk Parity** – weights scaled so $w_i(\Sigma w)_i$ are equal, balancing marginal risk.
+- **Min–Max Optimisation** \[w^* = \arg\max_w\; w^\top\mu - \gamma(1+\delta)w^\top\Sigma w\] – trades off expected return and risk.
+- **Historical VaR** $\displaystyle \text{VaR}_\alpha=-\text{quantile}_{1-\alpha}(r_t)$ – loss threshold not exceeded with probability $\alpha$.
+- **Conditional VaR** $\displaystyle \text{CVaR}_\alpha=-\mathbb{E}[r_t\,|\,r_t\le-\text{VaR}_\alpha]$ – average loss in the tail beyond VaR.
 
 ## Strategy Reference
 
@@ -77,3 +75,42 @@ python start.py
 ```
 
 APScheduler jobs rebalance portfolios according to the active strategies.  REST endpoints under `/docs` allow manual portfolio management and data collection.
+
+## Repository Structure
+
+The project is organised into logical packages:
+
+- `analytics/` – portfolio statistics and optimisation utilities
+- `core/` – portfolio objects and shared dataclasses
+- `database/` – Postgres helpers and collections
+- `execution/` – order gateways and broker abstractions
+- `infra/` – scraping helpers and rate limiters
+- `scrapers/` – data collection scripts
+- `strategies/` – trading strategies built on the analytics layer
+- `tests/` – unit tests for all modules
+
+## Further Documentation
+
+Additional guides live in the [`docs/`](docs/index.md) folder which is rendered with MkDocs.
+
+## System Workflow
+
+Data from the various scrapers is inserted into Postgres during startup. Each
+strategy queries these raw tables to build an `EquityPortfolio` using the
+analytics helpers. Risk modules then scale or cap the weights before the
+execution gateway sends orders to the broker. Metrics are written back to the
+database so future allocations can learn from realised performance.
+
+### Allocation Logic
+
+Every strategy ultimately produces a vector of expected returns `\mu` and a
+covariance matrix `\Sigma`. The allocation engine solves a min--max problem
+that balances return against predicted risk:
+
+$$w^* = \arg\max_w\; w^\top \mu - \gamma(1+\delta) w^\top \Sigma w$$
+
+where `\gamma` represents overall risk aversion and `\delta` reflects current
+volatility regime. The resulting weights are normalised and passed through the
+risk-parity module so that each position contributes equally to portfolio
+volatility. Combined with the Black--Litterman adjustments described above, this
+framework aims to generate maximum risk-adjusted returns across all strategies.

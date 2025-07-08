@@ -20,7 +20,9 @@ _log.setLevel(logging.INFO)
 REST = "https://wikimedia.org/api/rest_v1"
 HEADERS = {"User-Agent": "QuantWikiBot/2.0"}
 SP1500_URL = "https://en.wikipedia.org/wiki/S%26P_1500"
-TOPVIEWS_URL = f"{REST}/metrics/pageviews/top/en.wikipedia/all-access/{{yyyy}}/{{mm}}/{{dd}}"
+TOPVIEWS_URL = (
+    f"{REST}/metrics/pageviews/top/en.wikipedia/all-access/{{yyyy}}/{{mm}}/{{dd}}"
+)
 
 
 @functools.lru_cache(maxsize=1)
@@ -65,7 +67,9 @@ def cached_views(page: str) -> pd.Series:
 
 
 def z_score(series: pd.Series) -> float:
-    return float((series.tail(7).mean() - series.tail(30).mean()) / (series.tail(30).std() or 1))
+    return float(
+        (series.tail(7).mean() - series.tail(30).mean()) / (series.tail(30).std() or 1)
+    )
 
 
 def persistence(series: pd.Series) -> float:
@@ -130,7 +134,9 @@ def adv_float(sym: str) -> Tuple[float, float]:
         tk = yf.Ticker(sym)
         hist = tk.history(period="1mo")["Close"] * tk.history(period="1mo")["Volume"]
         adv = hist.mean()
-        float_mcap = tk.info.get("floatShares", 0) * tk.history(period="1d")["Close"].iloc[-1]
+        float_mcap = (
+            tk.info.get("floatShares", 0) * tk.history(period="1d")["Close"].iloc[-1]
+        )
         return float(adv or 0), float(float_mcap or 0)
     except Exception:
         return 0.0, 0.0

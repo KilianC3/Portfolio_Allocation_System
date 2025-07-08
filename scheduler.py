@@ -5,7 +5,7 @@ from importlib import import_module
 from logger import get_logger
 from config import CRON
 from core.equity import EquityPortfolio
-from execution_gateway import AlpacaGateway
+from execution.gateway import AlpacaGateway
 from allocation_engine import compute_weights
 from database import metric_coll
 from analytics import update_all_metrics, record_account

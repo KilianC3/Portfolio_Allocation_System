@@ -14,7 +14,7 @@ from observability import metrics_router
 from ws import ws_router
 from database import pf_coll, trade_coll, metric_coll, init_db
 from core.equity import EquityPortfolio
-from execution_gateway import AlpacaGateway
+from execution.gateway import AlpacaGateway
 from scheduler import StrategyScheduler
 from analytics_utils import portfolio_metrics
 from metrics import rebalance_latency
@@ -136,10 +136,17 @@ def _load_portfolios():
 
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     try:
         init_db()
         _load_portfolios()
+        await asyncio.gather(
+            fetch_politician_trades(),
+            fetch_lobbying_data(),
+            fetch_wiki_views(),
+            fetch_dc_insider_scores(),
+            fetch_gov_contracts(),
+        )
         if AUTO_START_SCHED:
             sched.start()
     except Exception as e:

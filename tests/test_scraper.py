@@ -3,9 +3,11 @@ import os
 os.environ["PG_URI"] = "postgresql://localhost/test"
 
 import pytest
-from aioresponses import aioresponses
 
-from infra.smart_scraper import get, close_session
+aiohttp = pytest.importorskip("aiohttp")
+aioresponses = pytest.importorskip("aioresponses")
+
+from infra.smart_scraper import get
 
 
 @pytest.mark.asyncio
@@ -19,4 +21,3 @@ async def test_scraper_caching():
         m.get(url, status=500)
         text2 = await get(url)
         assert text2 == "hello"
-    await close_session()
