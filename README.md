@@ -55,11 +55,9 @@ Determines portfolio weights by trading off expected return against predicted ri
 
 ### Historical VaR
 
-Formula:
+Formula:  
 
-$$
-\text{VaR}_\alpha = -\operatorname{quantile}_{1-\alpha}(r_t)
-$$
+![VaR Formula](https://latex.codecogs.com/svg.latex?\text{VaR}_\alpha%20%3D%20-%5Coperatorname%7Bquantile%7D_%7B1-%5Calpha%7D(r_t))
 
 Estimates the loss threshold not exceeded with probability $\alpha$ over the
 sample distribution of returns.
@@ -68,9 +66,7 @@ sample distribution of returns.
 
 Formula:
 
-$$
-\text{CVaR}_\alpha = -\mathbb{E}[r_t \mid r_t \le -\text{VaR}_\alpha]
-$$
+![CVaR Formula](https://latex.codecogs.com/svg.latex?\text{CVaR}_\alpha%20%3D%20-%5Cmathbb%7BE%7D%5Br_t%20%7C%20r_t%20%5Cle%20-%5Ctext%7BVaR%7D_%5Calpha%5D)
 
 Measures the expected loss in the tail beyond the VaR level, providing a sense
 of worst-case risk.
