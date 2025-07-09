@@ -30,8 +30,10 @@ async def _fetch_ticker(sym: str) -> pd.DataFrame:
     table = cast(Tag, table)
     rows = []
     now = dt.datetime.now(dt.timezone.utc)
-    for tr in table.find_all("tr")[1:]:
-        cells = [c.get_text(strip=True) for c in tr.find_all("td")]
+    for row in table.find_all("tr")[1:]:
+        if not isinstance(row, Tag):
+            continue
+        cells = [c.get_text(strip=True) for c in row.find_all("td")]
         if len(cells) < 2:
             continue
         item = {
