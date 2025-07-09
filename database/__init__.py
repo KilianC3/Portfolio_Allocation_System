@@ -378,6 +378,31 @@ def init_db() -> None:
         )
         exec_sql(
             """
+            CREATE TABLE IF NOT EXISTS analyst_ratings (
+                id SERIAL PRIMARY KEY,
+                ticker TEXT,
+                rating TEXT,
+                date TEXT,
+                _retrieved TIMESTAMPTZ,
+                UNIQUE(ticker, rating, date)
+            )
+            """
+        )
+        exec_sql(
+            """
+            CREATE TABLE IF NOT EXISTS news_headlines (
+                id SERIAL PRIMARY KEY,
+                ticker TEXT,
+                headline TEXT,
+                link TEXT,
+                source TEXT,
+                time TEXT,
+                _retrieved TIMESTAMPTZ
+            )
+            """
+        )
+        exec_sql(
+            """
             CREATE TABLE IF NOT EXISTS insider_buying (
                 id SERIAL PRIMARY KEY,
                 ticker TEXT,
@@ -443,5 +468,7 @@ cache = db["cache"] if _conn else InMemoryCollection()
 account_coll = db["account_metrics"]
 app_reviews_coll = db["app_reviews"]
 google_trends_coll = db["google_trends"]
+analyst_coll = db["analyst_ratings"]
+news_coll = db["news_headlines"]
 insider_buy_coll = db["insider_buying"]
 sp500_coll = db["sp500_index"]
