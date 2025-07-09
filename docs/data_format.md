@@ -21,7 +21,7 @@ analysis can reproduce past views of the data.
 | `sp500_index` | `date`, `close`, `_retrieved` |
 | `portfolios` | `id`, `name`, `weights` |
 | `trades` | `portfolio_id`, `symbol`, `qty`, `side`, `price`, `timestamp` |
-| `metrics` | `portfolio_id`, `date`, `ret`, `benchmark`, `sharpe`, `alpha`, `beta`, `max_drawdown` |
+| `metrics` | `portfolio_id`, `date`, `ret`, `ret_7d`, `ret_30d`, `benchmark`, `sharpe`, `alpha`, `beta`, `max_drawdown` |
 | `account_metrics` | `timestamp`, `data` |
 
 Every column is stored as a string except for the timestamp `_retrieved` which is a `TIMESTAMP` in UTC.

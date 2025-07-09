@@ -9,6 +9,8 @@ import random
 
 import requests
 
+from config import CACHE_TTL
+
 from infra.rate_limiter import DynamicRateLimiter
 from database import cache
 
@@ -19,7 +21,7 @@ USER_AGENTS = ["Mozilla/5.0", "Chrome/122.0", "Safari/537.36"]
 RATE = DynamicRateLimiter(12, 60)
 """Scrape at most 12 pages per minute."""
 
-TTL = 900
+TTL = CACHE_TTL
 """Cache expiry for fetched pages (seconds)."""
 
 
@@ -31,8 +33,10 @@ async def get(url: str, retries: int = 3) -> str:
 
     key = hashlib.md5(url.encode()).hexdigest()
     doc = cache.find_one({"key": key})
-    if doc and doc["expire"] > dt.datetime.now(dt.timezone.utc):
-        return doc["payload"]
+    if doc:
+        expire = doc.get("expire")
+        if expire is not None and expire > dt.datetime.now(dt.timezone.utc):
+            return doc["payload"]
 
     backoff = 1.0
     async with RATE:

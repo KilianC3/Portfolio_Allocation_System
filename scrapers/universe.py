@@ -7,6 +7,8 @@ from typing import List
 import pandas as pd
 import requests
 
+from database import init_db
+
 DATA_DIR = Path("cache") / "universes"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -51,9 +53,8 @@ def download_russell2000(path: Path | None = None) -> Path:
         (c for c in df.columns if "ticker" in c.lower() or "symbol" in c.lower()),
         df.columns[0],
     )
-    pd.DataFrame(df[col].astype(str).str.upper(), columns=["symbol"]).to_csv(
-        path, index=False
-    )
+    tickers = df[col].astype(str).str.upper().tolist()
+    pd.DataFrame(tickers, columns=["symbol"]).to_csv(path, index=False)
     return path
 
 

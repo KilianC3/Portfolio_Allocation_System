@@ -66,6 +66,8 @@ class Settings(BaseSettings):
 
     API_TOKEN: str | None = None
 
+    CACHE_TTL: int = Field(900, alias="CACHE_TTL")
+
     AUTO_START_SCHED: bool = False
 
     model_config = {"case_sensitive": False}
@@ -90,6 +92,7 @@ REDDIT_CLIENT_SECRET = settings.REDDIT_CLIENT_SECRET
 REDDIT_USER_AGENT = settings.REDDIT_USER_AGENT
 
 API_TOKEN = settings.API_TOKEN
+CACHE_TTL = settings.CACHE_TTL
 
 CRON = {
     "monthly": {"day": "1", "hour": 3, "minute": 0},

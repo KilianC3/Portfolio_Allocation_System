@@ -9,7 +9,9 @@ import yfinance as yf
 from typing import cast
 
 from database import pf_coll, metric_coll
-from analytics.utils import portfolio_metrics
+from analytics.utils import portfolio_metrics, period_return
+from pathlib import Path
+import csv
 
 
 def _fetch_returns(symbols: Iterable[str], days: int = 90) -> pd.DataFrame:
@@ -57,9 +59,27 @@ def update_all_metrics(days: int = 90) -> None:
             w = pd.Series(weights).reindex(rets.columns).fillna(0)
             series = (rets * w).sum(axis=1)
         metrics = portfolio_metrics(series)
-        end_date = cast(pd.Timestamp, series.index[-1]).date()
+        metrics["ret"] = float(series.iloc[-1]) if not series.empty else 0.0
+        metrics["ret_7d"] = period_return(series, 7)
+        metrics["ret_30d"] = period_return(series, 30)
+        end_date = (
+            cast(pd.Timestamp, series.index[-1]).date()
+            if not series.empty
+            else dt.date.today()
+        )
         metric_coll.update_one(
             {"portfolio_id": pf_id, "date": end_date},
-            {"$set": {"ret": float(series.iloc[-1]), **metrics}},
+            {"$set": metrics},
             upsert=True,
         )
+        # append to CSV
+        csv_dir = Path("cache") / "metrics"
+        csv_dir.mkdir(parents=True, exist_ok=True)
+        csv_path = csv_dir / f"{pf_id}.csv"
+        header = not csv_path.exists()
+        with csv_path.open("a", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=["date", *metrics.keys()])
+            if header:
+                writer.writeheader()
+            row = {"date": str(end_date), **metrics}
+            writer.writerow(row)

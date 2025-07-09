@@ -48,6 +48,16 @@ def max_drawdown(r: pd.Series) -> float:
     return float(dd.min())
 
 
+def period_return(r: pd.Series, days: int) -> float:
+    """Cumulative return over the last ``days`` observations."""
+    if r.empty:
+        return 0.0
+    segment = r.dropna().iloc[-days:]
+    if segment.empty:
+        return 0.0
+    return float((segment + 1).prod() - 1)
+
+
 def sortino(r: pd.Series, rf: float = 0.0) -> float:
     """Annualised Sortino ratio using downside deviation."""
     downside = r[r < 0].std(ddof=0)
@@ -85,6 +95,8 @@ def portfolio_metrics(
         "max_drawdown": max_drawdown(r),
         "sortino": sortino(r, rf),
         "cumulative_return": cumulative_return(r),
+        "ret_7d": period_return(r, 7),
+        "ret_30d": period_return(r, 30),
     }
 
     if benchmark is not None:
@@ -104,6 +116,7 @@ __all__ = [
     "max_drawdown",
     "sortino",
     "cumulative_return",
+    "period_return",
     "tracking_error",
     "information_ratio",
     "portfolio_metrics",

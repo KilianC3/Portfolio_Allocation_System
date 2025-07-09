@@ -190,7 +190,7 @@ Scraped data is stored in these Postgres collections:
 - `sp500_index`
 - `portfolios` – stored weights for each strategy
 - `trades` – executed orders across portfolios
-- `metrics` – daily returns and Sharpe/alpha figures
+- `metrics` – daily returns, 7-day and 30-day performance plus Sharpe/alpha figures
 - `account_metrics` – periodic account equity snapshots
 - `alloc_log` – optimisation diagnostics for debugging
 
