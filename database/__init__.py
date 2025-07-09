@@ -8,18 +8,25 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import psycopg2
 from psycopg2.extras import RealDictCursor, Json
+import duckdb
 
 from logger import get_logger
 from config import PG_URI
 
 _log = get_logger("db")
 
+PLACEHOLDER = "%s"
+DB_FLAVOR = "pg"
+
 try:
     _conn = psycopg2.connect(PG_URI)
     _conn.autocommit = True
 except Exception as e:  # pragma: no cover - db may not exist in tests
-    _log.error(f"Postgres connection failed: {e}")
-    _conn = None
+    _log.error(f"Postgres connection failed: {e}; falling back to DuckDB")
+    os.makedirs("data", exist_ok=True)
+    _conn = duckdb.connect("data/fallback.duckdb")
+    PLACEHOLDER = "?"
+    DB_FLAVOR = "duck"
 
 
 class InMemoryCollection:
@@ -73,14 +80,14 @@ def _build_where(q: Dict[str, Any]) -> Tuple[str, List[Any]]:
         if isinstance(v, dict):
             sub = []
             if "$gte" in v:
-                sub.append(f"{col}>=%s")
+                sub.append(f"{col}>={PLACEHOLDER}")
                 params.append(v["$gte"])
             if "$lte" in v:
-                sub.append(f"{col}<=%s")
+                sub.append(f"{col}<={PLACEHOLDER}")
                 params.append(v["$lte"])
             clauses.append(" AND ".join(sub))
         else:
-            clauses.append(f"{col}=%s")
+            clauses.append(f"{col}={PLACEHOLDER}")
             params.append(v)
     return " AND ".join(clauses), params
 
@@ -120,9 +127,14 @@ class PGQuery:
         if not self.conn:
             return iter([])
         sql, params = self._sql()
-        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(sql, params)
-            rows = cur.fetchall()
+        if DB_FLAVOR == "pg":
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(sql, params)
+                rows = cur.fetchall()
+        else:
+            cur = self.conn.execute(sql, params)
+            cols = [d[0] for d in cur.description]
+            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
         for r in rows:
             if "id" in r:
                 r["_id"] = r.pop("id")
@@ -177,7 +189,7 @@ class PGCollection:
             for d in docs
         ]
         placeholders = ",".join(
-            ["(" + ",".join(["%s"] * len(cols)) + ")" for _ in values]
+            ["(" + ",".join([PLACEHOLDER] * len(cols)) + ")" for _ in values]
         )
         flat = [v for row in values for v in row]
         sql = f"INSERT INTO {self.table} ({','.join(cols)}) VALUES {placeholders}"
@@ -199,15 +211,20 @@ class PGCollection:
             Json(item[k]) if isinstance(item[k], (dict, list)) else item[k]
             for k in item
         ]
-        placeholders = ",".join(["%s"] * len(cols))
+        placeholders = ",".join([PLACEHOLDER] * len(cols))
         if upsert:
-            conflict = ",".join(["id" if k == "_id" else k for k in match.keys()])
-            updates = ",".join([f"{c}=EXCLUDED.{c}" for c in cols])
-            sql = f"INSERT INTO {self.table} ({','.join(cols)}) VALUES ({placeholders}) ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
-            with self.conn.cursor() as cur:
-                cur.execute(sql, vals)
+            if DB_FLAVOR == "pg":
+                conflict = ",".join(["id" if k == "_id" else k for k in match.keys()])
+                updates = ",".join([f"{c}=EXCLUDED.{c}" for c in cols])
+                sql = f"INSERT INTO {self.table} ({','.join(cols)}) VALUES ({placeholders}) ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
+                with self.conn.cursor() as cur:
+                    cur.execute(sql, vals)
+            else:
+                sql = f"INSERT OR REPLACE INTO {self.table} ({','.join(cols)}) VALUES ({placeholders})"
+                with self.conn.cursor() as cur:
+                    cur.execute(sql, vals)
         else:
-            set_clause = ",".join([f"{c}=%s" for c in cols])
+            set_clause = ",".join([f"{c}={PLACEHOLDER}" for c in cols])
             where, params = _build_where(match)
             sql = f"UPDATE {self.table} SET {set_clause} WHERE {where}"
             with self.conn.cursor() as cur:
@@ -223,8 +240,18 @@ class PGCollection:
 def init_db() -> None:
     if not _conn:
         return
-    with _conn.cursor() as cur:
-        cur.execute(
+
+    def exec_sql(sql: str) -> None:
+        if DB_FLAVOR == "duck":
+            sql = (
+                sql.replace("SERIAL", "INTEGER")
+                .replace("JSONB", "JSON")
+                .replace("TIMESTAMPTZ", "TIMESTAMP")
+            )
+        _conn.execute(sql)
+
+    with _conn.cursor() if DB_FLAVOR == "pg" else _conn as cur:
+        exec_sql(
             """
             CREATE TABLE IF NOT EXISTS portfolios (
                 id TEXT PRIMARY KEY,
@@ -233,7 +260,7 @@ def init_db() -> None:
             )
             """
         )
-        cur.execute(
+        exec_sql(
             """
             CREATE TABLE IF NOT EXISTS trades (
                 id SERIAL PRIMARY KEY,
@@ -246,7 +273,7 @@ def init_db() -> None:
             )
             """
         )
-        cur.execute(
+        exec_sql(
             """
             CREATE TABLE IF NOT EXISTS metrics (
                 id SERIAL PRIMARY KEY,
@@ -262,7 +289,7 @@ def init_db() -> None:
             )
             """
         )
-        cur.execute(
+        exec_sql(
             """
             CREATE TABLE IF NOT EXISTS politician_trades (
                 id SERIAL PRIMARY KEY,
@@ -276,7 +303,7 @@ def init_db() -> None:
             )
             """
         )
-        cur.execute(
+        exec_sql(
             """
             CREATE TABLE IF NOT EXISTS lobbying (
                 id SERIAL PRIMARY KEY,
@@ -289,7 +316,7 @@ def init_db() -> None:
             )
             """
         )
-        cur.execute(
+        exec_sql(
             """
             CREATE TABLE IF NOT EXISTS wiki_views (
                 id SERIAL PRIMARY KEY,
@@ -301,7 +328,7 @@ def init_db() -> None:
             )
             """
         )
-        cur.execute(
+        exec_sql(
             """
             CREATE TABLE IF NOT EXISTS dc_insider_scores (
                 id SERIAL PRIMARY KEY,
@@ -313,7 +340,7 @@ def init_db() -> None:
             )
             """
         )
-        cur.execute(
+        exec_sql(
             """
             CREATE TABLE IF NOT EXISTS gov_contracts (
                 id SERIAL PRIMARY KEY,
@@ -325,7 +352,54 @@ def init_db() -> None:
             )
             """
         )
-        cur.execute(
+        exec_sql(
+            """
+            CREATE TABLE IF NOT EXISTS app_reviews (
+                id SERIAL PRIMARY KEY,
+                ticker TEXT,
+                hype TEXT,
+                date TEXT,
+                _retrieved TIMESTAMPTZ,
+                UNIQUE(ticker, date)
+            )
+            """
+        )
+        exec_sql(
+            """
+            CREATE TABLE IF NOT EXISTS google_trends (
+                id SERIAL PRIMARY KEY,
+                ticker TEXT,
+                score TEXT,
+                date TEXT,
+                _retrieved TIMESTAMPTZ,
+                UNIQUE(ticker, date)
+            )
+            """
+        )
+        exec_sql(
+            """
+            CREATE TABLE IF NOT EXISTS insider_buying (
+                id SERIAL PRIMARY KEY,
+                ticker TEXT,
+                exec TEXT,
+                shares TEXT,
+                date TEXT,
+                _retrieved TIMESTAMPTZ,
+                UNIQUE(ticker, exec, date)
+            )
+            """
+        )
+        exec_sql(
+            """
+            CREATE TABLE IF NOT EXISTS sp500_index (
+                id SERIAL PRIMARY KEY,
+                date TEXT UNIQUE,
+                close DOUBLE PRECISION,
+                _retrieved TIMESTAMPTZ
+            )
+            """
+        )
+        exec_sql(
             """
             CREATE TABLE IF NOT EXISTS alloc_log (
                 id SERIAL PRIMARY KEY,
@@ -333,7 +407,7 @@ def init_db() -> None:
             )
             """
         )
-        cur.execute(
+        exec_sql(
             """
             CREATE TABLE IF NOT EXISTS cache (
                 key TEXT PRIMARY KEY,
@@ -342,7 +416,7 @@ def init_db() -> None:
             )
             """
         )
-        cur.execute(
+        exec_sql(
             """
             CREATE TABLE IF NOT EXISTS account_metrics (
                 id SERIAL PRIMARY KEY,
@@ -367,3 +441,7 @@ contracts_coll = db["gov_contracts"]
 alloc_log_coll = db["alloc_log"]
 cache = db["cache"] if _conn else InMemoryCollection()
 account_coll = db["account_metrics"]
+app_reviews_coll = db["app_reviews"]
+google_trends_coll = db["google_trends"]
+insider_buy_coll = db["insider_buying"]
+sp500_coll = db["sp500_index"]

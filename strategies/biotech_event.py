@@ -16,6 +16,21 @@ class BiotechBinaryEventBasket:
         self.events = events  # symbol -> event date
         self.book: Dict[str, tuple[pd.Timestamp, float]] = {}
 
+    @staticmethod
+    def is_biotech(sym: str) -> bool:
+        """Return True if the ticker appears to be a biotech/biomedical company."""
+        try:
+            info = yf.Ticker(sym).info
+        except Exception:
+            return False
+        sector = str(info.get("sector", "")).lower()
+        industry = str(info.get("industry", "")).lower()
+        return (
+            "biotechnology" in industry
+            or "biotechnology" in sector
+            or "biomedical" in industry
+        )
+
     def _latest_price(self, sym: str) -> float:
         df = yf.download(sym, period="1d", interval="1d", progress=False)["Close"]
         if df.empty:
@@ -43,6 +58,8 @@ class BiotechBinaryEventBasket:
         cutoff = today + pd.Timedelta(days=90)
         for sym, ev_dt in self.events.items():
             if sym in self.book:
+                continue
+            if not self.is_biotech(sym):
                 continue
             if today <= pd.Timestamp(ev_dt) <= cutoff:
                 price = self._latest_price(sym)

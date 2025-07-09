@@ -4,10 +4,31 @@ from __future__ import annotations
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
+import os
+import yaml
+
+
+def _load_config_yaml(path: str = "config.yaml") -> None:
+    """Populate environment variables from a YAML file if present."""
+    if os.path.exists(path):
+        with open(path) as f:
+            data = yaml.safe_load(f) or {}
+        for key, val in data.items():
+            if isinstance(val, bool):
+                os.environ.setdefault(key, str(val).lower())
+            else:
+                os.environ.setdefault(key, str(val))
+
+
+_load_config_yaml()
 
 
 class Settings(BaseSettings):
-    """Application configuration loaded from ``.env`` or environment."""
+    """Typed configuration loaded from environment variables.
+
+    ``config.yaml`` is parsed at import time and populates ``os.environ`` so
+    these settings can be loaded without a separate ``.env`` file.
+    """
 
     ALPACA_API_KEY: str | None = None
     ALPACA_API_SECRET: str | None = None
@@ -28,10 +49,7 @@ class Settings(BaseSettings):
 
     AUTO_START_SCHED: bool = False
 
-    model_config = {
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-    }
+    model_config = {"case_sensitive": False}
 
 
 # Pass defaults explicitly so mypy recognises optional fields

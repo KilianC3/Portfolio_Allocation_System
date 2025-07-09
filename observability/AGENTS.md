@@ -6,3 +6,5 @@ Utilities for logging, metrics and tracing.
 - `tracing.py` integrates OpenTelemetry if configured.
 
 Other packages import these modules to report status and errors.
+Logging now includes the scheduler startup routine and prints first-row samples
+from scrapers during testing for easier debugging.

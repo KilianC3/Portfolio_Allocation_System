@@ -7,7 +7,7 @@ import datetime as dt
 import hashlib
 import random
 
-import aiohttp
+import requests
 
 from infra.rate_limiter import DynamicRateLimiter
 from database import cache
@@ -24,42 +24,47 @@ TTL = 900
 
 
 async def get(url: str, retries: int = 3) -> str:
-    """Fetch ``url`` asynchronously with caching and basic retries."""
+    """Fetch ``url`` asynchronously with caching and basic retries.
+
+    Uses ``requests`` inside a thread so network calls work behind proxies.
+    """
 
     key = hashlib.md5(url.encode()).hexdigest()
     doc = cache.find_one({"key": key})
-    if doc and doc["expire"] > dt.datetime.utcnow():
+    if doc and doc["expire"] > dt.datetime.now(dt.timezone.utc):
         return doc["payload"]
 
     backoff = 1.0
     async with RATE:
-        async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=15)
-        ) as session:
-            error: Exception | None = None
-            for attempt in range(retries):
-                try:
-                    async with session.get(
+        error: Exception | None = None
+        for attempt in range(retries):
+            try:
+
+                def _fetch() -> str:
+                    r = requests.get(
                         url,
                         headers={"User-Agent": random.choice(USER_AGENTS)},
-                    ) as resp:
-                        resp.raise_for_status()
-                        text = await resp.text()
-                        cache.replace_one(
-                            {"key": key},
-                            {
-                                "key": key,
-                                "payload": text,
-                                "expire": dt.datetime.utcnow()
-                                + dt.timedelta(seconds=TTL),
-                            },
-                            upsert=True,
-                        )
-                        RATE.reset()
-                        return text
-                except Exception as exc:
-                    RATE.backoff()
-                    error = exc
-                    await asyncio.sleep(backoff)
-                    backoff *= 2
-            raise RuntimeError(f"Failed {url}: {error}")
+                        timeout=15,
+                    )
+                    r.raise_for_status()
+                    return r.text
+
+                text = await asyncio.to_thread(_fetch)
+                cache.replace_one(
+                    {"key": key},
+                    {
+                        "key": key,
+                        "payload": text,
+                        "expire": dt.datetime.now(dt.timezone.utc)
+                        + dt.timedelta(seconds=TTL),
+                    },
+                    upsert=True,
+                )
+                RATE.reset()
+                return text
+            except Exception as exc:
+                RATE.backoff()
+                error = exc
+                await asyncio.sleep(backoff)
+                backoff *= 2
+        raise RuntimeError(f"Failed {url}: {error}")

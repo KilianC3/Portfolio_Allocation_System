@@ -5,4 +5,5 @@ MkDocs site containing extended documentation.
 - `data_format.md` – describes scraped dataset schema.
 
 The README provides setup instructions while these pages dive into
-implementation details.
+implementation details. Recent documentation updates list every data source URL
+and explain how scrapers run automatically at startup.

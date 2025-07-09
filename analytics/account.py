@@ -15,7 +15,7 @@ async def record_account(gateway: AlpacaGateway) -> Dict:
     """Fetch account equity from Alpaca and store it."""
     info = await gateway.account()
     doc = {
-        "timestamp": dt.datetime.utcnow(),
+        "timestamp": dt.datetime.now(dt.timezone.utc),
         "paper": gateway.paper,
         "equity": float(info.get("equity", 0)),
         "last_equity": float(info.get("last_equity", 0)),

@@ -7,3 +7,5 @@ Risk management models and limits.
 - `position_risk.py` and `var.py` – value-at-risk calculations.
 
 Strategies query these modules before executing trades.
+The circuit breaker now stores breach events in DuckDB so tests can verify
+triggered stops without a running Postgres instance.

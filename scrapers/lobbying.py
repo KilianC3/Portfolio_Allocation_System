@@ -16,7 +16,7 @@ rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 async def fetch_lobbying_data() -> List[dict]:
     """Scrape corporate lobbying spending from QuiverQuant."""
-    url = "https://www.quiverquant.com/sources/lobbying"
+    url = "https://www.quiverquant.com/lobbying/"
     with scrape_latency.labels("lobbying").time():
         try:
             async with rate:
@@ -27,7 +27,7 @@ async def fetch_lobbying_data() -> List[dict]:
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))
     data: List[dict] = []
-    now = dt.datetime.utcnow()
+    now = dt.datetime.now(dt.timezone.utc)
     if table:
         for row in cast(List[Tag], table.find_all("tr"))[1:]:
             cells = [c.get_text(strip=True) for c in row.find_all("td")]

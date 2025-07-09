@@ -1,7 +1,7 @@
 import datetime as dt
-from typing import List, Optional, cast
-from bs4 import BeautifulSoup
-from bs4.element import Tag
+import json
+from typing import List
+
 from config import QUIVER_RATE_SEC
 from infra.rate_limiter import DynamicRateLimiter
 from infra.smart_scraper import get as scrape_get
@@ -13,36 +13,40 @@ wiki_collection = wiki_coll if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 
-async def fetch_wiki_views() -> List[dict]:
-    """Scrape most viewed company pages from QuiverQuant."""
-    url = "https://www.quiverquant.com/sources/wikipedia"
+async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7) -> List[dict]:
+    """Fetch Wikipedia page views via the Wikimedia API."""
+
+    end = dt.date.today() - dt.timedelta(days=1)
+    start = end - dt.timedelta(days=days - 1)
+    url = (
+        "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/"
+        f"en.wikipedia/all-access/all-agents/{page}/daily/"
+        f"{start:%Y%m%d}/{end:%Y%m%d}"
+    )
     with scrape_latency.labels("wiki_views").time():
         try:
             async with rate:
-                html = await scrape_get(url)
+                text = await scrape_get(url)
         except Exception:
             scrape_errors.labels("wiki_views").inc()
             raise
-    soup = BeautifulSoup(html, "html.parser")
-    table = cast(Optional[Tag], soup.find("table"))
+    items = json.loads(text).get("items", [])
+    now = dt.datetime.now(dt.timezone.utc)
     data: List[dict] = []
-    now = dt.datetime.utcnow()
-    if table:
-        for row in cast(List[Tag], table.find_all("tr"))[1:]:
-            cells = [c.get_text(strip=True) for c in row.find_all("td")]
-            if len(cells) >= 3:
-                item = {
-                    "ticker": cells[0],
-                    "views": cells[1],
-                    "date": cells[2],
-                    "_retrieved": now,
-                }
-                data.append(item)
-                wiki_collection.update_one(
-                    {"ticker": item["ticker"], "date": item["date"]},
-                    {"$set": item},
-                    upsert=True,
-                )
+    for row in items:
+        date = row["timestamp"][:8]
+        item = {
+            "page": page,
+            "views": row["views"],
+            "date": date,
+            "_retrieved": now,
+        }
+        data.append(item)
+        wiki_collection.update_one(
+            {"page": page, "date": date},
+            {"$set": item},
+            upsert=True,
+        )
     append_snapshot("wiki_views", data)
     return data
 
