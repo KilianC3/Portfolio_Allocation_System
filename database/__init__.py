@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import json
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import psycopg2
