@@ -16,16 +16,12 @@ var_gauge = Gauge("strategy_var", "Value at Risk")
 cvar_gauge = Gauge("strategy_cvar", "Conditional Value at Risk")
 tail_gauge = Gauge("strategy_tail_ratio", "Tail ratio")
 
-scrape_latency = Histogram(
-    "scraper_latency_seconds", "Scraper latency", ["name"]
-)
+scrape_latency = Histogram("scraper_latency_seconds", "Scraper latency", ["name"])
 scrape_errors = Counter("scraper_errors_total", "Scraper errors", ["name"])
 rebalance_latency = Histogram(
     "rebalance_latency_seconds", "Rebalance duration", ["pf_id"]
 )
-trade_slippage = Histogram(
-    "trade_slippage_bp", "Trade slippage in basis points"
-)
+trade_slippage = Histogram("trade_slippage_bp", "Trade slippage in basis points")
 
 
 def alpha_beta(r: pd.Series, benchmark: pd.Series) -> tuple[float, float]:
@@ -68,6 +64,7 @@ def tail_ratio(r: pd.Series) -> float:
         tr = pos / neg
     tail_gauge.set(tr)
     return float(tr)
+
 
 __all__ = [
     "alpha_beta",

@@ -42,4 +42,5 @@ def estimate_covariance(
         cov = ledoit_wolf_cov(returns)
     return cov * 252
 
+
 __all__ = ["estimate_covariance", "ledoit_wolf_cov", "pca_factor_cov"]

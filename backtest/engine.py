@@ -3,6 +3,7 @@ import pandas as pd
 
 from core.equity import EquityPortfolio
 
+
 async def run_backtest(pf: EquityPortfolio, prices_file: str) -> pd.DataFrame:
     table = pq.read_table(prices_file)
     df = table.to_pandas()

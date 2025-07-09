@@ -27,10 +27,10 @@ def black_litterman_posterior(
     if omega is None:
         omega = np.diag(np.diag(P.values @ tau_sigma @ P.values.T))
     middle = np.linalg.inv(P.values @ tau_sigma @ P.values.T + omega)
-    mu = (
-        np.linalg.inv(np.linalg.inv(tau_sigma) + P.values.T @ middle @ P.values)
-        @ (np.linalg.inv(tau_sigma) @ pi.values + P.values.T @ middle @ Q.values)
+    mu = np.linalg.inv(np.linalg.inv(tau_sigma) + P.values.T @ middle @ P.values) @ (
+        np.linalg.inv(tau_sigma) @ pi.values + P.values.T @ middle @ Q.values
     )
     return pd.Series(mu, index=cov.index)
+
 
 __all__ = ["market_implied_returns", "black_litterman_posterior"]

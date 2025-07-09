@@ -5,6 +5,7 @@ router = APIRouter()
 
 clients = set()
 
+
 @router.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
