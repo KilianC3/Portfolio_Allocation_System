@@ -36,4 +36,3 @@ pyarrow>=14.0.2
 sentry-sdk>=2.0.0
 pydantic-settings>=2.0.3
 Deprecated>=1.2.13
-PyYAML>=6.0

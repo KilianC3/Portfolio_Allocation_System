@@ -113,6 +113,8 @@ Data sources and rebalance frequency for each strategy are shown below.
 
 Application settings live in `config.py`. Values are loaded from
 `config.yaml` if that file exists, falling back to environment variables.
+The file is parsed with a lightweight built-in helper so no external YAML
+package is required.
 Edit `config.yaml` with your own credentials:
 
 - `ALPACA_API_KEY` and `ALPACA_API_SECRET` – credentials for the Alpaca API

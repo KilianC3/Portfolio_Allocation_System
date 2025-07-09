@@ -7,7 +7,11 @@ import uuid
 from typing import Optional, List, Dict
 
 import httpx
-from alpaca_trade_api.rest import REST  # retained for data helpers
+
+try:
+    from alpaca_trade_api.rest import REST  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    REST = object  # placeholder so tests run without the package
 
 from logger import get_logger
 from config import ALPACA_API_KEY, ALPACA_API_SECRET, ALPACA_BASE_URL

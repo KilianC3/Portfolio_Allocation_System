@@ -5,19 +5,38 @@ from __future__ import annotations
 from pydantic import Field
 from pydantic_settings import BaseSettings
 import os
-import yaml
+from typing import Any, Dict
+
+
+def _parse_simple_yaml(path: str) -> Dict[str, Any]:
+    """Parse a minimal YAML mapping of `key: value` pairs."""
+    data: Dict[str, Any] = {}
+    with open(path) as f:
+        for raw in f:
+            line = raw.split("#", 1)[0].strip()
+            if not line or ":" not in line:
+                continue
+            key, val = line.split(":", 1)
+            key = key.strip()
+            val = val.strip().strip("'\"")
+            if val.lower() in {"true", "false"}:
+                data[key] = val.lower() == "true"
+            else:
+                try:
+                    data[key] = int(val)
+                except ValueError:
+                    try:
+                        data[key] = float(val)
+                    except ValueError:
+                        data[key] = val
+    return data
 
 
 def _load_config_yaml(path: str = "config.yaml") -> None:
     """Populate environment variables from a YAML file if present."""
     if os.path.exists(path):
-        with open(path) as f:
-            data = yaml.safe_load(f) or {}
-        for key, val in data.items():
-            if isinstance(val, bool):
-                os.environ.setdefault(key, str(val).lower())
-            else:
-                os.environ.setdefault(key, str(val))
+        for key, val in _parse_simple_yaml(path).items():
+            os.environ.setdefault(key, str(val))
 
 
 _load_config_yaml()
