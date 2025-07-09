@@ -97,6 +97,7 @@ def portfolio_metrics(
         "cumulative_return": cumulative_return(r),
         "ret_7d": period_return(r, 7),
         "ret_30d": period_return(r, 30),
+        "ret_1y": period_return(r, 252),
     }
 
     if benchmark is not None:

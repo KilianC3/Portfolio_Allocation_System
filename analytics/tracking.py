@@ -62,6 +62,7 @@ def update_all_metrics(days: int = 90) -> None:
         metrics["ret"] = float(series.iloc[-1]) if not series.empty else 0.0
         metrics["ret_7d"] = period_return(series, 7)
         metrics["ret_30d"] = period_return(series, 30)
+        metrics["ret_1y"] = period_return(series, 252)
         end_date = (
             cast(pd.Timestamp, series.index[-1]).date()
             if not series.empty

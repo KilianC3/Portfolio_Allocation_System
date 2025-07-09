@@ -74,7 +74,7 @@ class Settings(BaseSettings):
 
 
 # Pass defaults explicitly so mypy recognises optional fields
-settings = Settings(MIN_ALLOCATION=0.02, MAX_ALLOCATION=0.40)
+settings = Settings(MIN_ALLOCATION=0.02, MAX_ALLOCATION=0.40, CACHE_TTL=900)
 
 ALPACA_API_KEY = settings.ALPACA_API_KEY
 ALPACA_API_SECRET = settings.ALPACA_API_SECRET

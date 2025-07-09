@@ -2,7 +2,7 @@ import uvicorn
 
 from config import API_TOKEN, PG_URI, CACHE_TTL
 from database import db_ping, init_db
-from scrapers.universe import download_sp1500, download_russell2000
+from scrapers.universe import download_sp1500, download_russell2000, download_sp500
 
 
 def validate_startup() -> None:
@@ -16,6 +16,7 @@ def validate_startup() -> None:
     if not db_ping():
         raise RuntimeError("Postgres connection failed")
     init_db()
+    download_sp500()
     download_sp1500()
     download_russell2000()
 

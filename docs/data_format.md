@@ -21,8 +21,9 @@ analysis can reproduce past views of the data.
 | `sp500_index` | `date`, `close`, `_retrieved` |
 | `portfolios` | `id`, `name`, `weights` |
 | `trades` | `portfolio_id`, `symbol`, `qty`, `side`, `price`, `timestamp` |
-| `metrics` | `portfolio_id`, `date`, `ret`, `ret_7d`, `ret_30d`, `benchmark`, `sharpe`, `alpha`, `beta`, `max_drawdown` |
+| `metrics` | `portfolio_id`, `date`, `ret`, `ret_7d`, `ret_30d`, `ret_1y`, `benchmark`, `sharpe`, `alpha`, `beta`, `max_drawdown` |
 | `account_metrics` | `timestamp`, `data` |
+| `universe` | `index`, `symbol`, `_retrieved` |
 
 Every column is stored as a string except for the timestamp `_retrieved` which is a `TIMESTAMP` in UTC.
 
@@ -30,6 +31,7 @@ Both the `metrics` and `account_metrics` tables are populated nightly by
 the scheduler so that portfolio performance and account equity remain up
 to date.
 
-Stock universe lists are not stored in Postgres. The `scrapers/universe.py`
-utility downloads S&P and Russell constituents to CSV files in
-`cache/universes/` for strategies to load.
+The `universe` table stores ticker constituents for the S&P 500,
+S&P 1500 and Russell 2000 indexes. The `scrapers/universe.py` helper
+persists the lists to this table and also writes a CSV copy under
+`cache/universes/` for offline use.

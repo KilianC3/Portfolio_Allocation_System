@@ -276,7 +276,16 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
     res = []
     for d in docs:
         entry = {"date": _iso(d["date"]), "ret": d["ret"]}
-        for k in ("sharpe", "alpha", "beta", "max_drawdown", "benchmark"):
+        for k in (
+            "sharpe",
+            "alpha",
+            "beta",
+            "max_drawdown",
+            "benchmark",
+            "ret_7d",
+            "ret_30d",
+            "ret_1y",
+        ):
             if k in d:
                 entry[k] = d[k]
         res.append(entry)
@@ -321,26 +330,15 @@ def stop_scheduler():
 
 
 # Data collection using dedicated scraping module
-from scrapers import (
-    fetch_politician_trades,
-    fetch_lobbying_data,
-    fetch_wiki_views,
-    fetch_dc_insider_scores,
-    fetch_gov_contracts,
-    fetch_app_reviews,
-    fetch_google_trends,
-    fetch_insider_buying,
-    fetch_sp500_history,
-    politician_coll,
-    lobby_coll,
-    wiki_collection,
-    insider_coll,
-    contracts_coll,
-    app_reviews_coll,
-    trends_coll,
-    insider_buy_coll,
-    sp500_coll,
-)
+from scrapers.politician import fetch_politician_trades, politician_coll
+from scrapers.lobbying import fetch_lobbying_data, lobby_coll
+from scrapers.wiki import fetch_wiki_views, wiki_collection
+from scrapers.dc_insider import fetch_dc_insider_scores, insider_coll
+from scrapers.gov_contracts import fetch_gov_contracts, contracts_coll
+from scrapers.app_reviews import fetch_app_reviews, app_reviews_coll
+from scrapers.google_trends import fetch_google_trends, trends_coll
+from scrapers.insider_buying import fetch_insider_buying, insider_buy_coll
+from scrapers.sp500_index import fetch_sp500_history, sp500_coll
 
 
 @app.post("/collect/politician_trades")

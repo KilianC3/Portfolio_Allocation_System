@@ -133,6 +133,13 @@ CREATE TABLE IF NOT EXISTS sp500_index (
     _retrieved TIMESTAMPTZ
 );
 
+CREATE TABLE IF NOT EXISTS universe (
+    index TEXT,
+    symbol TEXT,
+    _retrieved TIMESTAMPTZ,
+    UNIQUE(index, symbol)
+);
+
 
 CREATE TABLE IF NOT EXISTS alloc_log (
     id SERIAL PRIMARY KEY,
