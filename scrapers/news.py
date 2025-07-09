@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 from typing import List
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from config import QUIVER_RATE_SEC
 from infra.smart_scraper import get as scrape_get
@@ -25,25 +25,25 @@ async def fetch_stock_news(limit: int = 50) -> List[dict]:
     for tr in soup.select("tr.news_table-row"):
         date_cell = tr.select_one("td.news_date-cell")
         link_cell = tr.select_one("td.news_link-cell")
-        if not date_cell or not link_cell:
+        if not isinstance(date_cell, Tag) or not isinstance(link_cell, Tag):
             continue
         head = link_cell.find("a", class_="nn-tab-link")
-        if not head:
+        if not isinstance(head, Tag):
             continue
         headline = head.get_text(strip=True)
-        link = head.get("href")
+        link = head.get("href", "")
         sym_anchor = link_cell.find(
             "a", href=lambda x: isinstance(x, str) and x.startswith("/quote.ashx?t=")
         )
-        ticker = ""
-        if sym_anchor and sym_anchor.get("href"):
-            ticker = sym_anchor["href"].split("t=")[1].split("&")[0]
-        source = link_cell.find("span", class_="news_date-cell")
+        href = sym_anchor.get("href") if isinstance(sym_anchor, Tag) else None
+        ticker = href.split("t=")[1].split("&")[0] if href else ""
+        source_el = link_cell.find("span", class_="news_date-cell")
+        source = source_el.get_text(strip=True) if isinstance(source_el, Tag) else ""
         item = {
             "ticker": ticker,
             "headline": headline,
             "link": link,
-            "source": source.get_text(strip=True) if source else "",
+            "source": source,
             "time": date_cell.get_text(strip=True),
             "_retrieved": now,
         }
