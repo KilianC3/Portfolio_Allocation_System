@@ -2,8 +2,9 @@
 
 All data collection scripts.
 - `universe.py` pulls ticker lists.
-- `wiki.py` and others in this folder fetch alternative data from QuiverQuant
-  and public APIs.
+- `wiki.py` and others in this folder fetch alternative data from QuiverQuant and public APIs.
+
+Scrapers call `init_db()` to ensure tables exist and the `universe` helper stores index constituents to Postgres and CSV.
 
 Scrapers store their results via `database/` helpers and are triggered on
 startup by the scheduler. Each scraper hits the URLs documented in the README,

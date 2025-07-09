@@ -6,6 +6,7 @@ Key modules:
 - `covariance.py` – covariance estimation helpers.
 - `robust.py` and `tracking.py` – robust statistics and performance tracking.
 - `account.py` and `collector.py` – scrape account metrics and collect statistics.
+Portfolio metrics compute rolling 7-day, 30-day and 1-year returns and append results to CSV files in cache/metrics/.
 
 These modules operate on portfolio objects from `core/` and store results
 through the `database/` helpers. Strategies in `strategies/` rely on these
