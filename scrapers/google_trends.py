@@ -6,7 +6,7 @@ from bs4.element import Tag
 from config import QUIVER_RATE_SEC
 from infra.rate_limiter import DynamicRateLimiter
 from infra.smart_scraper import get as scrape_get
-from database import db, pf_coll
+from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
 
 trends_coll = db["google_trends"] if db else pf_coll
@@ -15,6 +15,7 @@ rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 async def fetch_google_trends() -> List[dict]:
     """Scrape Google Trends scores from QuiverQuant."""
+    init_db()
     url = "https://www.quiverquant.com/googletrends/"
     async with rate:
         html = await scrape_get(url)

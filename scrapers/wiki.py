@@ -5,7 +5,7 @@ from typing import List
 from config import QUIVER_RATE_SEC
 from infra.rate_limiter import DynamicRateLimiter
 from infra.smart_scraper import get as scrape_get
-from database import db, pf_coll, wiki_coll
+from database import db, pf_coll, wiki_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 
@@ -15,6 +15,8 @@ rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7) -> List[dict]:
     """Fetch Wikipedia page views via the Wikimedia API."""
+
+    init_db()
 
     end = dt.date.today() - dt.timedelta(days=1)
     start = end - dt.timedelta(days=days - 1)

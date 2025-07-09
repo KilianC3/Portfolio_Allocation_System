@@ -5,7 +5,7 @@ from bs4.element import Tag
 from config import QUIVER_RATE_SEC
 from infra.rate_limiter import DynamicRateLimiter
 from infra.smart_scraper import get as scrape_get
-from database import db, pf_coll, lobbying_coll
+from database import db, pf_coll, lobbying_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 
@@ -16,6 +16,7 @@ rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 async def fetch_lobbying_data() -> List[dict]:
     """Scrape corporate lobbying spending from QuiverQuant."""
+    init_db()
     url = "https://www.quiverquant.com/lobbying/"
     with scrape_latency.labels("lobbying").time():
         try:

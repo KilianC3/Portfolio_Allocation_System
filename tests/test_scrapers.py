@@ -100,6 +100,7 @@ def test_helpers(monkeypatch, tmp_path):
 
     monkeypatch.setattr(univ, "_tickers_from_wiki", lambda url: ["MSFT"])
     monkeypatch.setattr(univ.requests, "get", lambda *a, **k: Resp())
+    monkeypatch.setattr(univ, "universe_coll", mock.Mock())
     p = univ.download_sp1500(tmp_path / "sp.csv")
     assert p.exists()
     data = pd.read_csv(p)
@@ -107,6 +108,7 @@ def test_helpers(monkeypatch, tmp_path):
     print(data.iloc[0].to_dict())
 
     monkeypatch.setattr(univ.requests, "get", lambda *a, **k: Resp())
+    monkeypatch.setattr(univ, "universe_coll", mock.Mock())
     p2 = univ.download_russell2000(tmp_path / "r2k.csv")
     assert p2.exists()
     data2 = pd.read_csv(p2)

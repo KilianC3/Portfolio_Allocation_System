@@ -190,12 +190,13 @@ Scraped data is stored in these Postgres collections:
 - `sp500_index`
 - `portfolios` – stored weights for each strategy
 - `trades` – executed orders across portfolios
-- `metrics` – daily returns and Sharpe/alpha figures
+- `metrics` – daily returns, 7-day, 30-day and 1-year performance plus Sharpe/alpha figures
 - `account_metrics` – periodic account equity snapshots
 - `alloc_log` – optimisation diagnostics for debugging
 
-Stock universe lists (e.g. S&P 1500 and Russell 2000) are kept as CSV
-files under `cache/universes/` via the `scrapers/universe.py` helper.
+Ticker universes for the S&P 500, S&P 1500 and Russell 2000 indexes are
+persisted to the `universe` table and exported to CSV under
+`cache/universes/` via the `scrapers/universe.py` helper.
 
 The scheduler triggers `update_all_metrics` every night to calculate
 daily performance for each portfolio and writes account equity with

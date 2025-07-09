@@ -45,6 +45,11 @@ This document helps Codex (or any future agent) produce clear, consistent commit
 - `strategies/` – individual trading strategies.
 - `infra/` – rate limiting and resilient scraping helpers.
 
+Recent updates added a central `schema.sql` file executed by
+`database.init_db`, a `db_ping` health check used by startup validation and a
+`universe` table storing S&P and Russell constituents.  Metrics now track 7‑day,
+30‑day and 1‑year returns for every portfolio.
+
 ---
 
 ## 4. Commit Message Guidelines

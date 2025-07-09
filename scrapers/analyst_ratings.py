@@ -11,7 +11,7 @@ from typing import cast
 from infra.smart_scraper import get as scrape_get
 from infra.rate_limiter import DynamicRateLimiter
 from config import QUIVER_RATE_SEC
-from database import db, pf_coll
+from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
 
 analyst_coll = db["analyst_ratings"] if db else pf_coll
@@ -20,6 +20,7 @@ rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 
 async def _fetch_ticker(sym: str) -> pd.DataFrame:
+    init_db()
     url = f"https://finviz.com/quote.ashx?t={sym}&ty=c&p=d&b=1"
     async with rate:
         html = await scrape_get(url)
