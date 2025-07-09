@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import List
+from typing import List, cast
 from bs4 import BeautifulSoup, Tag
 
 from config import QUIVER_RATE_SEC
@@ -35,8 +35,12 @@ async def fetch_stock_news(limit: int = 50) -> List[dict]:
         sym_anchor = link_cell.find(
             "a", href=lambda x: isinstance(x, str) and x.startswith("/quote.ashx?t=")
         )
-        href = sym_anchor.get("href") if isinstance(sym_anchor, Tag) else None
-        ticker = href.split("t=")[1].split("&")[0] if href else ""
+        href_val = sym_anchor.get("href") if isinstance(sym_anchor, Tag) else None
+        ticker = (
+            cast(str, href_val).split("t=")[1].split("&")[0]
+            if isinstance(href_val, str)
+            else ""
+        )
         source_el = link_cell.find("span", class_="news_date-cell")
         source = source_el.get_text(strip=True) if isinstance(source_el, Tag) else ""
         item = {

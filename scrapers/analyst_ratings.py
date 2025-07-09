@@ -6,6 +6,7 @@ from typing import Iterable, List
 import pandas as pd
 import yfinance as yf
 from bs4 import BeautifulSoup, Tag
+from typing import cast
 
 from infra.smart_scraper import get as scrape_get
 from infra.rate_limiter import DynamicRateLimiter
@@ -26,6 +27,7 @@ async def _fetch_ticker(sym: str) -> pd.DataFrame:
     table = soup.find("table", class_="js-table-ratings")
     if not isinstance(table, Tag):
         return pd.DataFrame()
+    table = cast(Tag, table)
     rows = []
     now = dt.datetime.now(dt.timezone.utc)
     for tr in table.find_all("tr")[1:]:
