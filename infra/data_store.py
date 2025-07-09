@@ -1,4 +1,5 @@
 """Simple columnar data store for scraped data."""
+
 from __future__ import annotations
 
 import os
@@ -17,6 +18,8 @@ def append_snapshot(table: str, records: List[Dict]) -> None:
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     con = duckdb.connect(DB_PATH)
     df = pd.DataFrame(records)
+    for c in df.select_dtypes(include=["datetimetz"]):
+        df[c] = df[c].dt.tz_convert(None)
     con.register("_tmp", df)
     con.execute(f"CREATE TABLE IF NOT EXISTS {table} AS SELECT * FROM _tmp LIMIT 0")
     con.execute(f"INSERT INTO {table} SELECT * FROM _tmp")

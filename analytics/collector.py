@@ -6,6 +6,7 @@ import pandas as pd
 
 DB_PATH = os.getenv("ANALYTICS_DB", "analytics.duckdb")
 
+
 def record_snapshot(portfolio_id: str, data: pd.DataFrame) -> None:
     """Append daily snapshot rows to DuckDB."""
     con = duckdb.connect(DB_PATH)

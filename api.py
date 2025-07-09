@@ -16,7 +16,7 @@ from database import pf_coll, trade_coll, metric_coll, init_db
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
 from scheduler import StrategyScheduler
-from analytics_utils import portfolio_metrics
+from analytics.utils import portfolio_metrics
 from metrics import rebalance_latency
 from analytics.collector import record_snapshot
 from analytics import update_all_metrics
@@ -146,6 +146,10 @@ async def startup_event():
             fetch_wiki_views(),
             fetch_dc_insider_scores(),
             fetch_gov_contracts(),
+            fetch_app_reviews(),
+            fetch_google_trends(),
+            fetch_insider_buying(),
+            asyncio.to_thread(fetch_sp500_history, 30),
         )
         if AUTO_START_SCHED:
             sched.start()
@@ -326,11 +330,19 @@ from scrapers import (
     fetch_wiki_views,
     fetch_dc_insider_scores,
     fetch_gov_contracts,
+    fetch_app_reviews,
+    fetch_google_trends,
+    fetch_insider_buying,
+    fetch_sp500_history,
     politician_coll,
     lobby_coll,
     wiki_collection,
     insider_coll,
     contracts_coll,
+    app_reviews_coll,
+    trends_coll,
+    insider_buy_coll,
+    sp500_coll,
 )
 
 
@@ -366,6 +378,60 @@ def show_lobbying(limit: int = 50):
         d["_retrieved"] = _iso(d.get("_retrieved"))
         res.append(d)
     return {"records": res}
+
+
+@app.post("/collect/app_reviews")
+async def collect_reviews():
+    data = await fetch_app_reviews()
+    return {"records": len(data)}
+
+
+@app.get("/app_reviews")
+def show_reviews(limit: int = 50):
+    docs = list(app_reviews_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.post("/collect/google_trends")
+async def collect_trends():
+    data = await fetch_google_trends()
+    return {"records": len(data)}
+
+
+@app.get("/google_trends")
+def show_trends(limit: int = 50):
+    docs = list(trends_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.post("/collect/insider_buying")
+async def collect_insider():
+    data = await fetch_insider_buying()
+    return {"records": len(data)}
+
+
+@app.get("/insider_buying")
+def show_insider(limit: int = 50):
+    docs = list(insider_buy_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.get("/sp500_index")
+def sp500_history(limit: int = 5):
+    docs = list(sp500_coll.find().sort("date", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
 
 
 @app.post("/collect/wiki_views")

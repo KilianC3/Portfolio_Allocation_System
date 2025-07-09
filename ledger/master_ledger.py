@@ -12,6 +12,7 @@ from logger import get_logger
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 _log = get_logger("ledger")
 
+
 class MasterLedger:
     def __init__(self) -> None:
         self.redis = aioredis.from_url(REDIS_URL, decode_responses=True)

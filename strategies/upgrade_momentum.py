@@ -20,7 +20,9 @@ class UpgradeMomentumStrategy:
         df = await fetch_changes(self.universe, weeks=4)
         if df.empty:
             return df
-        df["ratio"] = (df["upgrades"] - df["downgrades"]) / df["total"].replace(0, pd.NA)
+        df["ratio"] = (df["upgrades"] - df["downgrades"]) / df["total"].replace(
+            0, pd.NA
+        )
         return df.dropna(subset=["ratio"]).sort_values("ratio", ascending=False)
 
     async def build(self, pf: EquityPortfolio) -> None:

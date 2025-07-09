@@ -6,7 +6,7 @@ from logger import get_logger
 from config import CRON
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
-from allocation_engine import compute_weights
+from analytics.allocation_engine import compute_weights
 from database import metric_coll
 from analytics import update_all_metrics, record_account
 
@@ -32,7 +32,7 @@ class StrategyScheduler:
 
     def start(self):
         async def realloc_job():
-            start = dt.datetime.utcnow() - dt.timedelta(days=90)
+            start = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=90)
             cur = metric_coll.find(
                 {"date": {"$gte": start.date()}},
                 {"portfolio_id": 1, "date": 1, "ret": 1},

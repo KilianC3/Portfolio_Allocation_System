@@ -14,13 +14,13 @@ rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 async def fetch_gov_contracts() -> List[dict]:
     """Scrape top government contract recipients from QuiverQuant."""
-    url = "https://www.quiverquant.com/sources/governmentcontracts"
+    url = "https://www.quiverquant.com/sources/govcontracts"
     async with rate:
         html = await scrape_get(url)
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))
     data: List[dict] = []
-    now = dt.datetime.utcnow()
+    now = dt.datetime.now(dt.timezone.utc)
     if table:
         for row in cast(List[Tag], table.find_all("tr"))[1:]:
             cells = [c.get_text(strip=True) for c in row.find_all("td")]

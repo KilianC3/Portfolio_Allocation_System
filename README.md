@@ -73,7 +73,7 @@ Data sources and rebalance frequency for each strategy are shown below.
 | Strategy | Source | Period | Description |
 |---------|--------|--------|-------------|
 | Congressional-Trading Aggregate | Quiver congress trading | Weekly (Mon) | Top 20 names by net congressional dollar buys over the last month |
-| "Follow-the-Leader" Politician Sleeves | Individual congress trading pages | Monthly (first Mon) | Replicate trades for specific politicians |
+| "Follow-the-Leader" Politician Sleeves | Individual congress trading pages | Monthly (first Mon) | Replicate trades for specific politicians (e.g. Nancy Pelosi, Dan Meuser, Shelley Moore Capito) |
 | DC Insider Score Tilt | Quiver DC Insider scores | Weekly (Mon) | Long the 30 highest insider-score stocks |
 | Government-Contracts Momentum | Quiver gov contracts | Monthly (first trading day) | Own firms with ≥\$50M in new federal contracts last month |
 | Corporate Insider Buying Pulse | Quiver insider filings | Weekly (Mon) | Long the 25 tickers with strongest executive buying |
@@ -104,11 +104,18 @@ Data sources and rebalance frequency for each strategy are shown below.
    ```bash
    pip install -r requirements.txt
    ```
+   For a lightweight test setup you can instead use `requirements-test.txt`:
+   ```bash
+   pip install -r requirements-test.txt
+   ```
 
 ### Configuration
 
-Application settings live in `config.py`, which loads environment variables from
-a local `.env` file if present. Define the required environment variables:
+Application settings live in `config.py`. Values are loaded from
+`config.yaml` if that file exists, falling back to environment variables.
+The file is parsed with a lightweight built-in helper so no external YAML
+package is required.
+Edit `config.yaml` with your own credentials:
 
 - `ALPACA_API_KEY` and `ALPACA_API_SECRET` – credentials for the Alpaca API
 - `ALPACA_BASE_URL` – broker endpoint (`https://paper-api.alpaca.markets` by default)
@@ -117,18 +124,53 @@ a local `.env` file if present. Define the required environment variables:
 - `API_TOKEN` – optional bearer token protecting REST endpoints
 
 The `config.py` module also exposes defaults such as rate limits and schedule
-definitions, so both files work together: `.env` stores secrets while
-`config.py` provides type-checked access to them.
+definitions, providing type-checked access to all fields.
 
 ## Quickstart
 
-Start the API with Uvicorn and launch the scheduler:
+Start the API with Uvicorn on port 8001 and launch the scheduler:
 
 ```bash
 python start.py
 ```
+The API listens on `http://localhost:8001`.
+The provided Dockerfile runs this same command so container deployments
+start the service automatically.
 
 APScheduler jobs rebalance portfolios according to the active strategies.  REST endpoints under `/docs` allow manual portfolio management and data collection.
+
+To preload all datasets without launching the API run:
+
+```bash
+python -m scripts.bootstrap
+```
+
+Check overall system status at any time with:
+
+```bash
+python -m scripts.health_check
+```
+
+### Scraper URLs
+
+The system fetches alternative data from the following sources:
+
+| Dataset | URL |
+|---------|-----|
+| DC Insider Scores | https://www.quiverquant.com/scores/dcinsider |
+| Corporate Lobbying | https://www.quiverquant.com/lobbying/ |
+| Government Contracts | https://www.quiverquant.com/sources/govcontracts |
+| Politician Trading | https://www.quiverquant.com/congresstrading/ |
+| App Reviews | https://www.quiverquant.com/sources/appratings |
+| Google Trends | https://www.quiverquant.com/googletrends/ |
+| Insider Buying | https://www.quiverquant.com/insiders/ |
+| Wikipedia Views | https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/all-agents/{Page_Title}/daily/{start}/{end} |
+| Analyst Ratings | *custom provider* |
+| S&P 500 Constituents | https://datahub.io/core/s-and-p-500-companies/_r/-/data/constituents.csv |
+| S&P 500 Index | https://finance.yahoo.com/quote/%5EGSPC |
+| S&P 400 Companies | https://en.wikipedia.org/wiki/List_of_S%26P_400_companies |
+| S&P 600 Companies | https://en.wikipedia.org/wiki/List_of_S%26P_600_companies |
+| Russell 2000 Constituents | https://russellindexes.com/sites/us/files/indices/files/russell-2000-membership-list.csv |
 
 ### Running in an LXC Container
 
@@ -150,8 +192,8 @@ The system can run inside a lightweight Ubuntu container:
    ```
    The connection string is then:
    `postgresql://portfolio:<password>@localhost:5432/quant_fund`
-4. Follow the [Installation](#installation) steps inside the container and set the
-   environment variables in a `.env` file using the PG_URI from above.
+4. Follow the [Installation](#installation) steps inside the container and update
+   `config.yaml` with the PG_URI from above.
 
 ## Repository Structure
 
@@ -172,11 +214,20 @@ Additional guides live in the [`docs/`](docs/index.md) folder which is rendered 
 
 ## System Workflow
 
-Data from the various scrapers is inserted into Postgres during startup. Each
-strategy queries these raw tables to build an `EquityPortfolio` using the
-analytics helpers. Risk modules then scale or cap the weights before the
-execution gateway sends orders to the broker. Metrics are written back to the
-database so future allocations can learn from realised performance.
+When the API starts it triggers all scrapers once so that required datasets are
+available immediately.  The functions `fetch_politician_trades`,
+`fetch_lobbying_data`, `fetch_wiki_views`, `fetch_dc_insider_scores`,
+`fetch_gov_contracts`, `fetch_app_reviews`, `fetch_google_trends`,
+`fetch_insider_buying` and `fetch_sp500_history` populate Postgres tables
+(`politician_trades`, `lobbying`, `wiki_views`, `dc_insider_scores`,
+`gov_contracts`, `app_reviews`, `google_trends`, `insider_buying` and
+`sp500_index`).  If Postgres is unreachable an in-memory DuckDB fallback keeps
+the system operational until a database connection is restored.
+
+Each strategy then queries these raw tables to build an `EquityPortfolio` using
+the analytics helpers. Risk modules scale or cap the weights before the
+execution gateway sends orders to the broker. Metrics are written back so future
+allocations can learn from realised performance.
 
 ### Allocation Logic
 

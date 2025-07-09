@@ -9,26 +9,38 @@ import yfinance as yf
 from typing import cast
 
 from database import pf_coll, metric_coll
-from analytics_utils import portfolio_metrics
+from analytics.utils import portfolio_metrics
 
 
 def _fetch_returns(symbols: Iterable[str], days: int = 90) -> pd.DataFrame:
-    """Download daily returns for the given symbols."""
+    """Download daily returns for the given symbols.
+
+    Large universes are fetched in chunks so that the Yahoo API
+    does not fail when requesting thousands of tickers at once.
+    """
+
     syms = list(symbols)
     if not syms:
         idx = pd.date_range(end=dt.date.today(), periods=days)
         return pd.DataFrame(index=idx)
-    df = yf.download(
-        syms,
-        period=f"{days + 1}d",
-        interval="1d",
-        group_by="ticker",
-        threads=True,
-        progress=False,
-    )["Close"]
-    if isinstance(df, pd.Series):
-        df = df.to_frame(syms[0])
-    rets = df.pct_change().dropna()
+
+    chunks = [syms[i : i + 200] for i in range(0, len(syms), 200)]
+    closes = []
+    for ch in chunks:
+        df = yf.download(
+            ch,
+            period=f"{days + 1}d",
+            interval="1d",
+            group_by="ticker",
+            threads=True,
+            progress=False,
+        )["Close"]
+        if isinstance(df, pd.Series):
+            df = df.to_frame(ch[0])
+        closes.append(df)
+
+    big = pd.concat(closes, axis=1)
+    rets = big.pct_change().dropna()
     return rets
 
 

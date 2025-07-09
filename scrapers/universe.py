@@ -47,8 +47,13 @@ def download_russell2000(path: Path | None = None) -> Path:
     r = requests.get(R2000_URL, timeout=30)
     r.raise_for_status()
     df = pd.read_csv(io.StringIO(r.text))
-    col = next((c for c in df.columns if "ticker" in c.lower() or "symbol" in c.lower()), df.columns[0])
-    pd.DataFrame(df[col].astype(str).str.upper(), columns=["symbol"]).to_csv(path, index=False)
+    col = next(
+        (c for c in df.columns if "ticker" in c.lower() or "symbol" in c.lower()),
+        df.columns[0],
+    )
+    pd.DataFrame(df[col].astype(str).str.upper(), columns=["symbol"]).to_csv(
+        path, index=False
+    )
     return path
 
 

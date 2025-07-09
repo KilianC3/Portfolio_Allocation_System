@@ -48,6 +48,7 @@ STOP_SHORT = {"A", "I", "AND", "THE", "FOR", "YOU", "ARE", "WITH", "TO", "IN"}
 
 # -------------------- Universe builders --------------------
 
+
 def build_equity_universe() -> None:
     """Top 50% of S&P 1500 by volume."""
     url = "https://en.wikipedia.org/wiki/S%26P_1500"
@@ -59,7 +60,14 @@ def build_equity_universe() -> None:
             if str(col).lower().startswith(("ticker", "symbol")):
                 syms.update(tbl[col].astype(str).str.upper())
                 break
-    df = yf.download(list(syms), period="1d", interval="1d", group_by="ticker", threads=True, progress=False)
+    df = yf.download(
+        list(syms),
+        period="1d",
+        interval="1d",
+        group_by="ticker",
+        threads=True,
+        progress=False,
+    )
     vols = []
     for sym in syms:
         try:
@@ -97,6 +105,7 @@ def load_universe() -> set[str]:
     cp = set(json.loads(CRYPTO_FILE.read_text())) if CRYPTO_FILE.exists() else set()
     return eq | cp
 
+
 # -------------------- Reddit helpers --------------------
 
 
@@ -124,12 +133,15 @@ def wsb_blobs(days: int) -> Iterable[str]:
                 yield cm.body
         time.sleep(0.5)
 
+
 # -------------------- Sentiment --------------------
 
 if AutoTokenizer is not None:
     try:
         DEVICE = 0 if torch and torch.cuda.is_available() else -1
-        _tok = AutoTokenizer.from_pretrained("cardiffnlp/twitter-roberta-base-sentiment-latest")
+        _tok = AutoTokenizer.from_pretrained(
+            "cardiffnlp/twitter-roberta-base-sentiment-latest"
+        )
         _mod = AutoModelForSequenceClassification.from_pretrained(
             "cardiffnlp/twitter-roberta-base-sentiment-latest"
         )
@@ -168,6 +180,7 @@ def label_sentiment(batch: List[str]) -> List[str]:
     else:
         return [simple_sentiment(t) for t in batch]
 
+
 # -------------------- Analysis --------------------
 
 
@@ -177,7 +190,9 @@ def run_analysis(days: int, top_n: int) -> pd.DataFrame:
         raise RuntimeError("Universe is empty; run with --refresh-universe first")
 
     raw_counts: Counter[str] = Counter()
-    senti_counts: Dict[str, Counter[str]] = defaultdict(lambda: Counter(pos=0, neu=0, neg=0))
+    senti_counts: Dict[str, Counter[str]] = defaultdict(
+        lambda: Counter(pos=0, neu=0, neg=0)
+    )
 
     batch: List[str] = []
     for text in tqdm(wsb_blobs(days), desc="Blobs", unit="blob"):
@@ -214,6 +229,7 @@ def run_analysis(days: int, top_n: int) -> pd.DataFrame:
         )
     return pd.DataFrame(rows)
 
+
 # -------------------- CLI --------------------
 
 if __name__ == "__main__":
@@ -233,4 +249,3 @@ if __name__ == "__main__":
         print("No tickers found.")
     else:
         print(df.to_markdown(index=False))
-

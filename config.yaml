@@ -1,0 +1,9 @@
+ALPACA_API_KEY: "your-alpaca-key"
+ALPACA_API_SECRET: "your-secret"
+ALPACA_BASE_URL: "https://paper-api.alpaca.markets"
+PG_URI: "postgresql://postgres:postgres@localhost:5432/quant_fund"
+REDDIT_CLIENT_ID: "your-reddit-id"
+REDDIT_CLIENT_SECRET: "your-reddit-secret"
+REDDIT_USER_AGENT: "WSB-Strategy/1.0"
+API_TOKEN: "changeme"
+AUTO_START_SCHED: true

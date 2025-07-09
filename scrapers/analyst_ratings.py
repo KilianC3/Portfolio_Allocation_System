@@ -40,5 +40,7 @@ async def fetch_changes(symbols: Iterable[str], weeks: int = 4) -> pd.DataFrame:
         up = df["rating"].str.contains("upgrade").sum()
         down = df["rating"].str.contains("downgrade").sum()
         tot = len(df)
-        rows.append(dict(symbol=sym, upgrades=int(up), downgrades=int(down), total=int(tot)))
+        rows.append(
+            dict(symbol=sym, upgrades=int(up), downgrades=int(down), total=int(tot))
+        )
     return pd.DataFrame(rows)

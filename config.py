@@ -4,10 +4,50 @@ from __future__ import annotations
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
+import os
+from typing import Any, Dict
+
+
+def _parse_simple_yaml(path: str) -> Dict[str, Any]:
+    """Parse a minimal YAML mapping of `key: value` pairs."""
+    data: Dict[str, Any] = {}
+    with open(path) as f:
+        for raw in f:
+            line = raw.split("#", 1)[0].strip()
+            if not line or ":" not in line:
+                continue
+            key, val = line.split(":", 1)
+            key = key.strip()
+            val = val.strip().strip("'\"")
+            if val.lower() in {"true", "false"}:
+                data[key] = val.lower() == "true"
+            else:
+                try:
+                    data[key] = int(val)
+                except ValueError:
+                    try:
+                        data[key] = float(val)
+                    except ValueError:
+                        data[key] = val
+    return data
+
+
+def _load_config_yaml(path: str = "config.yaml") -> None:
+    """Populate environment variables from a YAML file if present."""
+    if os.path.exists(path):
+        for key, val in _parse_simple_yaml(path).items():
+            os.environ.setdefault(key, str(val))
+
+
+_load_config_yaml()
 
 
 class Settings(BaseSettings):
-    """Application configuration loaded from ``.env`` or environment."""
+    """Typed configuration loaded from environment variables.
+
+    ``config.yaml`` is parsed at import time and populates ``os.environ`` so
+    these settings can be loaded without a separate ``.env`` file.
+    """
 
     ALPACA_API_KEY: str | None = None
     ALPACA_API_SECRET: str | None = None
@@ -28,10 +68,7 @@ class Settings(BaseSettings):
 
     AUTO_START_SCHED: bool = False
 
-    model_config = {
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-    }
+    model_config = {"case_sensitive": False}
 
 
 # Pass defaults explicitly so mypy recognises optional fields

@@ -11,13 +11,16 @@ from core.equity import EquityPortfolio
 class VolatilityScaledMomentum:
     """Momentum strategy with volatility scaling."""
 
-    def __init__(self, universe: Iterable[str], n: int = 5, long_only: bool = False) -> None:
+    def __init__(
+        self, universe: Iterable[str], n: int = 5, long_only: bool = False
+    ) -> None:
         self.universe = list(universe)
         self.n = n
         self.long_only = long_only
 
     def _fetch_prices(self) -> pd.DataFrame:
         import yfinance as yf
+
         df = yf.download(
             self.universe,
             period="13mo",

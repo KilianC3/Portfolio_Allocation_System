@@ -9,4 +9,6 @@ Key modules:
 
 These modules operate on portfolio objects from `core/` and store results
 through the `database/` helpers. Strategies in `strategies/` rely on these
-functions to build portfolios.
+functions to build portfolios. Recent commits added dynamic return models and
+Black--Litterman views that feed into the allocation engine. Tests under
+`tests/` validate the analytics helpers with mocked data.

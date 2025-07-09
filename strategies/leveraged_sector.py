@@ -39,6 +39,6 @@ class LeveragedSectorMomentum:
         top = ranks.head(3).index
         if not len(top):
             return
-        w = {sym: 1/len(top) for sym in top}
+        w = {sym: 1 / len(top) for sym in top}
         pf.set_weights(w)
         await pf.rebalance()

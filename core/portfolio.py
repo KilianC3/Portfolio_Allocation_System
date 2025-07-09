@@ -10,6 +10,7 @@ from execution.gateway import ExecutionGateway
 
 _log = get_logger("portfolio")
 
+
 class Portfolio(abc.ABC):
     """Abstract base class for portfolios."""
 
@@ -29,4 +30,3 @@ class Portfolio(abc.ABC):
     @abc.abstractmethod
     def positions(self) -> Dict[str, float]:
         """Return current portfolio positions."""
-

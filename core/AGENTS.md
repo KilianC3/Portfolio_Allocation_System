@@ -6,3 +6,5 @@ Core data classes representing portfolios and assets.
 - `__init__.py` – exports convenience constructors.
 
 These classes are used by strategies and analytics across the project.
+Recent commits introduced chunked return fetching and portfolio tracking for
+large universes which rely heavily on these base dataclasses.

@@ -10,14 +10,26 @@ import yfinance as yf
 from core.equity import EquityPortfolio
 
 SECTOR_ETFS = [
-    "XLB", "XLE", "XLF", "XLI", "XLK", "XLP", "XLRE", "XLU", "XLV", "XLY", "XLC"
+    "XLB",
+    "XLE",
+    "XLF",
+    "XLI",
+    "XLK",
+    "XLP",
+    "XLRE",
+    "XLU",
+    "XLV",
+    "XLY",
+    "XLC",
 ]
 
 
 class SectorRiskParityMomentum:
     """Risk-parity momentum rotation across S&P 500 sector ETFs."""
 
-    def __init__(self, tickers: Sequence[str] = SECTOR_ETFS, target_vol: float = 0.10) -> None:
+    def __init__(
+        self, tickers: Sequence[str] = SECTOR_ETFS, target_vol: float = 0.10
+    ) -> None:
         self.tickers = list(tickers)
         self.target_vol = target_vol
 
@@ -68,4 +80,3 @@ class SectorRiskParityMomentum:
         w = self._vol_target(w, cov)
         pf.set_weights(w.to_dict())
         await pf.rebalance()
-
