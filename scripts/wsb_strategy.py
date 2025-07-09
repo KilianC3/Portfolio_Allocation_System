@@ -20,7 +20,6 @@ import praw
 import requests
 import yfinance as yf
 from praw.models import Comment
-from prawcore.exceptions import PrawcoreException
 from tqdm import tqdm
 
 try:

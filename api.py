@@ -4,7 +4,6 @@ from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi import Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
@@ -18,13 +17,11 @@ from execution.gateway import AlpacaGateway
 from scheduler import StrategyScheduler
 from analytics.utils import portfolio_metrics
 from metrics import rebalance_latency
-from analytics.collector import record_snapshot
 from analytics import update_all_metrics
 from analytics.account import account_coll
 from risk.var import historical_var, cvar
 from ledger import MasterLedger
 import httpx
-import redis.asyncio as aioredis
 from config import (
     ALPACA_API_KEY,
     ALPACA_API_SECRET,

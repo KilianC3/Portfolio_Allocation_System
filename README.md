@@ -1,6 +1,6 @@
 # Portfolio Allocation System
 
-The Portfolio Allocation System is a Python service for running data-driven trading strategies.  A FastAPI server exposes REST endpoints while a background scheduler executes portfolio updates.  Data scrapers load alternative data into Postgres and DuckDB, and the execution gateway places orders through the Alpaca API.  Logging, metrics and optional distributed tracing provide full observability.
+The Portfolio Allocation System is a Python service for running data-driven trading strategies.  A FastAPI server exposes REST endpoints while a background scheduler executes portfolio updates.  Data scrapers load alternative data into Postgres and DuckDB, and the execution gateway places orders through the Alpaca API.  Logging, metrics and optional distributed tracing provide full observability. Daily portfolio metrics and account snapshots are stored in Postgres for auditing.
 
 ## Technical Features
 
@@ -188,6 +188,19 @@ Scraped data is stored in these Postgres collections:
 - `analyst_ratings`
 - `insider_buying`
 - `sp500_index`
+- `portfolios` – stored weights for each strategy
+- `trades` – executed orders across portfolios
+- `metrics` – daily returns and Sharpe/alpha figures
+- `account_metrics` – periodic account equity snapshots
+- `alloc_log` – optimisation diagnostics for debugging
+
+Stock universe lists (e.g. S&P 1500 and Russell 2000) are kept as CSV
+files under `cache/universes/` via the `scrapers/universe.py` helper.
+
+The scheduler triggers `update_all_metrics` every night to calculate
+daily performance for each portfolio and writes account equity with
+`record_account`. These tables allow the API to serve historical
+statistics and track capital over time.
 
 ### Running in an LXC Container
 
@@ -245,6 +258,9 @@ Each strategy then queries these raw tables to build an `EquityPortfolio` using
 the analytics helpers. Risk modules scale or cap the weights before the
 execution gateway sends orders to the broker. Metrics are written back so future
 allocations can learn from realised performance.
+`StrategyScheduler` runs nightly jobs that call `update_all_metrics` and
+`record_account` so both portfolio returns and account equity are updated
+daily.
 
 ### Allocation Logic
 
