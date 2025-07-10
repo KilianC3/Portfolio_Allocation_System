@@ -18,7 +18,7 @@ from core.equity import EquityPortfolio
 
 if pipeline is not None:
     try:  # pragma: no cover - download may fail
-        _pipe = pipeline(task="sentiment-analysis")
+        _pipe = pipeline(task="text-classification")
     except Exception:  # pragma: no cover - fallback
         _pipe = None
 else:  # pragma: no cover - pipeline import failure
