@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import pandas as pd
+from typing import TYPE_CHECKING, Optional
 
 try:
     from transformers import pipeline
 except Exception:  # pragma: no cover - optional dependency
     pipeline = None  # type: ignore
+
+if TYPE_CHECKING:
+    from transformers.pipelines import TextClassificationPipeline
 
 from database import (
     google_trends_coll as trends_coll,
@@ -15,6 +19,8 @@ from database import (
 
 from core.equity import EquityPortfolio
 
+
+_pipe: Optional["TextClassificationPipeline"]
 
 if pipeline is not None:
     try:  # pragma: no cover - download may fail

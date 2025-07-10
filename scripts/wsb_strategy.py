@@ -22,15 +22,23 @@ from io import StringIO
 import yfinance as yf
 from praw.models import Comment
 from tqdm import tqdm
+from typing import TYPE_CHECKING, Optional
 
 try:
-    from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
+    from transformers import (
+        AutoModelForSequenceClassification,
+        AutoTokenizer,
+        pipeline,
+    )
     import torch
 except Exception:  # transformers not installed
     AutoModelForSequenceClassification = None  # type: ignore
     AutoTokenizer = None  # type: ignore
     pipeline = None  # type: ignore
     torch = None  # type: ignore
+
+if TYPE_CHECKING:
+    from transformers.pipelines import TextClassificationPipeline
 
 from config import (
     REDDIT_CLIENT_ID,
@@ -135,6 +143,8 @@ def wsb_blobs(days: int) -> Iterable[str]:
 
 
 # -------------------- Sentiment --------------------
+
+_pipe: Optional["TextClassificationPipeline"]
 
 if AutoTokenizer is not None:
     try:
