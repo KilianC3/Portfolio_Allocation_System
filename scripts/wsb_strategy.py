@@ -146,7 +146,7 @@ if AutoTokenizer is not None:
             "cardiffnlp/twitter-roberta-base-sentiment-latest"
         )
         _pipe = pipeline(
-            "sentiment-analysis",
+            task="sentiment-analysis",
             model=_mod,
             tokenizer=_tok,
             device=DEVICE,

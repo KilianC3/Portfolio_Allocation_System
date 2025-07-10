@@ -39,7 +39,7 @@ class EquityPortfolio(Portfolio):
     ) -> None:
         """Assign target weights without enforcing normalization."""
         self.weights = weights
-        update = {"weights": weights}
+        update: Dict[str, Any] = {"weights": weights}
         if bl_return is not None:
             update["bl_return"] = float(bl_return)
         pf_coll.update_one({"_id": self.id}, {"$set": update}, upsert=True)
