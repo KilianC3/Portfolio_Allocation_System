@@ -32,6 +32,7 @@ This document helps Codex (or any future agent) produce clear, consistent commit
 6. **Safety**
    - Detect paper vs live Alpaca endpoints and require `allow_live=True` for real trading.
    - Use the `AUTO_START_SCHED` flag so deployments can delay trading until explicitly enabled.
+   - Set `ALLOW_LIVE=True` in `config.yaml` to switch from paper to live trading.
 
 ---
 
@@ -47,8 +48,7 @@ This document helps Codex (or any future agent) produce clear, consistent commit
 
 Recent updates added a central `schema.sql` file executed by
 `database.init_db`, a `db_ping` health check used by startup validation and a
-`universe` table storing S&P and Russell constituents.  Metrics now track 7‑day,
-30‑day and 1‑year returns for every portfolio.
+`universe` table storing S&P and Russell constituents. Metrics now store extensive performance stats, weight history and each portfolio's Black–Litterman expected return. Account equity is archived in separate tables for paper and live trading.
 
 ---
 
@@ -73,3 +73,12 @@ Additional rules:
 - Keep commits focused and messages concise.
 - If tests fail due to missing services (e.g. MongoDB) note the failure and
   reason in the PR summary.
+
+## 5. Allocation Strategy Guidance
+
+- Avoid combining too many overlapping signals as this inflates estimation error and hurts live performance.
+- Heavy optimisation may show great backtests but can fail in production.
+- Use BL + risk parity only when signal quality is stable and well calibrated.
+- Prefer HRP + momentum with dynamic leverage when signals drift or data is noisy; it adapts faster to new strategies and requires less tuning.
+- Clean weekly returns with a z-score filter and fall back to the last weight
+  vector if computed volatility looks unreasonable.

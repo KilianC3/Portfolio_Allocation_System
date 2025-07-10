@@ -11,7 +11,7 @@ from psycopg2.extras import RealDictCursor, Json
 import duckdb
 
 from logger import get_logger
-from config import PG_URI
+from config import PG_URI, ALLOW_LIVE
 
 _log = get_logger("db")
 
@@ -251,6 +251,23 @@ class PGCollection:
     ):
         self.update_one(match, {"$set": doc}, upsert=upsert)
 
+    def count_documents(self, q: Dict[str, Any]) -> int:
+        """Return the number of documents matching ``q``."""
+        if not self.conn:
+            return 0
+        where, params = _build_where(q)
+        sql = f"SELECT COUNT(*) FROM {self.table}"
+        if where:
+            sql += " WHERE " + where
+        if DB_FLAVOR == "pg":
+            with self.conn.cursor() as cur:
+                cur.execute(sql, params)
+                row = cur.fetchone()
+        else:
+            cur = self.conn.execute(sql, params)
+            row = cur.fetchone()
+        return int(row[0]) if row else 0
+
 
 def init_db() -> None:
     """Initialise tables from ``schema.sql`` and record schema version."""
@@ -290,6 +307,7 @@ pf_coll = db["portfolios"]
 trade_coll = db["trades"]
 metric_coll = db["metrics"]
 politician_coll = db["politician_trades"]
+weight_coll = db["weight_history"]
 lobbying_coll = db["lobbying"]
 lobby_coll = lobbying_coll
 wiki_coll = db["wiki_views"]
@@ -297,11 +315,17 @@ insider_coll = db["dc_insider_scores"]
 contracts_coll = db["gov_contracts"]
 alloc_log_coll = db["alloc_log"]
 cache = db["cache"] if _conn else InMemoryCollection()
-account_coll = db["account_metrics"]
+account_paper_coll = db["account_metrics_paper"]
+account_live_coll = db["account_metrics_live"]
+account_coll = account_live_coll if ALLOW_LIVE else account_paper_coll
 app_reviews_coll = db["app_reviews"]
 google_trends_coll = db["google_trends"]
 analyst_coll = db["analyst_ratings"]
 news_coll = db["news_headlines"]
 insider_buy_coll = db["insider_buying"]
+reddit_coll = db["reddit_mentions"]
 sp500_coll = db["sp500_index"]
-universe_coll = db["universe"]
+sp500_universe_coll = db["sp500_universe"]
+sp1500_universe_coll = db["sp1500_universe"]
+russell2000_universe_coll = db["russell2000_universe"]
+ticker_return_coll = db["ticker_returns"]

@@ -15,23 +15,31 @@ analysis can reproduce past views of the data.
 | `gov_contracts` | `ticker`, `value`, `date`, `_retrieved` |
 | `app_reviews` | `ticker`, `hype`, `date`, `_retrieved` |
 | `google_trends` | `ticker`, `score`, `date`, `_retrieved` |
+| `reddit_mentions` | `ticker`, `mentions`, `pos`, `neu`, `neg`, `date`, `_retrieved` |
 | `analyst_ratings` | `ticker`, `rating`, `date`, `_retrieved` |
 | `news_headlines` | `ticker`, `headline`, `link`, `source`, `time`, `_retrieved` |
 | `insider_buying` | `ticker`, `exec`, `shares`, `date`, `_retrieved` |
 | `sp500_index` | `date`, `close`, `_retrieved` |
+| `ticker_returns` | `symbol`, `date`, `ret_7d`, `ret_1m`, `ret_3m`, `ret_6m`, `ret_1y`, `ret_2y`, `ret_5y` |
 | `portfolios` | `id`, `name`, `weights` |
 | `trades` | `portfolio_id`, `symbol`, `qty`, `side`, `price`, `timestamp` |
-| `metrics` | `portfolio_id`, `date`, `ret`, `ret_7d`, `ret_30d`, `ret_1y`, `benchmark`, `sharpe`, `alpha`, `beta`, `max_drawdown` |
-| `account_metrics` | `timestamp`, `data` |
-| `universe` | `index`, `symbol`, `_retrieved` |
+| `weight_history` | `portfolio_id`, `date`, `weights`, `bl_return` |
+| `metrics` | `portfolio_id`, `date`, `ret_1d`, `ret_7d`, `ret_30d`, `ret_3m`, `ret_6m`, `ret_1y`, `ret_2y`, `sharpe`, `alpha`, `beta`, `max_drawdown`, `cagr`, `win_rate`, `information_ratio`, `treynor_ratio`, `var`, `cvar`, `bl_expected_return` |
+| `account_metrics_paper` | `id`, `timestamp`, `data` |
+| `account_metrics_live` | `id`, `timestamp`, `data` |
+| `sp500_universe` | `symbol`, `_retrieved` |
+| `sp1500_universe` | `symbol`, `_retrieved` |
+| `russell2000_universe` | `symbol`, `_retrieved` |
 
 Every column is stored as a string except for the timestamp `_retrieved` which is a `TIMESTAMP` in UTC.
 
-Both the `metrics` and `account_metrics` tables are populated nightly by
+Both the `metrics` table and the `account_metrics_paper`/`account_metrics_live` tables are populated nightly by
 the scheduler so that portfolio performance and account equity remain up
 to date.
 
-The `universe` table stores ticker constituents for the S&P 500,
-S&P 1500 and Russell 2000 indexes. The `scrapers/universe.py` helper
-persists the lists to this table and also writes a CSV copy under
-`cache/universes/` for offline use.
+The ticker universes are split across three tables so each index can be
+tracked independently. The `scrapers/universe.py` helper populates these
+tables and writes a CSV copy under `cache/universes/` for offline use.
+`weight_history` now records the Black–Litterman expected return (`bl_return`)
+alongside the raw weight vector. The `metrics` table mirrors this via
+`bl_expected_return` for each portfolio snapshot.

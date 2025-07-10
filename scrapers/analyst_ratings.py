@@ -56,6 +56,18 @@ async def _fetch_ticker(sym: str) -> pd.DataFrame:
     return df
 
 
+async def fetch_analyst_ratings(symbols: Iterable[str]) -> List[dict]:
+    """Fetch analyst rating tables for a list of tickers."""
+    all_rows: List[dict] = []
+    for sym in symbols:
+        try:
+            df = await _fetch_ticker(sym)
+        except Exception:
+            continue
+        all_rows.extend(df.to_dict("records"))
+    return all_rows
+
+
 async def fetch_changes(symbols: Iterable[str], weeks: int = 4) -> pd.DataFrame:
     cutoff = pd.Timestamp.today() - pd.Timedelta(weeks=weeks)
     rows: List[dict] = []

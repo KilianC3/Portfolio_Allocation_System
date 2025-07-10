@@ -68,25 +68,33 @@ Measures the expected loss in the tail beyond the VaR level, providing a sense
 of worst-case risk.
 ## Strategy Reference
 
-Data sources and rebalance frequency for each strategy are shown below.
+Data sources and rebalance frequency for each strategy are shown below. The
+**Key Rule** column summarises how positions are selected.
 
-| Strategy | Source | Period | Description |
-|---------|--------|--------|-------------|
-| Congressional-Trading Aggregate | Quiver congress trading | Weekly (Mon) | Top 20 names by net congressional dollar buys over the last month |
-| "Follow-the-Leader" Politician Sleeves | Individual congress trading pages | Monthly (first Mon) | Replicate trades for specific politicians (e.g. Nancy Pelosi, Dan Meuser, Shelley Moore Capito) |
-| DC Insider Score Tilt | Quiver DC Insider scores | Weekly (Mon) | Long the 30 highest insider-score stocks |
-| Government-Contracts Momentum | Quiver gov contracts | Monthly (first trading day) | Own firms with ≥\$50M in new federal contracts last month |
-| Corporate Insider Buying Pulse | Quiver insider filings | Weekly (Mon) | Long the 25 tickers with strongest executive buying |
-| Wikipedia Attention Surge | Wikimedia page views | Weekly (Mon) | Long the 10 S&P1500 stocks with the biggest page-view spike |
-| Wall Street Bets Buzz | Reddit API | Weekly (Mon) | Long the 15 symbols with the fastest rise in subreddit mentions |
-| App Reviews Hype Score | Quiver app ratings | Weekly (Mon) | Long the 20 names with the largest jump in app-review "hype" |
-| Google Trends + News Sentiment | Quiver Google Trends + Finviz news | Monthly (first trading day) | Long 30 tickers with rising search interest and bullish headlines |
-| Sector Risk-Parity Momentum | Yahoo Finance | Weekly (Fri) | Rotate among sector ETFs using risk-parity weights |
+| Strategy | Source | Period | Key Rule |
+|---------|--------|--------|---------|
+| Congressional-Trading Aggregate | Quiver congress trading | Weekly (Mon) | Long top 20 tickers by net congressional dollar buys in the last month |
+| "Follow-the-Leader" Politician Sleeves | Individual congress trading pages | Monthly (first Mon) | Mimic buys for each politician sleeve with equal weighting |
+| DC Insider Score Tilt | Quiver DC Insider scores | Weekly (Mon) | Long top 30 tickers ranked by insider score |
+| Government-Contracts Momentum | Quiver gov contracts | Monthly (first trading day) | Own firms with at least \$50M in new federal contracts last month |
+| Corporate Insider Buying Pulse | Quiver insider filings | Weekly (Mon) | Long 25 tickers showing the strongest executive buying |
+| Wikipedia Attention Surge | Wikimedia page views | Weekly (Mon) | Long top 10 S&P1500 names by page-view z-score increase |
+| Wall Street Bets Buzz | Reddit API | Weekly (Mon) | Long 15 tickers with fastest rise in r/WSB mentions |
+| App Reviews Hype Score | Quiver app ratings | Weekly (Mon) | Long 20 names with the biggest jump in app-review "hype" |
+| Google Trends + News Sentiment | Quiver Google Trends + Finviz news | Monthly (first trading day) | Long 30 tickers with rising search interest and positive news sentiment |
+| Sector Risk-Parity Momentum | Yahoo Finance | Weekly (Fri) | Rotate sector ETFs using risk-parity weights on weekly momentum |
 | Leveraged Sector Momentum | Yahoo Finance | Weekly (Fri) | Momentum rotation among leveraged sector ETFs |
 | Volatility-Scaled Momentum | Yahoo Finance | Weekly (Fri) | Rank stocks by 12‑month return scaled by volatility |
-| Upgrade Momentum | Finviz analyst revisions | Weekly (Mon) | Tilt toward names with improving analyst revisions and rising target prices |
-| Biotech Binary Event Basket | Various filings | Monthly | Basket of biotech stocks ahead of binary catalysts |
-| Lobbying Growth | Quiver lobbying data | Monthly | Long the 20 tickers with the largest quarter‑over‑quarter lobbying spend growth |
+| Upgrade Momentum | Finviz analyst revisions | Weekly (Mon) | Tilt toward names with improving analyst revisions, smoothing turnover over 8 weeks |
+| Small Cap Momentum | Various filings | Monthly | Trade small-cap stocks before catalysts, exiting after 50% gain or 3 months |
+| Lobbying Growth | Quiver lobbying data | Monthly | Long 20 tickers with the largest quarter‑over‑quarter lobbying spend growth |
+
+To create your own strategy simply add a module in `strategies/` that exposes a
+`build()` coroutine returning an `EquityPortfolio`. Schedule it in
+`scheduler.py` with the desired frequency and store weights in the
+`portfolios` table. The strategies shipped here are fully implemented
+and rely on established models; you can extend them or add your own with
+minimal boilerplate.
 
 ## Installation
 
@@ -119,6 +127,7 @@ Edit `config.yaml` with your own credentials:
 
 - `ALPACA_API_KEY` and `ALPACA_API_SECRET` – credentials for the Alpaca API
 - `ALPACA_BASE_URL` – broker endpoint (`https://paper-api.alpaca.markets` by default)
+- `ALLOW_LIVE` – set to `true` to enable live trading instead of paper
 - `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` – Reddit API keys for the WSB scraper
 - `PG_URI` – Postgres connection string, e.g. `postgresql://user:pass@localhost:5432/quant_fund`
 - `API_TOKEN` – optional bearer token protecting REST endpoints
@@ -140,6 +149,7 @@ start the service automatically.
 APScheduler jobs rebalance portfolios according to the active strategies.  REST endpoints under `/docs` allow manual portfolio management and data collection.
 
 To preload all datasets without launching the API run:
+An extra `/logs` endpoint streams the application log for debugging.
 
 ```bash
 python -m scripts.bootstrap
@@ -184,24 +194,66 @@ Scraped data is stored in these Postgres collections:
 - `gov_contracts`
 - `app_reviews`
 - `google_trends`
+- `reddit_mentions`
 - `news_headlines`
 - `analyst_ratings`
 - `insider_buying`
 - `sp500_index`
+- `ticker_returns` – weekly returns for every tracked ticker
 - `portfolios` – stored weights for each strategy
 - `trades` – executed orders across portfolios
-- `metrics` – daily returns, 7-day, 30-day and 1-year performance plus Sharpe/alpha figures
-- `account_metrics` – periodic account equity snapshots
-- `alloc_log` – optimisation diagnostics for debugging
+- `weight_history` – timestamped record of portfolio weights and the latest Black–Litterman expected return
+- `metrics` – daily returns with ret_1d/7d/30d/3m/6m/1y/2y, Sharpe, alpha, beta, max drawdown, CAGR, win rate, risk ratios and the field `bl_expected_return`
+- `account_metrics_paper` – equity history for the paper trading account
+- `account_metrics_live` – equity history for the live trading account
+- `alloc_log` – optimisation diagnostics including volatility, momentum and beta for each portfolio
 
-Ticker universes for the S&P 500, S&P 1500 and Russell 2000 indexes are
-persisted to the `universe` table and exported to CSV under
-`cache/universes/` via the `scrapers/universe.py` helper.
+Ticker universes are stored in dedicated tables so the S&P 500 list remains separate
+from the S&P 1500 and Russell 2000 sets. Each table is exported to CSV under
+`cache/universes/` via `scrapers/universe.py`:
+
+- `sp500_universe` – S&P 500 constituents
+- `sp1500_universe` – S&P 1500 constituents
+- `russell2000_universe` – Russell 2000 constituents
+
+Below is a condensed view of the schema defined in `database/schema.sql`:
+
+| Table | Key Columns |
+|-------|-------------|
+| `politician_trades` | `politician`, `ticker`, `transaction`, `amount`, `date` |
+| `lobbying` | `ticker`, `client`, `amount`, `date` |
+| `wiki_views` | `page`, `views`, `date` |
+| `dc_insider_scores` | `ticker`, `score`, `date` |
+| `gov_contracts` | `ticker`, `value`, `date` |
+| `app_reviews` | `ticker`, `hype`, `date` |
+| `google_trends` | `ticker`, `score`, `date` |
+| `reddit_mentions` | `ticker`, `mentions`, `pos`, `neu`, `neg`, `date` |
+| `analyst_ratings` | `ticker`, `rating`, `date` |
+| `news_headlines` | `ticker`, `headline`, `link`, `time` |
+| `insider_buying` | `ticker`, `exec`, `shares`, `date` |
+| `sp500_index` | `date`, `close` |
+| `ticker_returns` | `symbol`, `date`, `ret_7d`..`ret_5y` |
+| `portfolios` | `id`, `weights` |
+| `trades` | `portfolio_id`, `symbol`, `qty`, `price`, `timestamp` |
+| `weight_history` | `portfolio_id`, `date`, `weights`, `bl_return` |
+| `metrics` | `portfolio_id`, `date`, `ret_1d`..`cvar`, `bl_expected_return` |
+| `account_metrics_paper` | `id`, `timestamp`, `data` |
+| `account_metrics_live` | `id`, `timestamp`, `data` |
+| `sp500_universe` | `symbol` |
+| `sp1500_universe` | `symbol` |
+| `russell2000_universe` | `symbol` |
+
+All tables enforce unique keys on their primary columns to avoid duplicate
+rows from repeated scrapes. Each scraper writes with `update_one(..., upsert=True)`
+so subsequent runs refresh existing records instead of creating duplicates.
 
 The scheduler triggers `update_all_metrics` every night to calculate
 daily performance for each portfolio and writes account equity with
 `record_account`. These tables allow the API to serve historical
 statistics and track capital over time.
+Once per week `update_all_ticker_returns` computes 7‑day to 5‑year
+returns for every ticker in the universe so strategies can query a
+ready-made momentum dataset.
 
 ### Running in an LXC Container
 
@@ -247,11 +299,11 @@ Additional guides live in the [`docs/`](docs/index.md) folder which is rendered 
 
 When the API starts it triggers all scrapers once so that required datasets are
 available immediately.  The functions `fetch_politician_trades`,
-`fetch_lobbying_data`, `fetch_wiki_views`, `fetch_dc_insider_scores`,
+`fetch_lobbying_data`, `fetch_trending_wiki_views`, `fetch_dc_insider_scores`,
 `fetch_gov_contracts`, `fetch_app_reviews`, `fetch_google_trends`,
-`fetch_stock_news`, `fetch_analyst_ratings`, `fetch_insider_buying` and `fetch_sp500_history` populate Postgres tables
+`fetch_wsb_mentions`, `fetch_stock_news`, `fetch_analyst_ratings`, `fetch_insider_buying` and `fetch_sp500_history` (365 days) populate Postgres tables
 (`politician_trades`, `lobbying`, `wiki_views`, `dc_insider_scores`,
-`gov_contracts`, `app_reviews`, `google_trends`, `news_headlines`, `analyst_ratings`, `insider_buying` and
+`gov_contracts`, `app_reviews`, `google_trends`, `reddit_mentions`, `news_headlines`, `analyst_ratings`, `insider_buying` and
 `sp500_index`).  If Postgres is unreachable an in-memory DuckDB fallback keeps
 the system operational until a database connection is restored.
 
@@ -265,18 +317,33 @@ daily.
 
 ### Allocation Logic
 
-Every strategy ultimately produces a vector of expected returns `\mu` and a
-covariance matrix `\Sigma`. The analytics layer applies the models listed above:
-Sharpe and Sortino ratios inform expected returns, Ledoit--Wolf shrinkage
-estimates covariance, Black--Litterman views adjust the forecasts, and
-VaR/CVaR metrics bound the risk budget. The allocation engine then solves a
-min--max problem that balances return against predicted risk:
+Each strategy chooses its own holdings, but the allocator decides how much
+capital each one receives.  The allocation process is intentionally simple:
 
-$$w^* = \arg\max_w\; w^\top \mu - \gamma(1+\delta) w^\top \Sigma w$$
+1. **Weekly Returns** – for every portfolio, collect twelve weeks of Friday
+   closes.  Missing weeks are filled with the average of the other portfolios so
+   each column has twelve observations.
+   Extreme outliers are clipped using a z‑score filter so noisy spikes do not
+   skew the analysis.
+2. **Momentum Scores** – compute the 1‑week, 4‑week and 12‑week compounded
+   returns for each portfolio.  Divide each by its weekly volatility
+   ($\sigma\_i\sqrt{52}$) and average the available ratios.  A t-statistic of the
+   12‑week return provides a confidence multiplier.
+3. **Covariance** – apply a Ledoit–Wolf shrinkage estimator to the weekly
+   returns.  The inverse‑volatility weights are scaled to match an 8 % annual
+   volatility target.
+4. **Risk-Parity Baseline** – start from weights proportional to $1/\sigma_i$ and
+   tilt them by $(1+\text{momentum}\times\beta_i)$ where $\beta_i$ is the
+   12‑week t-statistic.  Weights are then clipped to the allowed range.
+5. **Turnover Limit** – if a portfolio’s weight changes by less than
+   0.5 percentage points from last week it is left untouched to reduce trading
+   costs.
+6. **Anomaly Check** – if the resulting portfolio volatility exceeds 500 % or
+   is not a number, the allocator falls back to last week’s weights rather than
+   trading on unstable signals.
 
-where `\gamma` represents overall risk aversion and `\delta` reflects current
-volatility regime. The resulting weights are normalised and passed through the
-risk-parity module so that each position contributes equally to portfolio
-volatility. Combined with the Black--Litterman and risk measures noted above,
-this framework aims to generate maximum risk-adjusted returns across all
-strategies.
+This momentum‑tilted risk-parity rule keeps overall exposure stable while
+rewarding portfolios with consistent performance.  Individual strategies still
+use Black–Litterman expected returns internally, but the top-level allocator no
+longer solves the more complex min–max optimisation.
+

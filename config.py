@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     ALPACA_API_KEY: str | None = None
     ALPACA_API_SECRET: str | None = None
     ALPACA_BASE_URL: str = "https://paper-api.alpaca.markets"
+    ALLOW_LIVE: bool = False
 
     QUIVER_RATE_SEC: float = 1.1
 
@@ -100,3 +101,4 @@ CRON = {
 }
 
 AUTO_START_SCHED = settings.AUTO_START_SCHED
+ALLOW_LIVE = settings.ALLOW_LIVE

@@ -8,6 +8,12 @@ from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, wiki_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
+from strategies.wiki_attention import (
+    trending_candidates,
+    wiki_title,
+    cached_views,
+    z_score,
+)
 
 wiki_collection = wiki_coll if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
@@ -51,6 +57,28 @@ async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7) -> List[dict]
         )
     append_snapshot("wiki_views", data)
     return data
+
+
+async def fetch_trending_wiki_views(top_k: int = 10, days: int = 7) -> List[dict]:
+    """Collect page views for top trending tickers by z-score."""
+    # use a zero threshold so we gather enough candidates and always
+    # return ``top_k`` tickers even when yesterday's traffic was low
+    cand = trending_candidates(min_views=0)
+    scores = []
+    for sym, name in cand.items():
+        page = wiki_title(name)
+        if not page:
+            continue
+        series = cached_views(page)
+        if len(series) < 30:
+            continue
+        scores.append((z_score(series), page))
+
+    top = [p for _s, p in sorted(scores, key=lambda x: x[0], reverse=True)[:top_k]]
+    out: List[dict] = []
+    for pg in top:
+        out.extend(await fetch_wiki_views(pg, days))
+    return out
 
 
 if __name__ == "__main__":

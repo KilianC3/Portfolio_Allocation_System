@@ -18,18 +18,27 @@ from typing import Iterable, List, Dict
 import pandas as pd
 import praw
 import requests
+from io import StringIO
 import yfinance as yf
 from praw.models import Comment
 from tqdm import tqdm
+from typing import TYPE_CHECKING, Optional
 
 try:
-    from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
+    from transformers import (
+        AutoModelForSequenceClassification,
+        AutoTokenizer,
+        pipeline,
+    )
     import torch
 except Exception:  # transformers not installed
     AutoModelForSequenceClassification = None  # type: ignore
     AutoTokenizer = None  # type: ignore
     pipeline = None  # type: ignore
     torch = None  # type: ignore
+
+if TYPE_CHECKING:
+    from transformers.pipelines import TextClassificationPipeline
 
 from config import (
     REDDIT_CLIENT_ID,
@@ -52,7 +61,7 @@ def build_equity_universe() -> None:
     """Top 50% of S&P 1500 by volume."""
     url = "https://en.wikipedia.org/wiki/S%26P_1500"
     html = requests.get(url, timeout=10).text
-    dfs = pd.read_html(html)
+    dfs = pd.read_html(StringIO(html))
     syms = set()
     for tbl in dfs[:3]:
         for col in tbl.columns:
@@ -88,8 +97,8 @@ def build_crypto_universe() -> None:
             params={
                 "vs_currency": "usd",
                 "order": "volume_desc",
-                "per_page": 250,
-                "page": page,
+                "per_page": "250",
+                "page": str(page),
             },
             timeout=10,
         )
@@ -135,6 +144,8 @@ def wsb_blobs(days: int) -> Iterable[str]:
 
 # -------------------- Sentiment --------------------
 
+_pipe: Optional["TextClassificationPipeline"]
+
 if AutoTokenizer is not None:
     try:
         DEVICE = 0 if torch and torch.cuda.is_available() else -1
@@ -145,12 +156,10 @@ if AutoTokenizer is not None:
             "cardiffnlp/twitter-roberta-base-sentiment-latest"
         )
         _pipe = pipeline(
-            "sentiment-analysis",
+            task="text-classification",
             model=_mod,
             tokenizer=_tok,
             device=DEVICE,
-            batch_size=16,
-            truncation=True,
         )
     except Exception:
         _pipe = None

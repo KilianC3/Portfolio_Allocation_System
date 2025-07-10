@@ -1,3 +1,4 @@
+import os
 import datetime as dt
 import asyncio
 from typing import Any, Dict, Optional
@@ -11,9 +12,11 @@ import pandas as pd
 from logger import get_logger
 from observability import metrics_router
 from ws import ws_router
+from observability.logging import LOG_DIR
 from database import pf_coll, trade_coll, metric_coll, init_db
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
+from config import ALLOW_LIVE
 from scheduler import StrategyScheduler
 from analytics.utils import portfolio_metrics
 from metrics import rebalance_latency
@@ -122,7 +125,9 @@ def _iso(o):
 def _load_portfolios():
     for doc in pf_coll.find():
         pf = EquityPortfolio(
-            doc.get("name", "pf"), gateway=AlpacaGateway(), pf_id=str(doc.get("_id"))
+            doc.get("name", "pf"),
+            gateway=AlpacaGateway(allow_live=ALLOW_LIVE),
+            pf_id=str(doc.get("_id")),
         )
         portfolios[pf.id] = pf
         if "weights" in doc:
@@ -140,13 +145,16 @@ async def startup_event():
         await asyncio.gather(
             fetch_politician_trades(),
             fetch_lobbying_data(),
-            fetch_wiki_views(),
+            fetch_trending_wiki_views(),
             fetch_dc_insider_scores(),
             fetch_gov_contracts(),
             fetch_app_reviews(),
             fetch_google_trends(),
+            fetch_wsb_mentions(),
+            fetch_analyst_ratings(["AAPL", "MSFT"]),
             fetch_insider_buying(),
-            asyncio.to_thread(fetch_sp500_history, 30),
+            fetch_stock_news(),
+            asyncio.to_thread(fetch_sp500_history, 365),
         )
         if AUTO_START_SCHED:
             sched.start()
@@ -173,7 +181,7 @@ def list_portfolios():
 
 @app.post("/portfolios")
 def create_portfolio(data: PortfolioCreate):
-    pf = EquityPortfolio(data.name, gateway=AlpacaGateway())
+    pf = EquityPortfolio(data.name, gateway=AlpacaGateway(allow_live=ALLOW_LIVE))
     portfolios[pf.id] = pf
     pf_coll.update_one({"_id": pf.id}, {"$set": {"name": data.name}}, upsert=True)
     return {"id": pf.id, "name": data.name}
@@ -298,6 +306,19 @@ def collect_all_metrics(days: int = 90):
     return {"status": "ok"}
 
 
+@app.get("/logs")
+def get_logs(lines: int = 100):
+    path = os.path.join(LOG_DIR, "app.log")
+    try:
+        from collections import deque
+
+        with open(path) as f:
+            tail = "".join(deque(f, maxlen=lines))
+    except Exception:
+        tail = ""
+    return {"logs": tail}
+
+
 # Scheduler management endpoints
 @app.get("/scheduler/jobs")
 def list_jobs():
@@ -332,13 +353,16 @@ def stop_scheduler():
 # Data collection using dedicated scraping module
 from scrapers.politician import fetch_politician_trades, politician_coll
 from scrapers.lobbying import fetch_lobbying_data, lobby_coll
-from scrapers.wiki import fetch_wiki_views, wiki_collection
+from scrapers.wiki import fetch_trending_wiki_views, fetch_wiki_views, wiki_collection
 from scrapers.dc_insider import fetch_dc_insider_scores, insider_coll
 from scrapers.gov_contracts import fetch_gov_contracts, contracts_coll
 from scrapers.app_reviews import fetch_app_reviews, app_reviews_coll
 from scrapers.google_trends import fetch_google_trends, trends_coll
+from scrapers.wallstreetbets import fetch_wsb_mentions, reddit_coll
+from scrapers.analyst_ratings import fetch_analyst_ratings, analyst_coll
 from scrapers.insider_buying import fetch_insider_buying, insider_buy_coll
 from scrapers.sp500_index import fetch_sp500_history, sp500_coll
+from scrapers.news import fetch_stock_news, news_coll
 
 
 @app.post("/collect/politician_trades")
