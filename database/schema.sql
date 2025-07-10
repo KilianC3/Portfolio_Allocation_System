@@ -17,6 +17,15 @@ CREATE TABLE IF NOT EXISTS trades (
     price DOUBLE PRECISION,
     timestamp TIMESTAMPTZ DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS weight_history (
+    id SERIAL PRIMARY KEY,
+    portfolio_id TEXT REFERENCES portfolios(id),
+    date DATE,
+    weights JSONB,
+    bl_return DOUBLE PRECISION,
+    UNIQUE(portfolio_id, date)
+);
+
 
 CREATE TABLE IF NOT EXISTS metrics (
     id SERIAL PRIMARY KEY,
@@ -28,9 +37,27 @@ CREATE TABLE IF NOT EXISTS metrics (
     alpha DOUBLE PRECISION,
     beta DOUBLE PRECISION,
     max_drawdown DOUBLE PRECISION,
+    ret_1d DOUBLE PRECISION,
+    ret_7d DOUBLE PRECISION,
+    ret_30d DOUBLE PRECISION,
+    ret_3m DOUBLE PRECISION,
+    ret_6m DOUBLE PRECISION,
+    ret_1y DOUBLE PRECISION,
+    ret_2y DOUBLE PRECISION,
+    cagr DOUBLE PRECISION,
+    win_rate DOUBLE PRECISION,
+    avg_win DOUBLE PRECISION,
+    avg_loss DOUBLE PRECISION,
+    annual_vol DOUBLE PRECISION,
+    annual_std DOUBLE PRECISION,
+    information_ratio DOUBLE PRECISION,
+    treynor_ratio DOUBLE PRECISION,
+    total_trades INTEGER,
+    var DOUBLE PRECISION,
+    cvar DOUBLE PRECISION,
+    bl_expected_return DOUBLE PRECISION,
     UNIQUE(portfolio_id, date)
 );
-
 CREATE TABLE IF NOT EXISTS politician_trades (
     id SERIAL PRIMARY KEY,
     politician TEXT,
@@ -126,6 +153,18 @@ CREATE TABLE IF NOT EXISTS insider_buying (
     UNIQUE(ticker, exec, date)
 );
 
+CREATE TABLE IF NOT EXISTS reddit_mentions (
+    id SERIAL PRIMARY KEY,
+    ticker TEXT,
+    mentions INTEGER,
+    pos INTEGER,
+    neu INTEGER,
+    neg INTEGER,
+    date TEXT,
+    _retrieved TIMESTAMPTZ,
+    UNIQUE(ticker, date)
+);
+
 CREATE TABLE IF NOT EXISTS sp500_index (
     id SERIAL PRIMARY KEY,
     date TEXT UNIQUE,
@@ -133,11 +172,33 @@ CREATE TABLE IF NOT EXISTS sp500_index (
     _retrieved TIMESTAMPTZ
 );
 
-CREATE TABLE IF NOT EXISTS universe (
-    index TEXT,
+CREATE TABLE IF NOT EXISTS sp500_universe (
+    symbol TEXT PRIMARY KEY,
+    _retrieved TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS sp1500_universe (
+    symbol TEXT PRIMARY KEY,
+    _retrieved TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS russell2000_universe (
+    symbol TEXT PRIMARY KEY,
+    _retrieved TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS ticker_returns (
+    id SERIAL PRIMARY KEY,
     symbol TEXT,
-    _retrieved TIMESTAMPTZ,
-    UNIQUE(index, symbol)
+    date DATE,
+    ret_7d DOUBLE PRECISION,
+    ret_1m DOUBLE PRECISION,
+    ret_3m DOUBLE PRECISION,
+    ret_6m DOUBLE PRECISION,
+    ret_1y DOUBLE PRECISION,
+    ret_2y DOUBLE PRECISION,
+    ret_5y DOUBLE PRECISION,
+    UNIQUE(symbol, date)
 );
 
 
@@ -153,6 +214,18 @@ CREATE TABLE IF NOT EXISTS cache (
 );
 
 CREATE TABLE IF NOT EXISTS account_metrics (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ,
+    data JSONB
+);
+
+CREATE TABLE IF NOT EXISTS account_metrics_paper (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ,
+    data JSONB
+);
+
+CREATE TABLE IF NOT EXISTS account_metrics_live (
     id SERIAL PRIMARY KEY,
     timestamp TIMESTAMPTZ,
     data JSONB

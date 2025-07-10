@@ -5,12 +5,10 @@ from __future__ import annotations
 import datetime as dt
 from typing import Dict
 
-from database import db
+from database import account_live_coll, account_paper_coll, account_coll
 from pathlib import Path
 import csv
 from execution.gateway import AlpacaGateway
-
-account_coll = db["account_metrics"]
 
 
 async def record_account(gateway: AlpacaGateway) -> Dict:
@@ -22,8 +20,9 @@ async def record_account(gateway: AlpacaGateway) -> Dict:
         "equity": float(info.get("equity", 0)),
         "last_equity": float(info.get("last_equity", 0)),
     }
-    account_coll.insert_one(doc)
-    csv_path = Path("cache") / "account_metrics.csv"
+    coll = account_paper_coll if gateway.paper else account_live_coll
+    coll.insert_one(doc)
+    csv_path = Path("cache") / f"account_{'paper' if gateway.paper else 'live'}.csv"
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     header = not csv_path.exists()
     with csv_path.open("a", newline="") as f:

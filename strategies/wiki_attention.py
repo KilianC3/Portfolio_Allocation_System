@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 import requests  # type: ignore[import-untyped]
+from io import StringIO
 import wikipedia
 import yfinance as yf
 from tqdm import tqdm
@@ -30,7 +31,7 @@ def sp1500_map() -> Dict[str, str]:
     """Return {symbol: company_name} for S&P 1500 (cached)."""
     _log.info("Fetching S&P 1500 constituents …")
     html = requests.get(SP1500_URL, headers=HEADERS, timeout=30).text
-    dfs = pd.read_html(html)
+    dfs = pd.read_html(StringIO(html))
     big = pd.concat(dfs[:3])
     big.columns = big.columns.str.lower()
     return dict(zip(big["ticker"], big["security"]))

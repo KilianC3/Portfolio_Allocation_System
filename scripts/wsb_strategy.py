@@ -18,6 +18,7 @@ from typing import Iterable, List, Dict
 import pandas as pd
 import praw
 import requests
+from io import StringIO
 import yfinance as yf
 from praw.models import Comment
 from tqdm import tqdm
@@ -52,7 +53,7 @@ def build_equity_universe() -> None:
     """Top 50% of S&P 1500 by volume."""
     url = "https://en.wikipedia.org/wiki/S%26P_1500"
     html = requests.get(url, timeout=10).text
-    dfs = pd.read_html(html)
+    dfs = pd.read_html(StringIO(html))
     syms = set()
     for tbl in dfs[:3]:
         for col in tbl.columns:

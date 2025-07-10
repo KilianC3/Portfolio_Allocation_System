@@ -3,12 +3,12 @@ import pandas as pd
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from importlib import import_module
 from logger import get_logger
-from config import CRON
+from config import CRON, ALLOW_LIVE
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
 from analytics.allocation_engine import compute_weights
 from database import metric_coll
-from analytics import update_all_metrics, record_account
+from analytics import update_all_metrics, record_account, update_all_ticker_returns
 
 _log = get_logger("sched")
 
@@ -17,10 +17,13 @@ class StrategyScheduler:
     def __init__(self):
         self.scheduler = AsyncIOScheduler()
         self.portfolios = {}
+        self.last_weights: dict[str, float] = {}
 
     def add(self, pf_id, name, mod_path, cls_name, cron_key):
         strat_cls = getattr(import_module(mod_path), cls_name)
-        pf = EquityPortfolio(name, gateway=AlpacaGateway(), pf_id=pf_id)
+        pf = EquityPortfolio(
+            name, gateway=AlpacaGateway(allow_live=ALLOW_LIVE), pf_id=pf_id
+        )
         self.portfolios[pf_id] = pf
         self.scheduler.add_job(
             strat_cls().build,
@@ -43,8 +46,10 @@ class StrategyScheduler:
             piv = df.pivot(index="date", columns="portfolio_id", values="ret").dropna(
                 axis=1
             )
-            w = compute_weights(piv)
-            for pid, wt in w.items():
+            weekly = (1 + piv).resample("W-FRI").prod() - 1
+            weights = compute_weights(weekly, w_prev=self.last_weights)
+            self.last_weights = weights
+            for pid, wt in weights.items():
                 pf = self.portfolios.get(pid)
                 if pf:
                     new = {sym: pct * wt for sym, pct in pf.weights.items()}
@@ -54,8 +59,11 @@ class StrategyScheduler:
         def metrics_job():
             update_all_metrics()
 
+        def ticker_job():
+            update_all_ticker_returns()
+
         async def account_job():
-            gw = AlpacaGateway()
+            gw = AlpacaGateway(allow_live=ALLOW_LIVE)
             try:
                 await record_account(gw)
             finally:
@@ -65,6 +73,9 @@ class StrategyScheduler:
             realloc_job, "cron", day_of_week="fri", hour=21, minute=0, id="realloc"
         )
         self.scheduler.add_job(metrics_job, "cron", hour=0, minute=5, id="metrics")
+        self.scheduler.add_job(
+            ticker_job, "cron", day_of_week="sun", hour=6, minute=0, id="ticker_returns"
+        )
         self.scheduler.add_job(account_job, "cron", hour=0, minute=0, id="account")
         self.scheduler.start()
 

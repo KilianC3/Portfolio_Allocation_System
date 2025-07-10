@@ -7,7 +7,7 @@ import uuid
 from types import SimpleNamespace
 from typing import Any, Dict
 
-from database import trade_coll, pf_coll
+from database import trade_coll, pf_coll, weight_coll
 from execution.gateway import ExecutionGateway
 from ledger import MasterLedger
 from risk import PositionRisk
@@ -34,12 +34,23 @@ class EquityPortfolio(Portfolio):
         self.risk = PositionRisk(self.ledger) if self.ledger else None
         pf_coll.update_one({"_id": self.id}, {"$set": {"name": self.name}}, upsert=True)
 
-    def set_weights(self, weights: Dict[str, float]) -> None:
+    def set_weights(
+        self, weights: Dict[str, float], bl_return: float | None = None
+    ) -> None:
         """Assign target weights without enforcing normalization."""
         self.weights = weights
-        pf_coll.update_one(
-            {"_id": self.id}, {"$set": {"weights": weights}}, upsert=True
-        )
+        update = {"weights": weights}
+        if bl_return is not None:
+            update["bl_return"] = bl_return
+        pf_coll.update_one({"_id": self.id}, {"$set": update}, upsert=True)
+        try:
+            weight_coll.update_one(
+                {"portfolio_id": self.id, "date": dt.date.today()},
+                {"$set": {"weights": weights, "bl_return": bl_return}},
+                upsert=True,
+            )
+        except Exception:
+            pass
         _log.info({"set": weights, "pf": self.name})
 
     def _log_trade(self, order: Any) -> None:

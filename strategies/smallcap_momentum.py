@@ -9,8 +9,8 @@ import yfinance as yf
 from core.equity import EquityPortfolio
 
 
-class BiotechBinaryEventBasket:
-    """Hold biotech names into binary catalysts."""
+class SmallCapMomentum:
+    """Hold small-cap stocks heading into momentum catalysts."""
 
     def __init__(self, events: Dict[str, dt.date]):
         self.events = events  # symbol -> event date
