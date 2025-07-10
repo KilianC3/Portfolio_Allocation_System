@@ -89,8 +89,8 @@ def build_crypto_universe() -> None:
             params={
                 "vs_currency": "usd",
                 "order": "volume_desc",
-                "per_page": 250,
-                "page": page,
+                "per_page": "250",
+                "page": str(page),
             },
             timeout=10,
         )
@@ -150,8 +150,6 @@ if AutoTokenizer is not None:
             model=_mod,
             tokenizer=_tok,
             device=DEVICE,
-            batch_size=16,
-            truncation=True,
         )
     except Exception:
         _pipe = None

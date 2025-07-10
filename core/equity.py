@@ -41,12 +41,19 @@ class EquityPortfolio(Portfolio):
         self.weights = weights
         update = {"weights": weights}
         if bl_return is not None:
-            update["bl_return"] = bl_return
+            update["bl_return"] = float(bl_return)
         pf_coll.update_one({"_id": self.id}, {"$set": update}, upsert=True)
         try:
             weight_coll.update_one(
                 {"portfolio_id": self.id, "date": dt.date.today()},
-                {"$set": {"weights": weights, "bl_return": bl_return}},
+                {
+                    "$set": {
+                        "weights": weights,
+                        "bl_return": (
+                            float(bl_return) if bl_return is not None else None
+                        ),
+                    }
+                },
                 upsert=True,
             )
         except Exception:

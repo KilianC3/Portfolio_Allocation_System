@@ -251,6 +251,23 @@ class PGCollection:
     ):
         self.update_one(match, {"$set": doc}, upsert=upsert)
 
+    def count_documents(self, q: Dict[str, Any]) -> int:
+        """Return the number of documents matching ``q``."""
+        if not self.conn:
+            return 0
+        where, params = _build_where(q)
+        sql = f"SELECT COUNT(*) FROM {self.table}"
+        if where:
+            sql += " WHERE " + where
+        if DB_FLAVOR == "pg":
+            with self.conn.cursor() as cur:
+                cur.execute(sql, params)
+                row = cur.fetchone()
+        else:
+            cur = self.conn.execute(sql, params)
+            row = cur.fetchone()
+        return int(row[0]) if row else 0
+
 
 def init_db() -> None:
     """Initialise tables from ``schema.sql`` and record schema version."""

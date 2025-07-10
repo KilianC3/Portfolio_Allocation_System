@@ -93,11 +93,12 @@ def update_all_metrics(days: int = 90) -> None:
 
 def update_ticker_returns(symbols: Iterable[str]) -> None:
     """Fetch close prices and compute multi-horizon returns."""
-    if not symbols:
+    sym_list = list(symbols)
+    if not sym_list:
         return
 
     df = yf.download(
-        list(symbols),
+        sym_list,
         period="5y",
         interval="1d",
         group_by="ticker",
@@ -106,7 +107,7 @@ def update_ticker_returns(symbols: Iterable[str]) -> None:
     )["Close"]
 
     if isinstance(df, pd.Series):
-        df = df.to_frame(symbols[0])
+        df = df.to_frame(sym_list[0])
 
     today = dt.date.today()
     for sym in df.columns:
