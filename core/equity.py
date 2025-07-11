@@ -34,26 +34,16 @@ class EquityPortfolio(Portfolio):
         self.risk = PositionRisk(self.ledger) if self.ledger else None
         pf_coll.update_one({"_id": self.id}, {"$set": {"name": self.name}}, upsert=True)
 
-    def set_weights(
-        self, weights: Dict[str, float], bl_return: float | None = None
-    ) -> None:
+    def set_weights(self, weights: Dict[str, float]) -> None:
         """Assign target weights without enforcing normalization."""
         self.weights = weights
-        update: Dict[str, Any] = {"weights": weights}
-        if bl_return is not None:
-            update["bl_return"] = float(bl_return)
-        pf_coll.update_one({"_id": self.id}, {"$set": update}, upsert=True)
+        pf_coll.update_one(
+            {"_id": self.id}, {"$set": {"weights": weights}}, upsert=True
+        )
         try:
             weight_coll.update_one(
                 {"portfolio_id": self.id, "date": dt.date.today()},
-                {
-                    "$set": {
-                        "weights": weights,
-                        "bl_return": (
-                            float(bl_return) if bl_return is not None else None
-                        ),
-                    }
-                },
+                {"$set": {"weights": weights}},
                 upsert=True,
             )
         except Exception:

@@ -48,7 +48,7 @@ This document helps Codex (or any future agent) produce clear, consistent commit
 
 Recent updates added a central `schema.sql` file executed by
 `database.init_db`, a `db_ping` health check used by startup validation and a
-`universe` table storing S&P and Russell constituents. Metrics now store extensive performance stats, weight history and each portfolio's Black–Litterman expected return. Account equity is archived in separate tables for paper and live trading.
+`universe` table storing S&P and Russell constituents. Metrics now store extensive performance stats and weight history. Account equity is archived in separate tables for paper and live trading.
 
 ---
 
@@ -78,7 +78,7 @@ Additional rules:
 
 - Avoid combining too many overlapping signals as this inflates estimation error and hurts live performance.
 - Heavy optimisation may show great backtests but can fail in production.
-- Use BL + risk parity only when signal quality is stable and well calibrated.
-- Prefer HRP + momentum with dynamic leverage when signals drift or data is noisy; it adapts faster to new strategies and requires less tuning.
+- The allocator now uses a tangency portfolio that maximises Sharpe ratio. Avoid overly complex combinations of signals unless they clearly improve results.
+- Prefer simple momentum overlays or volatility scaling when signal quality varies.
 - Clean weekly returns with a z-score filter and fall back to the last weight
   vector if computed volatility looks unreasonable.

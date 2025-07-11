@@ -23,8 +23,8 @@ analysis can reproduce past views of the data.
 | `ticker_returns` | `symbol`, `date`, `ret_7d`, `ret_1m`, `ret_3m`, `ret_6m`, `ret_1y`, `ret_2y`, `ret_5y` |
 | `portfolios` | `id`, `name`, `weights` |
 | `trades` | `portfolio_id`, `symbol`, `qty`, `side`, `price`, `timestamp` |
-| `weight_history` | `portfolio_id`, `date`, `weights`, `bl_return` |
-| `metrics` | `portfolio_id`, `date`, `ret_1d`, `ret_7d`, `ret_30d`, `ret_3m`, `ret_6m`, `ret_1y`, `ret_2y`, `sharpe`, `alpha`, `beta`, `max_drawdown`, `cagr`, `win_rate`, `information_ratio`, `treynor_ratio`, `var`, `cvar`, `bl_expected_return` |
+| `weight_history` | `portfolio_id`, `date`, `weights` |
+| `metrics` | `portfolio_id`, `date`, `ret_1d`, `ret_7d`, `ret_30d`, `ret_3m`, `ret_6m`, `ret_1y`, `ret_2y`, `sharpe`, `alpha`, `beta`, `max_drawdown`, `cagr`, `win_rate`, `information_ratio`, `treynor_ratio`, `var`, `cvar` |
 | `account_metrics_paper` | `id`, `timestamp`, `data` |
 | `account_metrics_live` | `id`, `timestamp`, `data` |
 | `sp500_universe` | `symbol`, `_retrieved` |
@@ -40,6 +40,4 @@ to date.
 The ticker universes are split across three tables so each index can be
 tracked independently. The `scrapers/universe.py` helper populates these
 tables and writes a CSV copy under `cache/universes/` for offline use.
-`weight_history` now records the Black–Litterman expected return (`bl_return`)
-alongside the raw weight vector. The `metrics` table mirrors this via
-`bl_expected_return` for each portfolio snapshot.
+`weight_history` simply records the raw weight vector for each portfolio.

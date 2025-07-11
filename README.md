@@ -35,11 +35,6 @@ Focuses on downside deviation rather than total volatility, rewarding portfolios
 
 Provides a shrinkage estimator for the return covariance matrix, yielding more stable risk estimates from limited data.
 
-### Black--Litterman Posterior
-
-**Formula**: ![BL](https://latex.codecogs.com/svg.latex?\color{white}\textstyle%20\mu%20%3D%20((\tau\Sigma)^{-1}%20%2B%20P^\top\Omega^{-1}P)^{-1}\big((\tau\Sigma)^{-1}\pi%20%2B%20P^\top\Omega^{-1}Q\big))
-
-Combines market equilibrium returns with subjective views to produce a balanced forecast of expected returns.
 
 ### Risk Parity
 
@@ -202,8 +197,8 @@ Scraped data is stored in these Postgres collections:
 - `ticker_returns` – weekly returns for every tracked ticker
 - `portfolios` – stored weights for each strategy
 - `trades` – executed orders across portfolios
-- `weight_history` – timestamped record of portfolio weights and the latest Black–Litterman expected return
-- `metrics` – daily returns with ret_1d/7d/30d/3m/6m/1y/2y, Sharpe, alpha, beta, max drawdown, CAGR, win rate, risk ratios and the field `bl_expected_return`
+- `weight_history` – timestamped record of portfolio weights
+- `metrics` – daily returns with ret_1d/7d/30d/3m/6m/1y/2y, Sharpe, alpha, beta, max drawdown, CAGR, win rate and other risk ratios
 - `account_metrics_paper` – equity history for the paper trading account
 - `account_metrics_live` – equity history for the live trading account
 - `alloc_log` – optimisation diagnostics including volatility, momentum and beta for each portfolio
@@ -235,8 +230,8 @@ Below is a condensed view of the schema defined in `database/schema.sql`:
 | `ticker_returns` | `symbol`, `date`, `ret_7d`..`ret_5y` |
 | `portfolios` | `id`, `weights` |
 | `trades` | `portfolio_id`, `symbol`, `qty`, `price`, `timestamp` |
-| `weight_history` | `portfolio_id`, `date`, `weights`, `bl_return` |
-| `metrics` | `portfolio_id`, `date`, `ret_1d`..`cvar`, `bl_expected_return` |
+| `weight_history` | `portfolio_id`, `date`, `weights` |
+| `metrics` | `portfolio_id`, `date`, `ret_1d`..`cvar` |
 | `account_metrics_paper` | `id`, `timestamp`, `data` |
 | `account_metrics_live` | `id`, `timestamp`, `data` |
 | `sp500_universe` | `symbol` |
@@ -321,29 +316,29 @@ Each strategy chooses its own holdings, but the allocator decides how much
 capital each one receives.  The allocation process is intentionally simple:
 
 1. **Weekly Returns** – for every portfolio, collect twelve weeks of Friday
-   closes.  Missing weeks are filled with the average of the other portfolios so
-   each column has twelve observations.
-   Extreme outliers are clipped using a z‑score filter so noisy spikes do not
-   skew the analysis.
-2. **Momentum Scores** – compute the 1‑week, 4‑week and 12‑week compounded
-   returns for each portfolio.  Divide each by its weekly volatility
-   ($\sigma\_i\sqrt{52}$) and average the available ratios.  A t-statistic of the
-   12‑week return provides a confidence multiplier.
-3. **Covariance** – apply a Ledoit–Wolf shrinkage estimator to the weekly
-   returns.  The inverse‑volatility weights are scaled to match an 8 % annual
-   volatility target.
-4. **Risk-Parity Baseline** – start from weights proportional to $1/\sigma_i$ and
-   tilt them by $(1+\text{momentum}\times\beta_i)$ where $\beta_i$ is the
-   12‑week t-statistic.  Weights are then clipped to the allowed range.
+   closes. When fewer than four weeks are available all portfolios start with
+   equal weights. Missing weeks are filled with the average of the other
+   portfolios so each column has twelve observations. Extreme outliers are
+   clipped using a z‑score filter so noisy spikes do not skew the analysis.
+2. **Covariance** – apply a Ledoit–Wolf shrinkage estimator to the weekly
+   returns.  Missing values are replaced with the average return so each
+   portfolio has twelve observations.
+3. **Expected Returns** – compute the mean weekly return for each portfolio.
+   Excess returns are defined relative to a zero risk-free rate.
+4. **Tangency Portfolio** – multiply the inverse covariance matrix by the
+   expected returns to obtain weights that maximise the Sharpe ratio.  The
+   portfolio is scaled to an 8 % annual volatility target and clipped to the
+   allowed range.
 5. **Turnover Limit** – if a portfolio’s weight changes by less than
    0.5 percentage points from last week it is left untouched to reduce trading
    costs.
 6. **Anomaly Check** – if the resulting portfolio volatility exceeds 500 % or
    is not a number, the allocator falls back to last week’s weights rather than
    trading on unstable signals.
+7. **Diagnostics** – every optimisation step is logged with expected returns,
+   covariance estimates and the final weights so performance can be audited.
 
-This momentum‑tilted risk-parity rule keeps overall exposure stable while
-rewarding portfolios with consistent performance.  Individual strategies still
-use Black–Litterman expected returns internally, but the top-level allocator no
-longer solves the more complex min–max optimisation.
+The allocator now maximises the Sharpe ratio using a tangency portfolio
+constructed from recent weekly returns. This simpler approach removes the
+previous Black–Litterman logic and focuses on long-term risk-adjusted growth.
 
