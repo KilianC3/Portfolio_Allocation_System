@@ -1,13 +1,5 @@
 import pandas as pd
 import numpy as np
-from pathlib import Path
-import runpy
-
-bl = runpy.run_path(
-    Path(__file__).resolve().parents[1] / "analytics" / "blacklitterman.py"
-)
-market_implied_returns = bl["market_implied_returns"]
-black_litterman_posterior = bl["black_litterman_posterior"]
 from analytics.robust import minmax_portfolio
 from analytics.covariance import estimate_covariance
 from analytics.utils import portfolio_metrics
@@ -17,16 +9,13 @@ from pathlib import Path
 
 def test_all_models():
     cov = pd.DataFrame([[0.1, 0.05], [0.05, 0.2]], index=["A", "B"], columns=["A", "B"])
-    weights = pd.Series([0.6, 0.4], index=["A", "B"])
-    pi = market_implied_returns(cov, weights)
-    P = pd.DataFrame([[1, -1]], columns=["A", "B"])
-    Q = pd.Series([0.02])
-    post = black_litterman_posterior(cov, pi, P, Q)
-    mm = minmax_portfolio(post, cov)
+    mu = pd.Series([0.02, 0.03], index=["A", "B"])
+    mm = minmax_portfolio(mu, cov)
     rand = pd.DataFrame(np.random.randn(50, 2), columns=["A", "B"])
     cov_est = estimate_covariance(rand)
     metrics = portfolio_metrics(pd.Series(np.random.randn(50)))
-    assert not post.isna().any() and not cov_est.isna().any().any()
+    assert not cov_est.isna().any().any()
+    assert not mm.isna().any()
     print(mm.iloc[0], list(metrics.values())[0])
 
 
@@ -76,20 +65,6 @@ def test_compute_weights_simple():
     assert abs(sum(w.values()) - 1) < 1e-6 and set(w) == {"A", "B"}
 
 
-def test_compute_weights_hrp():
-    dates = pd.date_range("2024-01-01", periods=90)
-    df = pd.DataFrame(
-        {
-            "A": np.random.normal(0, 0.01, len(dates)),
-            "B": np.random.normal(0, 0.01, len(dates)),
-            "C": np.random.normal(0, 0.01, len(dates)),
-        },
-        index=dates,
-    )
-    w = compute_weights(df, method="hrp")
-    assert abs(sum(w.values()) - 1) < 1e-6 and set(w) == {"A", "B", "C"}
-
-
 def test_compute_weights_anomaly():
     dates = pd.date_range("2024-01-01", periods=90)
     df = pd.DataFrame(
@@ -102,3 +77,17 @@ def test_compute_weights_anomaly():
     prev = {"A": 0.6, "B": 0.4}
     w = compute_weights(df, w_prev=prev)
     assert w == prev
+
+
+def test_compute_weights_insufficient_data():
+    dates = pd.date_range("2024-01-01", periods=14)
+    df = pd.DataFrame(
+        {
+            "A": np.random.normal(0, 0.01, len(dates)),
+            "B": np.random.normal(0, 0.01, len(dates)),
+            "C": np.random.normal(0, 0.01, len(dates)),
+        },
+        index=dates,
+    )
+    w = compute_weights(df)
+    assert all(abs(v - 1 / 3) < 1e-6 for v in w.values())

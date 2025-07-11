@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS weight_history (
     portfolio_id TEXT REFERENCES portfolios(id),
     date DATE,
     weights JSONB,
-    bl_return DOUBLE PRECISION,
     UNIQUE(portfolio_id, date)
 );
 
@@ -55,7 +54,6 @@ CREATE TABLE IF NOT EXISTS metrics (
     total_trades INTEGER,
     var DOUBLE PRECISION,
     cvar DOUBLE PRECISION,
-    bl_expected_return DOUBLE PRECISION,
     UNIQUE(portfolio_id, date)
 );
 CREATE TABLE IF NOT EXISTS politician_trades (

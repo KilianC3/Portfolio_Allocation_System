@@ -69,11 +69,6 @@ def update_all_metrics(days: int = 90) -> None:
             if not series.empty
             else dt.date.today()
         )
-        weight_doc = weight_coll.find_one({"portfolio_id": pf_id, "date": end_date})
-        if weight_doc:
-            metrics["bl_expected_return"] = float(weight_doc.get("bl_return", 0.0))
-        else:
-            metrics["bl_expected_return"] = 0.0
         metric_coll.update_one(
             {"portfolio_id": pf_id, "date": end_date},
             {"$set": metrics},
