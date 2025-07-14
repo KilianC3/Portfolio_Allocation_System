@@ -59,6 +59,38 @@ def sortino(r: pd.Series, rf: float = 0.0) -> float:
     return (r.mean() - rf) / downside * math.sqrt(252)
 
 
+def weekly_volatility(r: pd.Series) -> float:
+    """Standard deviation over the last 5 sessions."""
+    return float(r.dropna().tail(5).std(ddof=0))
+
+
+def weekly_sortino(r: pd.Series, rf: float = 0.0) -> float:
+    """Sortino ratio over the last 5 sessions without annualisation."""
+    seg = r.dropna().tail(5)
+    downside = seg[seg < 0].std(ddof=0)
+    if downside == 0:
+        return 0.0
+    return float((seg.mean() - rf) / downside)
+
+
+def average_true_range(r: pd.Series, window: int = 14) -> float:
+    """Approximate ATR using absolute returns as the true range."""
+    return float(r.abs().rolling(window).mean().iloc[-1])
+
+
+def rsi(r: pd.Series, window: int = 14) -> float:
+    """Relative Strength Index computed from returns."""
+    delta = r.fillna(0)
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+    avg_gain = gain.rolling(window).mean().iloc[-1]
+    avg_loss = loss.rolling(window).mean().iloc[-1]
+    if avg_loss == 0:
+        return 100.0
+    rs = avg_gain / avg_loss
+    return float(100 - 100 / (1 + rs))
+
+
 def cumulative_return(r: pd.Series) -> float:
     """Total cumulative return for the period."""
     return float((1 + r).prod() - 1)
@@ -93,6 +125,8 @@ def portfolio_metrics(
         "cumulative_return": cumulative_return(r),
         "sharpe": sharpe(r, rf),
         "sortino": sortino(r, rf),
+        "weekly_vol": weekly_volatility(r),
+        "weekly_sortino": weekly_sortino(r, rf),
         "max_drawdown": max_drawdown(r),
         "annual_vol": r.std(ddof=0) * math.sqrt(252),
         "annual_std": r.std(ddof=0) * math.sqrt(252),
@@ -116,6 +150,9 @@ def portfolio_metrics(
         metrics["tracking_error"] = tracking_error(r, benchmark)
         metrics["information_ratio"] = information_ratio(r, benchmark)
         metrics["treynor_ratio"] = 0.0 if b == 0 else (r.mean() - rf) / b
+
+    metrics["atr_14d"] = average_true_range(r)
+    metrics["rsi_14d"] = rsi(r)
     return metrics
 
 
@@ -125,6 +162,10 @@ __all__ = [
     "alpha_beta",
     "max_drawdown",
     "sortino",
+    "weekly_volatility",
+    "weekly_sortino",
+    "average_true_range",
+    "rsi",
     "cumulative_return",
     "period_return",
     "tracking_error",

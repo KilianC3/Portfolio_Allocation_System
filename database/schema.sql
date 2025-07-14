@@ -180,6 +180,16 @@ CREATE TABLE IF NOT EXISTS sp1500_universe (
     _retrieved TIMESTAMPTZ
 );
 
+CREATE TABLE IF NOT EXISTS sp400_universe (
+    symbol TEXT PRIMARY KEY,
+    _retrieved TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS sp600_universe (
+    symbol TEXT PRIMARY KEY,
+    _retrieved TIMESTAMPTZ
+);
+
 CREATE TABLE IF NOT EXISTS russell2000_universe (
     symbol TEXT PRIMARY KEY,
     _retrieved TIMESTAMPTZ
@@ -188,6 +198,7 @@ CREATE TABLE IF NOT EXISTS russell2000_universe (
 CREATE TABLE IF NOT EXISTS ticker_returns (
     id SERIAL PRIMARY KEY,
     symbol TEXT,
+    index_name TEXT,
     date DATE,
     ret_7d DOUBLE PRECISION,
     ret_1m DOUBLE PRECISION,
@@ -214,17 +225,20 @@ CREATE TABLE IF NOT EXISTS cache (
 CREATE TABLE IF NOT EXISTS account_metrics (
     id SERIAL PRIMARY KEY,
     timestamp TIMESTAMPTZ,
-    data JSONB
+    equity DOUBLE PRECISION,
+    last_equity DOUBLE PRECISION
 );
 
 CREATE TABLE IF NOT EXISTS account_metrics_paper (
     id SERIAL PRIMARY KEY,
     timestamp TIMESTAMPTZ,
-    data JSONB
+    equity DOUBLE PRECISION,
+    last_equity DOUBLE PRECISION
 );
 
 CREATE TABLE IF NOT EXISTS account_metrics_live (
     id SERIAL PRIMARY KEY,
     timestamp TIMESTAMPTZ,
-    data JSONB
+    equity DOUBLE PRECISION,
+    last_equity DOUBLE PRECISION
 );

@@ -28,3 +28,5 @@ async def test_record_account(monkeypatch):
     await acct.record_account(FakeGateway(paper=False))
 
     assert rec_paper and rec_live
+    assert set(rec_paper[0].keys()) == {"timestamp", "equity", "last_equity"}
+    assert set(rec_live[0].keys()) == {"timestamp", "equity", "last_equity"}

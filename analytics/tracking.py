@@ -18,7 +18,8 @@ from database import (
 from analytics.utils import portfolio_metrics
 from scrapers.universe import (
     load_sp500,
-    load_sp1500,
+    load_sp400,
+    load_sp600,
     load_russell2000,
 )
 
@@ -86,7 +87,7 @@ def update_all_metrics(days: int = 90) -> None:
             writer.writerow(row)
 
 
-def update_ticker_returns(symbols: Iterable[str]) -> None:
+def update_ticker_returns(symbols: Iterable[str], index_name: str) -> None:
     """Fetch close prices and compute multi-horizon returns."""
     sym_list = list(symbols)
     if not sym_list:
@@ -111,6 +112,7 @@ def update_ticker_returns(symbols: Iterable[str]) -> None:
             continue
         metrics = {
             "symbol": sym,
+            "index_name": index_name,
             "date": today,
             "ret_7d": (
                 float(series.iloc[-1] / series.iloc[-8] - 1) if len(series) > 7 else 0.0
@@ -151,12 +153,18 @@ def update_ticker_returns(symbols: Iterable[str]) -> None:
 
 def update_all_ticker_returns() -> None:
     """Update returns for the entire tracked universe."""
-    tickers = set(load_sp500() + load_sp1500() + load_russell2000())
-    batch = []
-    for sym in sorted(tickers):
-        batch.append(sym)
-        if len(batch) >= 200:
-            update_ticker_returns(batch)
-            batch.clear()
-    if batch:
-        update_ticker_returns(batch)
+    groups = {
+        "S&P500": set(load_sp500()),
+        "S&P400": set(load_sp400()),
+        "S&P600": set(load_sp600()),
+        "Russell2000": set(load_russell2000()),
+    }
+    for name, tickers in groups.items():
+        batch: list[str] = []
+        for sym in sorted(tickers):
+            batch.append(sym)
+            if len(batch) >= 200:
+                update_ticker_returns(batch, name)
+                batch.clear()
+        if batch:
+            update_ticker_returns(batch, name)
