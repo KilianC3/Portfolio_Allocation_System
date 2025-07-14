@@ -123,6 +123,10 @@ Edit `config.yaml` with your own credentials:
 - `ALPACA_API_KEY` and `ALPACA_API_SECRET` – credentials for the Alpaca API
 - `ALPACA_BASE_URL` – broker endpoint (`https://paper-api.alpaca.markets` by default)
 - `ALLOW_LIVE` – set to `true` to enable live trading instead of paper
+  The `AlpacaGateway` determines whether it is connected to a paper or live
+  account by inspecting the base URL. When `ALLOW_LIVE` is enabled the
+  scheduler records both the live and paper accounts so equity history remains
+  separate for each environment.
 - `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` – Reddit API keys for the WSB scraper
 - `PG_URI` – Postgres connection string, e.g. `postgresql://user:pass@localhost:5432/quant_fund`
 - `API_TOKEN` – optional bearer token protecting REST endpoints
@@ -194,21 +198,23 @@ Scraped data is stored in these Postgres collections:
 - `analyst_ratings`
 - `insider_buying`
 - `sp500_index`
-- `ticker_returns` – weekly returns for every tracked ticker
+- `ticker_returns` – weekly returns for every tracked ticker with an `index_name` column identifying the source index
 - `portfolios` – stored weights for each strategy
 - `trades` – executed orders across portfolios
 - `weight_history` – timestamped record of portfolio weights
-- `metrics` – daily returns with ret_1d/7d/30d/3m/6m/1y/2y, Sharpe, alpha, beta, max drawdown, CAGR, win rate and other risk ratios
+- `metrics` – daily returns with ret_1d/7d/30d/3m/6m/1y/2y, Sharpe, Sortino, weekly_vol, weekly_sortino, beta, ATR, RSI, max drawdown, CAGR, win rate and other risk ratios
 - `account_metrics_paper` – equity history for the paper trading account
 - `account_metrics_live` – equity history for the live trading account
 - `alloc_log` – optimisation diagnostics including volatility, momentum and beta for each portfolio
 
 Ticker universes are stored in dedicated tables so the S&P 500 list remains separate
-from the S&P 1500 and Russell 2000 sets. Each table is exported to CSV under
+from the S&P 1500, S&P 400, S&P 600 and Russell 2000 sets. Each table is exported to CSV under
 `cache/universes/` via `scrapers/universe.py`:
 
 - `sp500_universe` – S&P 500 constituents
 - `sp1500_universe` – S&P 1500 constituents
+- `sp400_universe` – S&P 400 constituents
+- `sp600_universe` – S&P 600 constituents
 - `russell2000_universe` – Russell 2000 constituents
 
 Below is a condensed view of the schema defined in `database/schema.sql`:
@@ -227,15 +233,17 @@ Below is a condensed view of the schema defined in `database/schema.sql`:
 | `news_headlines` | `ticker`, `headline`, `link`, `time` |
 | `insider_buying` | `ticker`, `exec`, `shares`, `date` |
 | `sp500_index` | `date`, `close` |
-| `ticker_returns` | `symbol`, `date`, `ret_7d`..`ret_5y` |
+| `ticker_returns` | `symbol`, `index_name`, `date`, `ret_7d`..`ret_5y` |
 | `portfolios` | `id`, `weights` |
 | `trades` | `portfolio_id`, `symbol`, `qty`, `price`, `timestamp` |
 | `weight_history` | `portfolio_id`, `date`, `weights` |
-| `metrics` | `portfolio_id`, `date`, `ret_1d`..`cvar` |
-| `account_metrics_paper` | `id`, `timestamp`, `data` |
-| `account_metrics_live` | `id`, `timestamp`, `data` |
+| `metrics` | `portfolio_id`, `date`, `ret_1d`..`cvar`, `weekly_vol`, `weekly_sortino`, `atr_14d`, `rsi_14d` |
+| `account_metrics_paper` | `id`, `timestamp`, `equity`, `last_equity` |
+| `account_metrics_live` | `id`, `timestamp`, `equity`, `last_equity` |
 | `sp500_universe` | `symbol` |
 | `sp1500_universe` | `symbol` |
+| `sp400_universe` | `symbol` |
+| `sp600_universe` | `symbol` |
 | `russell2000_universe` | `symbol` |
 
 All tables enforce unique keys on their primary columns to avoid duplicate

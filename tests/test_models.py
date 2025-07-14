@@ -14,6 +14,8 @@ def test_all_models():
     rand = pd.DataFrame(np.random.randn(50, 2), columns=["A", "B"])
     cov_est = estimate_covariance(rand)
     metrics = portfolio_metrics(pd.Series(np.random.randn(50)))
+    for k in ["weekly_vol", "weekly_sortino", "atr_14d", "rsi_14d"]:
+        assert k in metrics
     assert not cov_est.isna().any().any()
     assert not mm.isna().any()
     print(mm.iloc[0], list(metrics.values())[0])
@@ -48,8 +50,8 @@ def test_update_ticker_returns(monkeypatch):
             rec.append(a)
 
     monkeypatch.setattr(trk, "ticker_return_coll", Coll())
-    trk.update_ticker_returns(["AAPL"])
-    assert rec
+    trk.update_ticker_returns(["AAPL"], "S&P500")
+    assert rec and rec[0][1]["$set"]["index_name"] == "S&P500"
 
 
 def test_compute_weights_simple():

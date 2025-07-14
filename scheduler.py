@@ -63,11 +63,18 @@ class StrategyScheduler:
             update_all_ticker_returns()
 
         async def account_job():
-            gw = AlpacaGateway(allow_live=ALLOW_LIVE)
+            gw_main = AlpacaGateway(allow_live=ALLOW_LIVE)
             try:
-                await record_account(gw)
+                await record_account(gw_main)
             finally:
-                await gw.close()
+                await gw_main.close()
+
+            if ALLOW_LIVE and not gw_main.paper:
+                gw_paper = AlpacaGateway(base_url="https://paper-api.alpaca.markets")
+                try:
+                    await record_account(gw_paper)
+                finally:
+                    await gw_paper.close()
 
         self.scheduler.add_job(
             realloc_job, "cron", day_of_week="fri", hour=21, minute=0, id="realloc"

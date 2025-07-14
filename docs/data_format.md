@@ -20,15 +20,17 @@ analysis can reproduce past views of the data.
 | `news_headlines` | `ticker`, `headline`, `link`, `source`, `time`, `_retrieved` |
 | `insider_buying` | `ticker`, `exec`, `shares`, `date`, `_retrieved` |
 | `sp500_index` | `date`, `close`, `_retrieved` |
-| `ticker_returns` | `symbol`, `date`, `ret_7d`, `ret_1m`, `ret_3m`, `ret_6m`, `ret_1y`, `ret_2y`, `ret_5y` |
+| `ticker_returns` | `symbol`, `index_name`, `date`, `ret_7d`, `ret_1m`, `ret_3m`, `ret_6m`, `ret_1y`, `ret_2y`, `ret_5y` |
 | `portfolios` | `id`, `name`, `weights` |
 | `trades` | `portfolio_id`, `symbol`, `qty`, `side`, `price`, `timestamp` |
 | `weight_history` | `portfolio_id`, `date`, `weights` |
-| `metrics` | `portfolio_id`, `date`, `ret_1d`, `ret_7d`, `ret_30d`, `ret_3m`, `ret_6m`, `ret_1y`, `ret_2y`, `sharpe`, `alpha`, `beta`, `max_drawdown`, `cagr`, `win_rate`, `information_ratio`, `treynor_ratio`, `var`, `cvar` |
-| `account_metrics_paper` | `id`, `timestamp`, `data` |
-| `account_metrics_live` | `id`, `timestamp`, `data` |
+| `metrics` | `portfolio_id`, `date`, `ret_1d`, `ret_7d`, `ret_30d`, `ret_3m`, `ret_6m`, `ret_1y`, `ret_2y`, `sharpe`, `sortino`, `weekly_vol`, `weekly_sortino`, `alpha`, `beta`, `max_drawdown`, `cagr`, `win_rate`, `information_ratio`, `treynor_ratio`, `var`, `cvar`, `atr_14d`, `rsi_14d` |
+| `account_metrics_paper` | `id`, `timestamp`, `equity`, `last_equity` |
+| `account_metrics_live` | `id`, `timestamp`, `equity`, `last_equity` |
 | `sp500_universe` | `symbol`, `_retrieved` |
 | `sp1500_universe` | `symbol`, `_retrieved` |
+| `sp400_universe` | `symbol`, `_retrieved` |
+| `sp600_universe` | `symbol`, `_retrieved` |
 | `russell2000_universe` | `symbol`, `_retrieved` |
 
 Every column is stored as a string except for the timestamp `_retrieved` which is a `TIMESTAMP` in UTC.
@@ -37,7 +39,7 @@ Both the `metrics` table and the `account_metrics_paper`/`account_metrics_live` 
 the scheduler so that portfolio performance and account equity remain up
 to date.
 
-The ticker universes are split across three tables so each index can be
+The ticker universes are split across five tables so each index can be
 tracked independently. The `scrapers/universe.py` helper populates these
 tables and writes a CSV copy under `cache/universes/` for offline use.
 `weight_history` simply records the raw weight vector for each portfolio.

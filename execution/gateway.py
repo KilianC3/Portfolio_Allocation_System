@@ -46,14 +46,15 @@ class AlpacaGateway(ExecutionGateway):
 
     MAX_NOTIONAL = 25_000
 
-    def __init__(self, allow_live: bool = False) -> None:
-        self.paper = "paper-api" in ALPACA_BASE_URL
+    def __init__(self, allow_live: bool = False, base_url: str | None = None) -> None:
+        self.base_url = base_url or ALPACA_BASE_URL
+        self.paper = "paper-api" in self.base_url
         if not self.paper and not allow_live:
             raise RuntimeError(
                 "Live trading endpoint configured; pass allow_live=True to enable"
             )
         self.client = httpx.AsyncClient(
-            base_url=ALPACA_BASE_URL,
+            base_url=self.base_url,
             headers={
                 "APCA-API-KEY-ID": ALPACA_API_KEY or "",
                 "APCA-API-SECRET-KEY": ALPACA_API_SECRET or "",

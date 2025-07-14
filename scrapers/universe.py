@@ -12,6 +12,8 @@ from database import (
     init_db,
     sp500_universe_coll,
     sp1500_universe_coll,
+    sp400_universe_coll,
+    sp600_universe_coll,
     russell2000_universe_coll,
 )
 from io import StringIO
@@ -75,6 +77,24 @@ def download_sp1500(path: Path | None = None) -> Path:
     return path
 
 
+def download_sp400(path: Path | None = None) -> Path:
+    """Download S&P 400 constituents to CSV."""
+    path = path or DATA_DIR / "sp400.csv"
+    tickers = _tickers_from_wiki(SP400_URL)
+    pd.DataFrame(sorted(tickers), columns=["symbol"]).to_csv(path, index=False)
+    _store_universe(sp400_universe_coll, list(tickers))
+    return path
+
+
+def download_sp600(path: Path | None = None) -> Path:
+    """Download S&P 600 constituents to CSV."""
+    path = path or DATA_DIR / "sp600.csv"
+    tickers = _tickers_from_wiki(SP600_URL)
+    pd.DataFrame(sorted(tickers), columns=["symbol"]).to_csv(path, index=False)
+    _store_universe(sp600_universe_coll, list(tickers))
+    return path
+
+
 def download_russell2000(path: Path | None = None) -> Path:
     """Download Russell 2000 constituents to CSV."""
     path = path or DATA_DIR / "russell2000.csv"
@@ -86,6 +106,16 @@ def download_russell2000(path: Path | None = None) -> Path:
 
 def load_sp1500() -> List[str]:
     path = DATA_DIR / "sp1500.csv"
+    return pd.read_csv(path).symbol.dropna().astype(str).str.upper().tolist()
+
+
+def load_sp400() -> List[str]:
+    path = DATA_DIR / "sp400.csv"
+    return pd.read_csv(path).symbol.dropna().astype(str).str.upper().tolist()
+
+
+def load_sp600() -> List[str]:
+    path = DATA_DIR / "sp600.csv"
     return pd.read_csv(path).symbol.dropna().astype(str).str.upper().tolist()
 
 
