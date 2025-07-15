@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from analytics.robust import minmax_portfolio
 from analytics.covariance import estimate_covariance
-from analytics.utils import portfolio_metrics
+from analytics.utils import portfolio_metrics, portfolio_correlations
 from analytics.allocation_engine import compute_weights
 from pathlib import Path
 
@@ -93,3 +93,31 @@ def test_compute_weights_insufficient_data():
     )
     w = compute_weights(df)
     assert all(abs(v - 1 / 3) < 1e-6 for v in w.values())
+
+
+def test_portfolio_correlations():
+    df = pd.DataFrame(
+        {
+            "A": [0.1, 0.2, 0.3],
+            "B": [0.1, 0.2, 0.3],
+            "C": [0.3, 0.2, 0.1],
+        }
+    )
+    corr = portfolio_correlations(df)
+    assert corr.loc["A", "B"] == 1.0
+
+
+def test_sector_exposures(monkeypatch):
+    class FakeTicker:
+        def __init__(self, sector):
+            self.info = {"sector": sector}
+
+    def fake_ticker(sym: str):
+        return FakeTicker({"A": "Tech", "B": "Health"}.get(sym, "Other"))
+
+    monkeypatch.setattr("analytics.utils.yf.Ticker", lambda s: fake_ticker(s))
+    from analytics.utils import sector_exposures
+
+    exp = sector_exposures({"A": 0.6, "B": 0.4})
+    assert abs(exp["Tech"] - 0.6) < 1e-6
+    assert abs(exp["Health"] - 0.4) < 1e-6

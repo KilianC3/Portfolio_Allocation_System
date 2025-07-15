@@ -18,7 +18,11 @@ from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
 from config import ALLOW_LIVE
 from scheduler import StrategyScheduler
-from analytics.utils import portfolio_metrics
+from analytics.utils import (
+    portfolio_metrics,
+    portfolio_correlations,
+    sector_exposures,
+)
 from metrics import rebalance_latency
 from analytics import update_all_metrics, update_all_ticker_returns
 from analytics.account import account_coll
@@ -544,8 +548,17 @@ def correlations(start: Optional[str] = None, end: Optional[str] = None):
         pf = d["portfolio_id"]
         by_pf.setdefault(pf, []).append(d["ret"])
     df = pd.DataFrame(by_pf)
-    corr = df.corr().fillna(0)
+    corr = portfolio_correlations(df)
     return {"correlations": corr.to_dict()}
+
+
+@app.get("/sector_exposure/{pf_id}")
+def sector_exposure(pf_id: str):
+    pf = portfolios.get(pf_id)
+    if not pf:
+        raise HTTPException(404, "portfolio not found")
+    exposure = sector_exposures(pf.weights)
+    return {"exposure": exposure}
 
 
 @app.get("/analytics/{pf_id}")

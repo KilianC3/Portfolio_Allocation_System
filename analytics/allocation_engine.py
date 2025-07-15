@@ -45,24 +45,37 @@ def _log_to_db(
 def compute_weights(
     ret_df: pd.DataFrame,
     w_prev: Optional[Mapping[str, float]] = None,
-    target_vol: float = 0.08,
+    target_vol: float = 0.11,
     turnover_thresh: float = 0.005,
     risk_free: float = 0.0,
 ) -> dict[str, float]:
     """Return tangency portfolio weights maximising the Sharpe ratio.
 
-    Outlier weekly returns are clipped to reduce noise and the final portfolio
-    volatility is checked for anomalies.  If an extreme value is detected the
-    previous weights are returned to avoid destabilising the system.
+    Using up to 36 weeks of cleaned weekly returns, or all available data if
+    fewer weeks are present, expected returns ``mu`` and the covariance matrix
+    ``Sigma`` are estimated with Ledoit--Wolf shrinkage.
+    The positive part of ``Sigma^-1 mu`` forms the long-only maximum-Sharpe mix
+    of risky assets.  Excess returns ``mu - r_f`` are then used to compute the
+    tangency portfolio, again taking only the nonnegative weights.  This unit-sum
+    portfolio is levered or delevered to the target volatility, constrained to
+    the 10--12% range.  Extreme or zero volatility estimates trigger a fallback
+    to the previous weights.
     """
+
+    target_vol = max(0.10, min(0.12, target_vol))
 
     if ret_df.empty:
         return {}
 
     weekly = (1 + ret_df).resample("W-FRI").prod() - 1
-    weekly = weekly.tail(12)
-    if len(weekly) < 4:
-        _log.info({"fallback": "equal_weights", "reason": "insufficient data"})
+    weeks = len(weekly)
+    if weeks > 36:
+        weekly = weekly.tail(36)  # limit to 36-week lookback
+    if weeks < 4:
+        _log.info({"fallback": "equal_weights", "reason": "<4 weeks"})
+        return {c: 1 / len(ret_df.columns) for c in ret_df.columns}
+    if weekly.empty:
+        _log.info({"fallback": "equal_weights", "reason": "no weekly data"})
         return {c: 1 / len(ret_df.columns) for c in ret_df.columns}
 
     weekly = _clean_returns(weekly)
@@ -79,18 +92,24 @@ def compute_weights(
     cov = pd.DataFrame(lw.covariance_, index=weekly.columns, columns=weekly.columns)
     _log.debug({"cov": cov.to_dict()})
     inv = np.linalg.pinv(cov.values)
+    sel = np.maximum(inv @ mu.values, 0)
+    if sel.sum() == 0:
+        sel[:] = 1
+    sel /= sel.sum()
+    _log.debug({"max_sharpe": {c: float(v) for c, v in zip(weekly.columns, sel)}})
+
     excess = mu - risk_free
-    w = pd.Series(inv @ excess.values, index=weekly.columns)
+    w = pd.Series(np.maximum(inv @ excess.values, 0), index=weekly.columns)
     if w.sum() == 0:
         w[:] = 1
     w /= w.sum()
 
     port_vol = float(np.sqrt(w @ cov @ w) * np.sqrt(52))
     _log.debug({"port_vol": port_vol})
-    if not np.isfinite(port_vol) or port_vol > 5:
+    if not np.isfinite(port_vol) or port_vol > 5 or port_vol == 0:
         _log.warning({"anomaly": "vol", "value": port_vol})
         if w_prev:
-            return dict(w_prev)
+            return dict(w_prev)  # reuse previous allocation
         w[:] = 1 / len(w)
         port_vol = float(np.sqrt(w @ cov @ w) * np.sqrt(52))
     if port_vol > 0:
