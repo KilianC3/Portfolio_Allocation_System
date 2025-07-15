@@ -15,7 +15,8 @@ The Portfolio Allocation System is a Python service for running data-driven trad
 ## Financial Models
 
 Return and risk estimates feed into the allocation engine.  Let $r_t$ denote daily returns.
-
+The arithmetic return is:
+![Return](https://latex.codecogs.com/svg.latex?\color{white}r_t=\frac{P_t-P_{t-1}}{P_{t-1}})
 
 ### Sharpe Ratio
 
@@ -148,11 +149,12 @@ start the service automatically.
 APScheduler jobs rebalance portfolios according to the active strategies.  REST endpoints under `/docs` allow manual portfolio management and data collection.
 
 To preload all datasets without launching the API run:
-An extra `/logs` endpoint streams the application log for debugging.
 
 ```bash
 python -m scripts.bootstrap
 ```
+
+An extra `/logs` endpoint streams the application log for debugging.
 
 Check overall system status at any time with:
 
@@ -267,19 +269,17 @@ The system can run inside a lightweight Ubuntu container:
    lxc launch images:ubuntu/22.04 portfolio-box
    lxc exec portfolio-box -- bash
    ```
-2. Install system packages
+2. Install Git, Python and PostgreSQL if not already available
    ```bash
    apt update && apt install -y git python3-venv postgresql
    ```
-3. Create a Postgres user and database
+3. Run the automated bootstrap
    ```bash
-   sudo -u postgres createuser --password portfolio
-   sudo -u postgres createdb -O portfolio quant_fund
+   sudo bash scripts/bootstrap.sh
    ```
-   The connection string is then:
-   `postgresql://portfolio:<password>@localhost:5432/quant_fund`
-4. Follow the [Installation](#installation) steps inside the container and update
-   `config.yaml` with the PG_URI from above.
+   The script creates the Postgres role and database, clones the repository,
+   installs requirements, seeds the data and registers the API as a systemd
+   service. After completion the service and scheduler start automatically at boot.
 
 ## Repository Structure
 
