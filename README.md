@@ -9,6 +9,8 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 - **Alpaca** gateway with paper/live detection
 - **Postgres + DuckDB** data store
 - **Prometheus metrics** and structured logging
+- **Correlation endpoint** to compare portfolio relationships
+- **Sector exposure endpoint** for portfolio sector breakdowns
 
 ## Usage
 
@@ -95,5 +97,5 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 
 ## Allocation Logic
 
-Weekly returns for each portfolio are cleaned with a z‑score filter and summarised over the last twelve weeks. A Ledoit–Wolf estimator produces the covariance matrix and mean returns are treated as expected returns. The tangency portfolio weights are computed from these inputs, scaled to an 8% annual volatility target and clipped to the configured minimum and maximum. Small changes under 0.5 percentage points are ignored to reduce turnover. If the resulting volatility is unrealistic, the previous weights are reused. Every step is logged for audit purposes.
+Weekly returns are cleaned with a z-score filter and a rolling window of up to 36 weeks is used. When fewer than four weeks of data exist the allocator simply assigns equal weights. Once at least four weeks are available, all history up to 36 weeks feeds the Ledoit–Wolf covariance and mean-return estimates. The positive part of ``Σ⁻¹μ`` gives the long-only max‑Sharpe mix while ``Σ⁻¹(μ − r_f)`` yields the tangency portfolio. This unit-sum portfolio is scaled to an 11% volatility target (clamped between 10–12%) and clipped to the configured bounds. Tiny changes below 0.5 percentage points are skipped, extreme volatility reuses the previous allocation, and portfolio correlations and sector exposures are provided for the UI.
 

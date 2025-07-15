@@ -1,10 +1,12 @@
 """Utility functions for portfolio analytics."""
 
 import math
-from typing import Optional
+import functools
+from typing import Mapping, Optional
 
 import numpy as np
 import pandas as pd
+import yfinance as yf
 
 
 def lambda_from_half_life(h: int) -> float:
@@ -156,6 +158,31 @@ def portfolio_metrics(
     return metrics
 
 
+def portfolio_correlations(ret_df: pd.DataFrame) -> pd.DataFrame:
+    """Pairwise correlation matrix of portfolio returns."""
+    return ret_df.corr().fillna(0)
+
+
+@functools.lru_cache(maxsize=1024)
+def ticker_sector(sym: str) -> str:
+    """Return the sector for a ticker via yfinance; "Other" on failure."""
+    try:
+        info = yf.Ticker(sym).info
+    except Exception:
+        return "Other"
+    sector = info.get("sector") or info.get("industry") or "Other"
+    return str(sector)
+
+
+def sector_exposures(weights: Mapping[str, float]) -> dict[str, float]:
+    """Aggregate weights by sector."""
+    totals: dict[str, float] = {}
+    for sym, w in weights.items():
+        sec = ticker_sector(sym)
+        totals[sec] = totals.get(sec, 0.0) + float(w)
+    return totals
+
+
 __all__ = [
     "sharpe",
     "var_cvar",
@@ -171,5 +198,8 @@ __all__ = [
     "tracking_error",
     "information_ratio",
     "portfolio_metrics",
+    "portfolio_correlations",
+    "ticker_sector",
+    "sector_exposures",
     "lambda_from_half_life",
 ]
