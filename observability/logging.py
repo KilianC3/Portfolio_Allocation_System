@@ -2,24 +2,49 @@ import logging
 import os
 import uuid
 import structlog
+from logging.handlers import RotatingFileHandler
+from typing import Dict, Tuple
+import time
 
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
+
+class _DedupFilter(logging.Filter):
+    """Suppress identical messages within a short window."""
+
+    def __init__(self, window: int = 60) -> None:
+        super().__init__()
+        self.window = window
+        self._last: Dict[Tuple[int, str], float] = {}
+
+    def filter(
+        self, record: logging.LogRecord
+    ) -> bool:  # pragma: no cover - timing varies
+        key = (record.levelno, record.getMessage())
+        now = time.time()
+        prev = self._last.get(key, 0)
+        self._last[key] = now
+        return now - prev > self.window
+
+
 level = os.getenv("LOG_LEVEL", "INFO").upper()
+handler = RotatingFileHandler(
+    os.path.join(LOG_DIR, "app.log"), maxBytes=1_000_000, backupCount=3
+)
+handler.addFilter(_DedupFilter())
 logging.basicConfig(
     level=getattr(logging, level, logging.INFO),
     format="%(message)s",
-    handlers=[
-        logging.FileHandler(os.path.join(LOG_DIR, "app.log")),
-        logging.StreamHandler(),
-    ],
+    handlers=[handler, logging.StreamHandler()],
 )
 
 structlog.configure(
     processors=[
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.add_log_level,
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
         structlog.processors.JSONRenderer(),
     ],
 )
