@@ -26,7 +26,7 @@ async def test_run_scrapers(monkeypatch):
     monkeypatch.setattr(boot, "fetch_stock_news", fake)
     monkeypatch.setattr(boot, "fetch_insider_buying", fake)
     monkeypatch.setattr(boot, "fetch_sp500_history", lambda d: [{"close": 1}])
-    monkeypatch.setattr(boot, "update_all_ticker_returns", lambda: calls.append("s"))
+    monkeypatch.setattr(boot, "update_all_ticker_scores", lambda: calls.append("s"))
 
     await boot.run_scrapers()
     assert calls.count("s") == 12
@@ -39,7 +39,9 @@ def test_health(monkeypatch):
     monkeypatch.setattr(hc.pf_coll, "find", lambda *a, **k: [1])
     monkeypatch.setattr(hc.trade_coll, "find", lambda *a, **k: [1, 2])
     monkeypatch.setattr(hc.metric_coll, "find", lambda *a, **k: [{"date": "x"}])
-    monkeypatch.setattr(hc, "load_sp1500", lambda: ["AAPL", "MSFT"])
+    monkeypatch.setattr(hc, "load_sp500", lambda: ["AAPL"])
+    monkeypatch.setattr(hc, "load_sp400", lambda: ["MSFT"])
+    monkeypatch.setattr(hc, "load_russell2000", lambda: [])
     out = hc.check_system()
     assert out["database"] == "ok"
     assert out["tracked_universe"] == 2

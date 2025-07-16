@@ -170,43 +170,22 @@ CREATE TABLE IF NOT EXISTS sp500_index (
     _retrieved TIMESTAMPTZ
 );
 
-CREATE TABLE IF NOT EXISTS sp500_universe (
+CREATE TABLE IF NOT EXISTS universe (
     symbol TEXT PRIMARY KEY,
+    index_name TEXT,
     _retrieved TIMESTAMPTZ
 );
 
-CREATE TABLE IF NOT EXISTS sp1500_universe (
-    symbol TEXT PRIMARY KEY,
-    _retrieved TIMESTAMPTZ
-);
-
-CREATE TABLE IF NOT EXISTS sp400_universe (
-    symbol TEXT PRIMARY KEY,
-    _retrieved TIMESTAMPTZ
-);
-
-CREATE TABLE IF NOT EXISTS sp600_universe (
-    symbol TEXT PRIMARY KEY,
-    _retrieved TIMESTAMPTZ
-);
-
-CREATE TABLE IF NOT EXISTS russell2000_universe (
-    symbol TEXT PRIMARY KEY,
-    _retrieved TIMESTAMPTZ
-);
-
-CREATE TABLE IF NOT EXISTS ticker_returns (
+CREATE TABLE IF NOT EXISTS ticker_scores (
     id SERIAL PRIMARY KEY,
     symbol TEXT,
     index_name TEXT,
     date DATE,
-    ret_7d DOUBLE PRECISION,
-    ret_1m DOUBLE PRECISION,
-    ret_3m DOUBLE PRECISION,
-    ret_6m DOUBLE PRECISION,
-    ret_1y DOUBLE PRECISION,
-    ret_2y DOUBLE PRECISION,
-    ret_5y DOUBLE PRECISION,
+    fundamentals DOUBLE PRECISION,
+    momentum DOUBLE PRECISION,
+    liquidity_sentiment DOUBLE PRECISION,
+    risk_adjusted DOUBLE PRECISION,
+    overall DOUBLE PRECISION,
     UNIQUE(symbol, date)
 );
 

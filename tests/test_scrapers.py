@@ -100,27 +100,20 @@ def test_helpers(monkeypatch, tmp_path):
 
     monkeypatch.setattr(univ, "_tickers_from_wiki", lambda url: ["MSFT"])
     monkeypatch.setattr(univ.requests, "get", lambda *a, **k: Resp())
-    monkeypatch.setattr(univ, "sp1500_universe_coll", mock.Mock())
-    p = univ.download_sp1500(tmp_path / "sp.csv")
+    monkeypatch.setattr(univ, "universe_coll", mock.Mock())
+    monkeypatch.setattr(univ, "universe_coll", mock.Mock())
+    p = univ.download_sp500(tmp_path / "sp.csv")
     assert p.exists()
     data = pd.read_csv(p)
     assert data.iloc[0][0] == "AAPL"
     print(data.iloc[0].to_dict())
 
-    monkeypatch.setattr(univ, "sp400_universe_coll", mock.Mock())
     p400 = univ.download_sp400(tmp_path / "sp400.csv")
     assert p400.exists()
     data400 = pd.read_csv(p400)
     assert data400.iloc[0][0] == "MSFT"
 
-    monkeypatch.setattr(univ, "sp600_universe_coll", mock.Mock())
-    p600 = univ.download_sp600(tmp_path / "sp600.csv")
-    assert p600.exists()
-    data600 = pd.read_csv(p600)
-    assert data600.iloc[0][0] == "MSFT"
-
     monkeypatch.setattr(univ.requests, "get", lambda *a, **k: Resp())
-    monkeypatch.setattr(univ, "russell2000_universe_coll", mock.Mock())
     p2 = univ.download_russell2000(tmp_path / "r2k.csv")
     assert p2.exists()
     data2 = pd.read_csv(p2)

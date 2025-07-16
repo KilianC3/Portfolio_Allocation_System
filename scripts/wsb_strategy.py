@@ -23,6 +23,7 @@ import yfinance as yf
 from praw.models import Comment
 from tqdm import tqdm
 from typing import TYPE_CHECKING, Optional
+from scrapers.universe import load_sp500, load_sp400, load_russell2000
 
 try:
     from transformers import (
@@ -57,17 +58,12 @@ STOP_SHORT = {"A", "I", "AND", "THE", "FOR", "YOU", "ARE", "WITH", "TO", "IN"}
 # -------------------- Universe builders --------------------
 
 
+from scrapers.universe import load_sp500, load_sp400, load_russell2000
+
+
 def build_equity_universe() -> None:
-    """Top 50% of S&P 1500 by volume."""
-    url = "https://en.wikipedia.org/wiki/S%26P_1500"
-    html = requests.get(url, timeout=10).text
-    dfs = pd.read_html(StringIO(html))
-    syms = set()
-    for tbl in dfs[:3]:
-        for col in tbl.columns:
-            if str(col).lower().startswith(("ticker", "symbol")):
-                syms.update(tbl[col].astype(str).str.upper())
-                break
+    """Top 50% of the tracked universe by volume."""
+    syms = set(load_sp500()) | set(load_sp400()) | set(load_russell2000())
     df = yf.download(
         list(syms),
         period="1d",

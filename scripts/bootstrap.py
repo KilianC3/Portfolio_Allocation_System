@@ -13,7 +13,7 @@ from scrapers.news import fetch_stock_news
 from scrapers.insider_buying import fetch_insider_buying
 from scrapers.sp500_index import fetch_sp500_history
 from scrapers.analyst_ratings import fetch_analyst_ratings
-from analytics.tracking import update_all_ticker_returns
+from analytics.tracking import update_all_ticker_scores
 
 _log = get_logger("bootstrap")
 
@@ -32,7 +32,7 @@ async def run_scrapers() -> None:
         fetch_insider_buying(),
         fetch_stock_news(),
         asyncio.to_thread(fetch_sp500_history, 365),
-        asyncio.to_thread(update_all_ticker_returns),
+        asyncio.to_thread(update_all_ticker_scores),
     )
 
 

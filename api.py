@@ -24,7 +24,7 @@ from analytics.utils import (
     sector_exposures,
 )
 from metrics import rebalance_latency
-from analytics import update_all_metrics, update_all_ticker_returns
+from analytics import update_all_metrics, update_all_ticker_scores
 from analytics.account import account_coll
 from risk.var import historical_var, cvar
 from ledger import MasterLedger
@@ -159,7 +159,7 @@ async def startup_event():
             fetch_insider_buying(),
             fetch_stock_news(),
             asyncio.to_thread(fetch_sp500_history, 365),
-            asyncio.to_thread(update_all_ticker_returns),
+            asyncio.to_thread(update_all_ticker_scores),
         )
         if AUTO_START_SCHED:
             sched.start()

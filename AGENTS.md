@@ -48,8 +48,8 @@ This document helps Codex (or any future agent) produce clear, consistent commit
 
 Recent updates added a central `schema.sql` file executed by
 `database.init_db`, a `db_ping` health check used by startup validation and
-expanded universe tables for the S&P 400, S&P 500, S&P 600 and Russell 2000.
-The `ticker_returns` table now records the originating index for each symbol.
+expanded universe tables for the S&P 400, S&P 500 and Russell 2000.
+The `ticker_scores` table stores composite metrics for each symbol.
 Metrics store extensive performance stats including weekly volatility,
 weekly Sortino ratio, ATR and RSI. Account equity is archived in separate
 tables for paper and live trading.

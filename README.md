@@ -23,11 +23,12 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
    pip install -r requirements.txt
    ```
 2. Edit `config.yaml` with your Alpaca keys, Postgres URI and optional API token.
-3. Start the service which launches the API and scheduler
+3. Start the service which launches the API, scheduler and all scrapers
    ```bash
    python start.py
    ```
-   Use `python -m scripts.bootstrap` if you want to seed all datasets first.
+   The startup script now runs each scraper in sequence and logs a checklist
+   once data is loaded.
 
 ## Strategy Reference
 
@@ -38,7 +39,7 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 | DC Insider Score Tilt | Quiver DC Insider scores | Weekly | Long top 30 ranked by score |
 | Government-Contracts Momentum | Quiver gov contracts | Monthly | Own firms with \$50M+ new federal contracts |
 | Corporate Insider Buying Pulse | Quiver insider filings | Weekly | Long 25 tickers with strongest buying |
-| Wikipedia Attention Surge | Wikimedia page views | Weekly | Long top 10 S&P1500 names by page‑view jump |
+| Wikipedia Attention Surge | Wikimedia page views | Weekly | Long top 10 names by page‑view jump |
 | Wall Street Bets Buzz | Reddit API | Weekly | Long 15 tickers with fastest rise in mentions |
 | App Reviews Hype Score | Quiver app ratings | Weekly | Long 20 names with largest hype increase |
 | Google Trends + News Sentiment | Quiver Google Trends + Finviz news | Monthly | Long 30 tickers with rising search interest and good news |
@@ -62,6 +63,7 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 | Insider Buying | https://www.quiverquant.com/insiders/ |
 | Wikipedia Views | https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/all-agents/{Page_Title}/daily/{start}/{end} |
 | Analyst Ratings | https://finviz.com/quote.ashx?t=AAPL&ty=c&p=d&b=1 |
+| Finviz Fundamentals | https://finviz.com/quote.ashx?t=AAPL&p=d&ty=ea |
 | Finviz Stock News | https://finviz.com/news.ashx?v=3 |
 | S&P 500 Index | https://finance.yahoo.com/quote/%5EGSPC |
 
@@ -79,7 +81,8 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 - `analyst_ratings`
 - `insider_buying`
 - `sp500_index`
-- `universe` – full list of tradable symbols with `index_name`, recent returns and metrics
+- `universe` – full list of tradable symbols with `index_name` and composite scores
+- Ticker constituents from the S&P 500, S&P 400 and Russell 2000 populate this table
 - `portfolios` – stored weights for each strategy
 - `trades` – executed orders
 - `weight_history` – timestamped portfolio weights
