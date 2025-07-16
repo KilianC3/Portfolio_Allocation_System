@@ -29,6 +29,10 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
    ```
    The startup script now runs each scraper in sequence and logs a checklist
    once data is loaded.
+4. Run the unit tests to verify your environment
+   ```bash
+   pytest -q
+   ```
 
 ## Strategy Reference
 
