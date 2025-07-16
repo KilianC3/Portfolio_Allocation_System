@@ -47,6 +47,10 @@ This document helps Codex (or any future agent) produce clear, consistent commit
 - `deploy/` – Dockerfile, requirements and other build assets
 - `docs/` – extended documentation and AGENT guides
 
+To run the project locally install packages from `deploy/requirements.txt`,
+edit `service/config.yaml` with your credentials and execute
+`python -m service.start`.
+
 Recent updates added a central `schema.sql` file executed by
 `database.init_db`, a `db_ping` health check used by startup validation and
 expanded universe tables for the S&P 400, S&P 500 and Russell 2000.
