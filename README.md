@@ -20,12 +20,12 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
    cd Portfolio_Allocation_System
    python3 -m venv venv
    source venv/bin/activate
-   pip install -r requirements.txt
+   pip install -r deploy/requirements.txt
    ```
-2. Edit `config.yaml` with your Alpaca keys, Postgres URI and optional API token.
+2. Edit `service/config.yaml` with your Alpaca keys, Postgres URI and optional API token.
 3. Start the service which launches the API, scheduler and all scrapers
    ```bash
-   python start.py
+   python -m service.start
    ```
    The startup script now runs each scraper in sequence and logs a checklist
    once data is loaded.

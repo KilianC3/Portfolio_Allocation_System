@@ -41,7 +41,7 @@ except Exception:  # transformers not installed
 if TYPE_CHECKING:
     from transformers.pipelines import TextClassificationPipeline
 
-from config import (
+from service.config import (
     REDDIT_CLIENT_ID,
     REDDIT_CLIENT_SECRET,
     REDDIT_USER_AGENT,

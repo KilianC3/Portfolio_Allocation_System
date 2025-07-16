@@ -9,9 +9,9 @@ import pandas as pd
 
 from sklearn.covariance import LedoitWolf
 
-from config import MAX_ALLOC, MIN_ALLOC
+from service.config import MAX_ALLOC, MIN_ALLOC
 from database import db, alloc_log_coll
-from logger import get_logger
+from service.logger import get_logger
 
 
 def _clean_returns(df: pd.DataFrame, z_thresh: float = 5.0) -> pd.DataFrame:

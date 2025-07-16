@@ -1,7 +1,7 @@
 import uvicorn
 import pandas as pd
 
-from config import API_TOKEN, PG_URI, CACHE_TTL
+from service.config import API_TOKEN, PG_URI, CACHE_TTL
 from database import db_ping, init_db
 import asyncio
 from scrapers.universe import (
@@ -22,7 +22,7 @@ from scrapers.insider_buying import fetch_insider_buying
 from scrapers.news import fetch_stock_news
 from scrapers.sp500_index import fetch_sp500_history
 from analytics.tracking import update_all_ticker_scores
-from logger import get_logger
+from service.logger import get_logger
 
 log = get_logger("startup")
 
@@ -87,4 +87,4 @@ def validate_startup() -> None:
 if __name__ == "__main__":
     validate_startup()
     asyncio.run(run_startup_scrapers())
-    uvicorn.run("api:app", host="0.0.0.0", port=8001)
+    uvicorn.run("service.api:app", host="0.0.0.0", port=8001)

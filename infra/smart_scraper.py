@@ -9,7 +9,7 @@ import random
 
 import requests
 
-from config import CACHE_TTL
+from service.config import CACHE_TTL
 
 from infra.rate_limiter import DynamicRateLimiter
 from database import cache

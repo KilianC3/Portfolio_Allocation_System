@@ -5,7 +5,7 @@ from __future__ import annotations
 import abc
 from typing import Dict
 
-from logger import get_logger
+from service.logger import get_logger
 from execution.gateway import ExecutionGateway
 
 _log = get_logger("portfolio")

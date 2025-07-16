@@ -3,7 +3,7 @@ from typing import List, Optional, cast
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 
-from config import QUIVER_RATE_SEC
+from service.config import QUIVER_RATE_SEC
 from infra.rate_limiter import DynamicRateLimiter
 from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, init_db

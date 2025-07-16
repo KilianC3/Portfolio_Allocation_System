@@ -1,5 +1,5 @@
 import asyncio
-from logger import get_logger
+from service.logger import get_logger
 from database import init_db
 from scrapers.politician import fetch_politician_trades
 from scrapers.lobbying import fetch_lobbying_data

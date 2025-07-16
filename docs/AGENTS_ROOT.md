@@ -1,6 +1,6 @@
 # Agent Guide & Commit Conventions
 
-This document helps Codex (or any future agent) produce clear, consistent commits for the portfolio allocation system.
+This document helps Codex (or any future agent) produce clear, consistent commits for the portfolio allocation system.  All source files now live inside folders; only `README.md` remains at the project root.
 
 ---
 
@@ -32,19 +32,20 @@ This document helps Codex (or any future agent) produce clear, consistent commit
 6. **Safety**
    - Detect paper vs live Alpaca endpoints and require `allow_live=True` for real trading.
    - Use the `AUTO_START_SCHED` flag so deployments can delay trading until explicitly enabled.
-   - Set `ALLOW_LIVE=True` in `config.yaml` to switch from paper to live trading.
+  - Set `ALLOW_LIVE=True` in `service/config.yaml` to switch from paper to live trading.
 
 ---
 
 ## 3. Repository Layout
 
-- `api.py` – REST interface for the front end.
-- `scheduler.py` – manages periodic strategy execution.
-- `execution/` – Alpaca gateway and execution helpers.
-- `analytics/` – metric collection and optimisation utilities.
-- `risk/` – exposure limits, correlation regimes and circuit breakers.
-- `strategies/` – individual trading strategies.
-- `infra/` – rate limiting and resilient scraping helpers.
+- `service/` – API, scheduler, startup helpers and configuration
+- `execution/` – Alpaca gateway and execution helpers
+- `analytics/` – metric collection and optimisation utilities
+- `risk/` – exposure limits, correlation regimes and circuit breakers
+- `strategies/` – individual trading strategies
+- `infra/` – rate limiting and resilient scraping helpers
+- `deploy/` – Dockerfile, requirements and other build assets
+- `docs/` – extended documentation and AGENT guides
 
 Recent updates added a central `schema.sql` file executed by
 `database.init_db`, a `db_ping` health check used by startup validation and

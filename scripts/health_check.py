@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from logger import get_logger
+from service.logger import get_logger
 from database import db, pf_coll, trade_coll, metric_coll
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
 

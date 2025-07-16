@@ -6,6 +6,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 import os
 from typing import Any, Dict
+from pathlib import Path
 
 
 def _parse_simple_yaml(path: str) -> Dict[str, Any]:
@@ -32,10 +33,11 @@ def _parse_simple_yaml(path: str) -> Dict[str, Any]:
     return data
 
 
-def _load_config_yaml(path: str = "config.yaml") -> None:
+def _load_config_yaml(path: str | None = None) -> None:
     """Populate environment variables from a YAML file if present."""
-    if os.path.exists(path):
-        for key, val in _parse_simple_yaml(path).items():
+    cfg = Path(path) if path else Path(__file__).with_name("config.yaml")
+    if cfg.exists():
+        for key, val in _parse_simple_yaml(str(cfg)).items():
             os.environ.setdefault(key, str(val))
 
 

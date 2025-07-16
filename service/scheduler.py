@@ -2,8 +2,8 @@ import datetime as dt
 import pandas as pd
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from importlib import import_module
-from logger import get_logger
-from config import CRON, ALLOW_LIVE
+from service.logger import get_logger
+from service.config import CRON, ALLOW_LIVE
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
 from analytics.allocation_engine import compute_weights

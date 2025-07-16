@@ -10,8 +10,8 @@ import psycopg2
 from psycopg2.extras import RealDictCursor, Json
 import duckdb
 
-from logger import get_logger
-from config import PG_URI, ALLOW_LIVE
+from service.logger import get_logger
+from service.config import PG_URI, ALLOW_LIVE
 
 _log = get_logger("db")
 

@@ -9,14 +9,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
 
-from logger import get_logger
+from service.logger import get_logger
 from observability import metrics_router
 from ws import ws_router
 from observability.logging import LOG_DIR
 from database import pf_coll, trade_coll, metric_coll, init_db
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
-from config import ALLOW_LIVE
+from service.config import ALLOW_LIVE
 from scheduler import StrategyScheduler
 from analytics.utils import (
     portfolio_metrics,
@@ -29,7 +29,7 @@ from analytics.account import account_coll
 from risk.var import historical_var, cvar
 from ledger import MasterLedger
 import httpx
-from config import (
+from service.config import (
     ALPACA_API_KEY,
     ALPACA_API_SECRET,
     ALPACA_BASE_URL,

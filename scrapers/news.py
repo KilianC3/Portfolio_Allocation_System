@@ -4,7 +4,7 @@ import datetime as dt
 from typing import List, cast
 from bs4 import BeautifulSoup, Tag
 
-from config import QUIVER_RATE_SEC
+from service.config import QUIVER_RATE_SEC
 from infra.smart_scraper import get as scrape_get
 from infra.rate_limiter import DynamicRateLimiter
 from database import db, pf_coll
