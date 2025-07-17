@@ -6,7 +6,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install deps
-        run: pip install -r requirements.txt
+        run: pip install -r deploy/requirements-test.txt
       - name: Mypy
         run: mypy -p scrapers -p api -p execution -p scheduler
   unit:
@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install deps
-        run: pip install -r requirements.txt
+        run: pip install -r deploy/requirements-test.txt
       - name: Pytest
         run: pytest -q
   integration:
