@@ -8,6 +8,9 @@ from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, lobbying_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
+from service.logger import get_logger
+
+log = get_logger(__name__)
 
 # fallback to pf_coll when db not available in testing
 lobby_coll = lobbying_coll if db else pf_coll
@@ -16,14 +19,16 @@ rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 async def fetch_lobbying_data() -> List[dict]:
     """Scrape corporate lobbying spending from QuiverQuant."""
+    log.info("fetch_lobbying_data start")
     init_db()
     url = "https://www.quiverquant.com/lobbying/"
     with scrape_latency.labels("lobbying").time():
         try:
             async with rate:
                 html = await scrape_get(url)
-        except Exception:
+        except Exception as exc:
             scrape_errors.labels("lobbying").inc()
+            log.warning(f"fetch_lobbying_data failed: {exc}")
             raise
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))
@@ -47,6 +52,7 @@ async def fetch_lobbying_data() -> List[dict]:
                     upsert=True,
                 )
     append_snapshot("lobbying", data)
+    log.info(f"fetched {len(data)} lobbying rows")
     return data
 
 

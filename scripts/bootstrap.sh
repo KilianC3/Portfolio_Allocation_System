@@ -14,10 +14,16 @@ source "$VENV_DIR/bin/activate"
 pip install --upgrade pip
 pip install -r "$APP_DIR/deploy/requirements.txt"
 
+# Refresh ticker universe before running other scrapers
+PYTHONPATH="$APP_DIR" python3 -m scrapers.universe --refresh-universe
+
 # Run each scraper sequentially and log the result
 pushd "$APP_DIR" >/dev/null
 for f in scrapers/*.py; do
   name="$(basename "$f" .py)"
+  if [[ "$name" == "universe" ]]; then
+    continue
+  fi
   set +e
   out=$(python -m "scrapers.$name" 2>&1)
   status=$?
@@ -38,14 +44,20 @@ popd >/dev/null
 cat <<EOF >/etc/systemd/system/portfolio.service
 [Unit]
 Description=Portfolio Service
-After=network.target
+After=network.target postgresql.service
+Requires=postgresql.service
 
 [Service]
 Type=simple
 WorkingDirectory=$APP_DIR
 Environment=PYTHONPATH=$APP_DIR
+ExecStartPre=/usr/local/bin/wait-for-postgres.sh
 ExecStart=$VENV_DIR/bin/python -m service.start
 Restart=on-failure
+User=portfolio
+Group=portfolio
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

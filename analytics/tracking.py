@@ -19,6 +19,10 @@ from analytics.utils import portfolio_metrics
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
 from analytics.fundamentals import compute_fundamental_metrics
 import numpy as np
+from metrics import scrape_latency, scrape_errors
+from service.logger import get_logger
+
+log = get_logger(__name__)
 
 
 def _fetch_returns(symbols: Iterable[str], days: int = 90) -> pd.DataFrame:
@@ -49,6 +53,7 @@ def _fetch_returns(symbols: Iterable[str], days: int = 90) -> pd.DataFrame:
 
 def update_all_metrics(days: int = 90) -> None:
     """Compute trailing metrics for every portfolio."""
+    log.info("update_all_metrics start")
     for doc in pf_coll.find():
         pf_id = str(doc.get("_id"))
         weights = doc.get("weights", {})
@@ -82,6 +87,7 @@ def update_all_metrics(days: int = 90) -> None:
                 writer.writeheader()
             row = {"date": str(end_date), **metrics}
             writer.writerow(row)
+        log.info(f"metrics updated for {pf_id}")
 
 
 def _fetch_history(symbols: Iterable[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -229,10 +235,12 @@ def update_ticker_scores(symbols: Iterable[str], index_name: str) -> None:
             {"$set": doc},
             upsert=True,
         )
+    log.info("ticker scores updated")
 
 
 def update_all_ticker_scores() -> None:
     """Update scores for the entire tracked universe."""
+    log.info("update_all_ticker_scores start")
     groups = {
         "S&P500": set(load_sp500()),
         "S&P400": set(load_sp400()),
@@ -264,3 +272,4 @@ def update_all_ticker_scores() -> None:
             {"$set": doc},
             upsert=True,
         )
+    log.info("update_all_ticker_scores done")

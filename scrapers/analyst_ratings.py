@@ -51,7 +51,7 @@ async def _fetch_ticker(sym: str) -> pd.DataFrame:
         )
     append_snapshot("analyst_ratings", rows)
     df = pd.DataFrame(rows)
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="coerce")
     df = df.dropna(subset=["date"])
     return df
 
