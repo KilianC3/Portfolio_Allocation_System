@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from core.equity import EquityPortfolio
-from scripts.wsb_strategy import run_analysis
+from scrapers.wallstreetbets import run_analysis
 
 
 class RedditBuzzStrategy:

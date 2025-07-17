@@ -23,7 +23,7 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
    pip install -r deploy/requirements.txt
    ```
 2. Create the Postgres user and database referenced in `service/config.yaml`.
-3. Edit `service/config.yaml` with your Alpaca keys, Postgres URI and optional API token.
+3. Edit `service/config.yaml` with your Alpaca keys, Postgres URI, `FRED_API_KEY` and optional API token.
 4. Start the service which launches the API, scheduler and all scrapers
    ```bash
    python -m service.start
@@ -107,6 +107,7 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 - `account_metrics_paper` – equity history for the paper account
 - `account_metrics_live` – equity history for the live account
 - `alloc_log` – allocation diagnostics
+- `system_logs` – structured log records for the front end
 - `top_scores` – top 20 tickers by composite score each month
 
 ## Workflow

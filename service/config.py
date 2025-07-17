@@ -60,6 +60,8 @@ class Settings(BaseSettings):
 
     PG_URI: str = "postgresql://postgres:postgres@localhost:5432/quant_fund"
 
+    FRED_API_KEY: str | None = None
+
     MIN_ALLOC: float = Field(0.02, alias="MIN_ALLOCATION")
     MAX_ALLOC: float = Field(0.40, alias="MAX_ALLOCATION")
 
@@ -93,6 +95,8 @@ MAX_ALLOC = settings.MAX_ALLOC
 REDDIT_CLIENT_ID = settings.REDDIT_CLIENT_ID
 REDDIT_CLIENT_SECRET = settings.REDDIT_CLIENT_SECRET
 REDDIT_USER_AGENT = settings.REDDIT_USER_AGENT
+
+FRED_API_KEY = settings.FRED_API_KEY
 
 API_TOKEN = settings.API_TOKEN
 CACHE_TTL = settings.CACHE_TTL
