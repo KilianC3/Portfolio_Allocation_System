@@ -47,7 +47,11 @@ async def run_startup_scrapers() -> None:
     """Run all data scrapers sequentially and log progress."""
     for name, func in SCRAPERS:
         try:
-            data = await func() if asyncio.iscoroutinefunction(func) else func()
+            result = func()
+            if asyncio.iscoroutine(result):
+                data = await result
+            else:
+                data = result
             rows = cols = 0
             if isinstance(data, pd.DataFrame):
                 rows, cols = data.shape
