@@ -127,7 +127,7 @@ def _gather_metrics(symbols: Iterable[str], index_name: str) -> pd.DataFrame:
     rows = []
     for sym in closes.columns:
         px = closes[sym].dropna()
-        vol = vols[sym].reindex(px.index).fillna(method="ffill")
+        vol = vols[sym].reindex(px.index).ffill()
         r = px.pct_change().dropna()
         if r.empty:
             continue
