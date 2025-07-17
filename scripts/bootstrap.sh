@@ -1,79 +1,54 @@
 #!/usr/bin/env bash
-# Bootstrap the portfolio system inside a fresh container.
+# Bootstrap the portfolio system.
 
 set -euo pipefail
 
-PG_USER="portfolio"
-PG_PASS="Hillside3693"
-PG_DB="quant_fund"
-APP_DIR="/opt/portfolio"
+APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VENV_DIR="$APP_DIR/venv"
 
-
-# Create role and database if missing
-sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='${PG_USER}'" | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE ROLE ${PG_USER} LOGIN PASSWORD '${PG_PASS}'"
-sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "${PG_DB}" || \
-  sudo -u postgres createdb -O ${PG_USER} ${PG_DB}
-
-# Clone repo if not present
-if [ ! -d "$APP_DIR" ]; then
-  git clone https://example.com/portfolio.git "$APP_DIR"
+# Create or activate virtual environment
+if [ ! -d "$VENV_DIR" ]; then
+  python3 -m venv "$VENV_DIR"
 fi
-cd "$APP_DIR"
+source "$VENV_DIR/bin/activate"
+pip install --upgrade pip
+pip install -r "$APP_DIR/deploy/requirements.txt"
 
-python3 -m venv "$VENV_DIR"
-"$VENV_DIR/bin/pip" install --upgrade pip
-"$VENV_DIR/bin/pip" install -r deploy/requirements.txt
-
-sed -i "s|^PG_URI:.*|PG_URI: 'postgresql://${PG_USER}:${PG_PASS}@localhost:5432/${PG_DB}'|" service/config.yaml
-
-# Seed the database with a full scrape before starting the service
-"$VENV_DIR/bin/python" -m scripts.bootstrap
-
-cat <<'EOF' >/usr/local/bin/wait-for-postgres.sh
-#!/usr/bin/env bash
-until pg_isready -q; do
-  sleep 1
+# Run each scraper sequentially and log the result
+for f in "$APP_DIR"/scrapers/*.py; do
+  name="$(basename "$f" .py)"
+  set +e
+  out=$(python "$f" 2>&1)
+  status=$?
+  set -e
+  last_line=$(echo "$out" | tail -n 1)
+  if [ $status -eq 0 ] && [[ $last_line =~ ROWS=([0-9]+)\ COLUMNS=([0-9]+) ]]; then
+    rows=${BASH_REMATCH[1]}
+    cols=${BASH_REMATCH[2]}
+    echo "[OK] $name: ${rows}x${cols}"
+  else
+    echo "[FAIL] $name: failed"
+  fi
 done
-EOF
-chmod +x /usr/local/bin/wait-for-postgres.sh
 
+# Register the service
 cat <<EOF >/etc/systemd/system/portfolio.service
 [Unit]
-Description=Portfolio Allocation API
+Description=Portfolio Service
 After=network.target
-Requires=postgresql.service
 
 [Service]
 Type=simple
 WorkingDirectory=$APP_DIR
-ExecStartPre=/usr/local/bin/wait-for-postgres.sh
 ExecStart=$VENV_DIR/bin/python -m service.start
 Restart=on-failure
-WatchdogSec=30
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-cat <<EOF >/etc/logrotate.d/portfolio
-$APP_DIR/logs/*.log {
-    rotate 4
-    weekly
-    missingok
-    notifempty
-    compress
-}
-EOF
-
 systemctl daemon-reload
-systemctl enable postgresql
 systemctl enable portfolio
-systemctl start postgresql
 systemctl start portfolio
 
-sed -i 's|#SystemMaxUse=.*|SystemMaxUse=50M|' /etc/systemd/journald.conf
-systemctl restart systemd-journald
-
-echo "Bootstrap complete"
+echo "Bootstrap complete. Service portfolio is running."

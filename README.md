@@ -22,14 +22,15 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
    source venv/bin/activate
    pip install -r deploy/requirements.txt
    ```
-2. Edit `service/config.yaml` with your Alpaca keys, Postgres URI and optional API token.
-3. Start the service which launches the API, scheduler and all scrapers
+2. Create the Postgres user and database referenced in `service/config.yaml`.
+3. Edit `service/config.yaml` with your Alpaca keys, Postgres URI and optional API token.
+4. Start the service which launches the API, scheduler and all scrapers
    ```bash
    python -m service.start
    ```
    The startup script now runs each scraper in sequence and logs a checklist
    once data is loaded.
-4. Install the optional test dependencies and run the unit tests
+5. Install the optional test dependencies and run the unit tests
    ```bash
    pip install -r deploy/requirements-test.txt
    pytest -q
