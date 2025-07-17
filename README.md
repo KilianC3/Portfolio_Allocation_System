@@ -29,7 +29,14 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
    python -m service.start
    ```
    The startup script now runs each scraper in sequence and logs a checklist
-   once data is loaded.
+   once data is loaded. Failed scrapers print their output so you can debug
+   issues, and the systemd unit sets `PYTHONPATH` so imports resolve.
+   If `wsb_mentions` fails with "Universe is empty" run the universe builder
+   first:
+   ```bash
+   python -m scrapers.universe --refresh-universe
+   sudo bash scripts/bootstrap.sh
+   ```
 5. Install the optional test dependencies and run the unit tests
    ```bash
    pip install -r deploy/requirements-test.txt
