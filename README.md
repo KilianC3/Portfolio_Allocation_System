@@ -29,10 +29,12 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
    ```
    The startup script now runs each scraper in sequence and logs a checklist
    once data is loaded.
-4. Run the unit tests to verify your environment
+4. Install the optional test dependencies and run the unit tests
    ```bash
+   pip install -r deploy/requirements-test.txt
    pytest -q
    ```
+   See `docs/AGENTS_ROOT.md` for commit guidelines and environment details.
 
 ## Strategy Reference
 
