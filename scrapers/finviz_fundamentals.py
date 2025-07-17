@@ -1,11 +1,11 @@
-from typing import Dict
+from typing import Dict, Optional
 from bs4 import BeautifulSoup, Tag
 import requests
 
 from database import init_db
 
 
-def fetch_fundamentals(symbol: str) -> Dict[str, float]:
+def fetch_fundamentals(symbol: str) -> Dict[str, Optional[float]]:
     """Fetch key fundamental metrics from Finviz."""
     init_db()
     url = f"https://finviz.com/quote.ashx?t={symbol}&p=d&ty=ea"

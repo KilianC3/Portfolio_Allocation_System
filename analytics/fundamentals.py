@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Iterable, Sequence, Dict
+from typing import Iterable, Sequence, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -205,7 +205,7 @@ def _beneish(t: yf.Ticker) -> float:
     )
 
 
-def compute_fundamental_metrics(symbol: str) -> Dict[str, float]:
+def compute_fundamental_metrics(symbol: str) -> Dict[str, Optional[float]]:
     """Return fundamental metrics for ``symbol`` computed from statements."""
     t = yf.Ticker(symbol)
     data = fetch_fundamentals(symbol)
