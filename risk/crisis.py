@@ -78,7 +78,7 @@ def compute_cci(signals: pd.DataFrame, weights: Dict[str, float]) -> pd.Series:
 
 def latest_cci(api_key: str | None = None) -> float:
     """Return the most recent CCI value using default series and weights."""
-    key = api_key or os.getenv("FRED_API_KEY", "")
+    key: str = str(api_key or os.getenv("FRED_API_KEY", ""))
     frames = []
     for sid in DEFAULT_SERIES.values():
         frames.append(get_fred_series(sid, key))
