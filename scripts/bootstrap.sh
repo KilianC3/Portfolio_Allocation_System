@@ -10,11 +10,7 @@ APP_DIR="/opt/portfolio"
 VENV_DIR="$APP_DIR/venv"
 
 
-# Create role and database if missing
-sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='${PG_USER}'" | grep -q 1 || \
-  sudo -u postgres psql -c "CREATE ROLE ${PG_USER} LOGIN PASSWORD '${PG_PASS}'"
-sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "${PG_DB}" || \
-  sudo -u postgres createdb -O ${PG_USER} ${PG_DB}
+# The Postgres role and database must already exist
 
 # Clone repo if not present
 if [ ! -d "$APP_DIR" ]; then
