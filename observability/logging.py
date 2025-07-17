@@ -4,6 +4,7 @@ import uuid
 import structlog
 from logging.handlers import RotatingFileHandler
 from typing import Dict, Tuple
+import datetime as dt
 import time
 
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
@@ -52,3 +53,31 @@ structlog.configure(
 
 def get_logger(name: str):
     return structlog.get_logger(name).bind(trace_id=str(uuid.uuid4()))
+
+
+class DBHandler(logging.Handler):
+    """Simple log handler that writes records to a DB collection."""
+
+    def __init__(self, coll) -> None:
+        super().__init__()
+        self.coll = coll
+
+    def emit(self, record: logging.LogRecord) -> None:  # pragma: no cover - db optional
+        try:
+            self.coll.insert_one(
+                {
+                    "timestamp": dt.datetime.fromtimestamp(
+                        record.created, dt.timezone.utc
+                    ),
+                    "level": record.levelname,
+                    "logger": record.name,
+                    "message": record.getMessage(),
+                }
+            )
+        except Exception:
+            pass
+
+
+def add_db_handler(coll) -> None:
+    """Attach a database log handler to the root logger."""
+    logging.getLogger().addHandler(DBHandler(coll))

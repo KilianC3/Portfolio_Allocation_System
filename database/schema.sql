@@ -231,3 +231,11 @@ CREATE TABLE IF NOT EXISTS account_metrics_live (
     equity DOUBLE PRECISION,
     last_equity DOUBLE PRECISION
 );
+
+CREATE TABLE IF NOT EXISTS system_logs (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ,
+    level TEXT,
+    logger TEXT,
+    message TEXT
+);

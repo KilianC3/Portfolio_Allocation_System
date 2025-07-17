@@ -10,7 +10,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor, Json
 import duckdb
 
-from service.logger import get_logger
+from service.logger import get_logger, register_db_handler
 from service.config import PG_URI, ALLOW_LIVE
 
 _log = get_logger("db")
@@ -328,3 +328,6 @@ sp500_coll = db["sp500_index"]
 universe_coll = db["universe"]
 ticker_score_coll = db["ticker_scores"]
 top_score_coll = db["top_scores"]
+log_coll = db["system_logs"]
+
+register_db_handler(log_coll)
