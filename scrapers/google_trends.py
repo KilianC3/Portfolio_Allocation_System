@@ -57,5 +57,8 @@ async def fetch_google_trends() -> List[dict]:
 
 if __name__ == "__main__":
     import asyncio
+    import pandas as pd
 
-    asyncio.run(fetch_google_trends())
+    rows = asyncio.run(fetch_google_trends())
+    df = pd.DataFrame(rows)
+    print(f"ROWS={len(df)} COLUMNS={df.shape[1]}")

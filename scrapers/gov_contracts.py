@@ -44,5 +44,8 @@ async def fetch_gov_contracts() -> List[dict]:
 
 if __name__ == "__main__":
     import asyncio
+    import pandas as pd
 
-    asyncio.run(fetch_gov_contracts())
+    rows = asyncio.run(fetch_gov_contracts())
+    df = pd.DataFrame(rows)
+    print(f"ROWS={len(df)} COLUMNS={df.shape[1]}")

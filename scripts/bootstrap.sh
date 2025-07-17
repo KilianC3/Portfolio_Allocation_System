@@ -18,27 +18,42 @@ pip install -r "$APP_DIR/deploy/requirements.txt"
 PYTHONPATH="$APP_DIR" python3 -m scrapers.universe --refresh-universe
 
 # Run each scraper sequentially and log the result
-pushd "$APP_DIR" >/dev/null
-for f in scrapers/*.py; do
-  name="$(basename "$f" .py)"
-  if [[ "$name" == "universe" ]]; then
-    continue
-  fi
+echo "Starting data bootstrap..."
+LOG_CHECKLIST=()
+
+for script in "$APP_DIR"/scrapers/*.py; do
+  name="$(basename "$script" .py)"
+  # Skip __init__.py and the universe script already run above
+  [ "$name" = "__init__" ] && continue
+  [ "$name" = "universe" ] && continue
+
+  echo -e "\nRunning scraper: $name"
+  cd "$APP_DIR"
   set +e
-  out=$(python -m "scrapers.$name" 2>&1)
+  out=$(PYTHONPATH="$APP_DIR" python3 -m scrapers."$name" 2>&1)
   status=$?
   set -e
-  last_line=$(echo "$out" | tail -n 1)
-  if [ $status -eq 0 ] && [[ $last_line =~ ROWS=([0-9]+)\ COLUMNS=([0-9]+) ]]; then
-    rows=${BASH_REMATCH[1]}
-    cols=${BASH_REMATCH[2]}
-    echo "[OK] $name: ${rows}x${cols}"
+  echo "$out"
+
+  if [ $status -eq 0 ] && grep -qE 'ROWS=[0-9]+ COLUMNS=[0-9]+' <<<"$out"; then
+    summary=$(grep -oE 'ROWS=[0-9]+ COLUMNS=[0-9]+' <<<"$out")
+    rows=$(sed -n 's/.*ROWS=\([0-9]\+\).*/\1/p' <<<"$summary")
+    cols=$(sed -n 's/.*COLUMNS=\([0-9]\+\).*/\1/p' <<<"$summary")
+    echo "[OK]  $name: ${rows}x${cols}"
+    LOG_CHECKLIST+=("[OK]  $name: ${rows}x${cols}")
+  elif [ $status -eq 0 ]; then
+    echo "[OK]  $name: 0x0 (no data summary)"
+    LOG_CHECKLIST+=("[OK]  $name: 0x0")
   else
-    echo "$out"
-    echo "[FAIL] $name"
+    echo "[FAIL] $name: failed"
+    LOG_CHECKLIST+=("[FAIL] $name: failed")
   fi
 done
-popd >/dev/null
+
+echo -e "\nBootstrap checklist:"
+for entry in "${LOG_CHECKLIST[@]}"; do
+  echo "  $entry"
+done
 
 # Register the service
 cat <<EOF >/etc/systemd/system/portfolio.service
@@ -51,11 +66,8 @@ Requires=postgresql.service
 Type=simple
 WorkingDirectory=$APP_DIR
 Environment=PYTHONPATH=$APP_DIR
-ExecStartPre=/usr/local/bin/wait-for-postgres.sh
 ExecStart=$VENV_DIR/bin/python -m service.start
 Restart=on-failure
-User=portfolio
-Group=portfolio
 StandardOutput=journal
 StandardError=journal
 

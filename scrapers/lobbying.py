@@ -58,5 +58,8 @@ async def fetch_lobbying_data() -> List[dict]:
 
 if __name__ == "__main__":
     import asyncio
+    import pandas as pd
 
-    asyncio.run(fetch_lobbying_data())
+    rows = asyncio.run(fetch_lobbying_data())
+    df = pd.DataFrame(rows)
+    print(f"ROWS={len(df)} COLUMNS={df.shape[1]}")

@@ -45,5 +45,8 @@ async def fetch_app_reviews() -> List[dict]:
 
 if __name__ == "__main__":
     import asyncio
+    import pandas as pd
 
-    asyncio.run(fetch_app_reviews())
+    rows = asyncio.run(fetch_app_reviews())
+    df = pd.DataFrame(rows)
+    print(f"ROWS={len(df)} COLUMNS={df.shape[1]}")
