@@ -62,5 +62,8 @@ async def fetch_insider_buying() -> List[dict]:
 
 if __name__ == "__main__":
     import asyncio
+    import pandas as pd
 
-    asyncio.run(fetch_insider_buying())
+    rows = asyncio.run(fetch_insider_buying())
+    df = pd.DataFrame(rows)
+    print(f"ROWS={len(df)} COLUMNS={df.shape[1]}")

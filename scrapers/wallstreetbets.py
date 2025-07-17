@@ -249,5 +249,8 @@ async def fetch_wsb_mentions(days: int = 7, top_n: int = 15) -> List[dict]:
 
 if __name__ == "__main__":
     import asyncio
+    import pandas as pd
 
-    print(asyncio.run(fetch_wsb_mentions(1, 2)))
+    rows = asyncio.run(fetch_wsb_mentions(1, 2))
+    df = pd.DataFrame(rows)
+    print(f"ROWS={len(df)} COLUMNS={df.shape[1]}")

@@ -73,5 +73,8 @@ async def fetch_stock_news(limit: int = 50) -> List[dict]:
 
 if __name__ == "__main__":
     import asyncio
+    import pandas as pd
 
-    print(asyncio.run(fetch_stock_news(3)))
+    rows = asyncio.run(fetch_stock_news(3))
+    df = pd.DataFrame(rows)
+    print(f"ROWS={len(df)} COLUMNS={df.shape[1]}")

@@ -57,4 +57,8 @@ def fetch_sp500_history(days: int = 30) -> List[dict]:
 
 
 if __name__ == "__main__":
-    print(fetch_sp500_history(5)[0])
+    import pandas as pd
+
+    rows = fetch_sp500_history(5)
+    df = pd.DataFrame(rows)
+    print(f"ROWS={len(df)} COLUMNS={df.shape[1]}")
