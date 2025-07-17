@@ -15,6 +15,7 @@ from strategies import (
     AppReviewsHypeScore,
     GoogleTrendsNewsSentiment,
     RedditBuzzStrategy,
+    CompositeScoreLeaders,
 )
 
 
@@ -25,6 +26,14 @@ class FakeGW:
 
 class Coll(list):
     def find(self, *a, **k):
+        return self
+
+
+class TopColl(Coll):
+    def find_one(self, *a, **k):
+        return self[0] if self else None
+
+    def limit(self, n):
         return self
 
 
@@ -53,6 +62,7 @@ async def run_all():
         hype = AppReviewsHypeScore()
         trends = GoogleTrendsNewsSentiment()
         reddit = RedditBuzzStrategy(days=1, top_n=2)
+        leaders = CompositeScoreLeaders()
 
         trade = Coll(
             [
@@ -81,6 +91,24 @@ async def run_all():
         )
         app_data = Coll([{"ticker": "AAPL", "hype": "5", "date": "2024-01-01"}])
         trend_data = Coll([{"ticker": "AAPL", "score": "5", "date": "2024-01-15"}])
+        top_data = TopColl(
+            [
+                {
+                    "date": "2024-01-01",
+                    "symbol": "AAPL",
+                    "index_name": "S&P500",
+                    "score": 9.0,
+                    "rank": 1,
+                },
+                {
+                    "date": "2024-01-01",
+                    "symbol": "MSFT",
+                    "index_name": "S&P500",
+                    "score": 8.5,
+                    "rank": 2,
+                },
+            ]
+        )
 
         with mock.patch(
             "strategies.congress_aggregate.politician_coll", trade
@@ -110,6 +138,9 @@ async def run_all():
         ), mock.patch(
             "strategies.wallstreetbets.run_analysis",
             lambda d, t: pd.DataFrame({"symbol": ["AAPL", "MSFT"]}),
+        ), mock.patch(
+            "strategies.composite_leaders.top_score_coll",
+            top_data,
         ):
             await congress.build(pf)
             await sleeves.build(pf)
@@ -122,6 +153,7 @@ async def run_all():
             await hype.build(pf)
             await trends.build(pf)
             await reddit.build(pf)
+            await leaders.build(pf)
 
         assert pf.weights
         print(list(pf.weights.keys()))

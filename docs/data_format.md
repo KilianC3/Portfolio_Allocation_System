@@ -21,6 +21,7 @@ analysis can reproduce past views of the data.
 | `insider_buying` | `ticker`, `exec`, `shares`, `date`, `_retrieved` |
 | `sp500_index` | `date`, `close`, `_retrieved` |
 | `ticker_scores` | `symbol`, `index_name`, `date`, `fundamentals`, `momentum`, `liquidity_sentiment`, `risk_adjusted`, `overall` |
+| `top_scores` | `date`, `symbol`, `index_name`, `score`, `rank` |
 | `portfolios` | `id`, `name`, `weights` |
 | `trades` | `portfolio_id`, `symbol`, `qty`, `side`, `price`, `timestamp` |
 | `weight_history` | `portfolio_id`, `date`, `weights` |
@@ -41,6 +42,7 @@ combined in the `universe` table with an `index_name` label. The
 under `cache/universes/` for offline use.
 Composite scores in `ticker_scores` are calculated by ranking each metric
 across the entire universe and applying the weights listed in the README.
+The `top_scores` table archives the highest ranked names after each monthly update.
 Fundamental ratios like the Piotroski F‑Score, Altman Z‑Score, ROIC,
 Free Cash Flow Yield and the Beneish M‑Score are computed from Yahoo
 Finance statements with Finviz providing short interest and insider
