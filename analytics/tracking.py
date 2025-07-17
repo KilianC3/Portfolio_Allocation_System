@@ -13,6 +13,7 @@ from database import (
     metric_coll,
     trade_coll,
     ticker_score_coll,
+    top_score_coll,
     weight_coll,
 )
 from analytics.utils import portfolio_metrics
@@ -273,3 +274,32 @@ def update_all_ticker_scores() -> None:
             upsert=True,
         )
     log.info("update_all_ticker_scores done")
+    record_top_scores()
+
+
+def record_top_scores(top_n: int = 20) -> None:
+    """Store the top ranked tickers for the latest score update."""
+    latest = ticker_score_coll.find_one(sort=[("date", -1)])
+    if not latest:
+        return
+    latest_date = latest["date"]
+    cur = ticker_score_coll.find({"date": latest_date})
+    df = pd.DataFrame(list(cur))
+    if df.empty:
+        return
+    df = df.sort_values("overall", ascending=False).head(top_n)
+    top_score_coll.delete_many({"date": latest_date})
+    for rank, row in enumerate(df.itertuples(index=False), 1):
+        doc = {
+            "date": latest_date,
+            "symbol": row.symbol,
+            "index_name": row.index_name,
+            "score": float(row.overall),
+            "rank": rank,
+        }
+        top_score_coll.update_one(
+            {"date": doc["date"], "symbol": doc["symbol"]},
+            {"$set": doc},
+            upsert=True,
+        )
+    log.info("top scores recorded")

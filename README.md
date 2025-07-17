@@ -62,7 +62,10 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 | Volatility-Scaled Momentum | Yahoo Finance | Weekly | Rank stocks by 12‑month return scaled by volatility |
 | Upgrade Momentum | Finviz analyst revisions | Weekly | Tilt toward names with improving analyst revisions |
 | Small Cap Momentum | Various filings | Monthly | Trade small caps before catalysts, exit after 50% gain or 3 months |
+| Sector-Neutral Mini-Portfolios | Composite screener | Quarterly | Equal-weight top value names by sector |
+| Micro-Small Composite Leaders | Composite screener | Monthly | Value and momentum leaders in micro/small caps |
 | Lobbying Growth | Quiver lobbying data | Monthly | Long 20 tickers with largest lobbying spend growth |
+| Composite Score Leaders | Monthly composite rankings | Monthly | Equal-weight top 20 names by overall score |
 
 ## Data Sources
 
@@ -104,6 +107,7 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 - `account_metrics_paper` – equity history for the paper account
 - `account_metrics_live` – equity history for the live account
 - `alloc_log` – allocation diagnostics
+- `top_scores` – top 20 tickers by composite score each month
 
 ## Workflow
 
@@ -115,4 +119,16 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 ## Allocation Logic
 
 Weekly returns are cleaned with a z-score filter and a rolling window of up to 36 weeks is used. When fewer than four weeks of data exist the allocator simply assigns equal weights. Once at least four weeks are available, all history up to 36 weeks feeds the Ledoit–Wolf covariance and mean-return estimates. The positive part of ``Σ⁻¹μ`` gives the long-only max‑Sharpe mix while ``Σ⁻¹(μ − r_f)`` yields the tangency portfolio. This unit-sum portfolio is scaled to an 11% volatility target (clamped between 10–12%) and clipped to the configured bounds. Tiny changes below 0.5 percentage points are skipped, extreme volatility reuses the previous allocation, and portfolio correlations and sector exposures are provided for the UI.
+
+## Crisis Regime Detection
+
+At each daily rebalance a Crisis Composite Indicator (CCI) is computed from several FRED macroeconomic series. The indicator sums positive z-scores weighted by importance. Position weights are multiplied by a scaling factor `S(CCI)`:
+
+```
+S(CCI) = 1.0                       if CCI < 1.0
+S(CCI) = 1.0 - 0.3 * (CCI - 1.0)   if 1.0 ≤ CCI < 2.0
+S(CCI) = max(0.3, 0.7 - 0.4 * (CCI - 2.0)) otherwise
+```
+
+This reduces exposure during stressed regimes while keeping full allocation in calm markets.
 

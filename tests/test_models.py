@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import datetime as dt
 from analytics.robust import minmax_portfolio
 from analytics.covariance import estimate_covariance
 from analytics.utils import portfolio_metrics, portfolio_correlations
@@ -65,6 +66,49 @@ def test_update_ticker_scores(monkeypatch):
     )
     trk.update_ticker_scores(["AAPL"], "S&P500")
     assert rec and rec[0][1]["$set"]["index_name"] == "S&P500"
+
+
+def test_record_top_scores(monkeypatch):
+    import analytics.tracking as trk
+
+    data = [
+        {
+            "symbol": "AAPL",
+            "index_name": "S&P500",
+            "overall": 9.0,
+            "date": dt.date(2024, 1, 1),
+        },
+        {
+            "symbol": "MSFT",
+            "index_name": "S&P500",
+            "overall": 8.5,
+            "date": dt.date(2024, 1, 1),
+        },
+    ]
+
+    class ScoreColl(list):
+        def find(self, *a, **k):
+            return self
+
+        def find_one(self, *a, **k):
+            return {"date": dt.date(2024, 1, 1)}
+
+    class TopColl:
+        def __init__(self):
+            self.rows = []
+
+        def delete_many(self, q):
+            pass
+
+        def update_one(self, match, update, upsert=False):
+            self.rows.append(update["$set"])
+
+    top = TopColl()
+    monkeypatch.setattr(trk, "ticker_score_coll", ScoreColl(data))
+    monkeypatch.setattr(trk, "top_score_coll", top)
+
+    trk.record_top_scores(2)
+    assert len(top.rows) == 2 and top.rows[0]["symbol"] == "AAPL"
 
 
 def test_compute_weights_simple():
@@ -134,3 +178,52 @@ def test_sector_exposures(monkeypatch):
     exp = sector_exposures({"A": 0.6, "B": 0.4})
     assert abs(exp["Tech"] - 0.6) < 1e-6
     assert abs(exp["Health"] - 0.4) < 1e-6
+
+
+def test_small_cap_portfolios():
+    df = pd.DataFrame(
+        {
+            "ticker": ["A", "B", "C", "D"],
+            "sector": ["Tech", "Tech", "Health", "Health"],
+            "market_cap": [150_000_000] * 4,
+            "avg_dollar_volume": [6_000_000] * 4,
+            "composite_score": [10, 9, 8, 7],
+            "free_cash_flow_ttm": [1] * 4,
+            "ROE": [5] * 4,
+            "return_3m": [5] * 4,
+            "bid_ask_spread": [1] * 4,
+            "vol_30d": [10] * 4,
+        }
+    )
+
+    from strategies.small_cap_portfolios import (
+        build_sector_neutral_portfolio,
+        build_micro_small_composite_leaders,
+    )
+
+    w1 = build_sector_neutral_portfolio(df, top_n_per_sector=1)
+    assert w1 == {"A": 0.5, "C": 0.5}
+
+    w2 = build_micro_small_composite_leaders(df.head(3))
+    assert abs(sum(w2.values()) - 1) < 1e-6 and w2
+
+
+def test_cci_scaling_and_weights():
+    from risk.crisis import compute_cci, cci_scaling, scale_weights
+
+    data = pd.DataFrame(
+        {
+            "s1": [1, 2, 3, 4, 5],
+            "s2": [2, 3, 4, 5, 6],
+        },
+        index=pd.date_range("2020-01-01", periods=5),
+    )
+    weights = {"s1": 0.5, "s2": 0.5}
+    cci_series = compute_cci(data, weights)
+    cci = float(cci_series.iloc[-1])
+    scale = cci_scaling(cci)
+    scaled = scale_weights({"A": 0.6, "B": 0.4}, cci)
+    assert 0.3 <= scale <= 1.0
+    assert all(
+        abs(v - scale * orig) < 1e-6 for v, orig in zip(scaled.values(), [0.6, 0.4])
+    )

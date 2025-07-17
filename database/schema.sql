@@ -189,6 +189,16 @@ CREATE TABLE IF NOT EXISTS ticker_scores (
     UNIQUE(symbol, date)
 );
 
+CREATE TABLE IF NOT EXISTS top_scores (
+    id SERIAL PRIMARY KEY,
+    date DATE,
+    symbol TEXT,
+    index_name TEXT,
+    score DOUBLE PRECISION,
+    rank INTEGER,
+    UNIQUE(date, symbol)
+);
+
 
 CREATE TABLE IF NOT EXISTS alloc_log (
     id SERIAL PRIMARY KEY,
