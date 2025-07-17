@@ -2,13 +2,13 @@ import datetime as dt
 import pandas as pd
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from importlib import import_module
-from logger import get_logger
-from config import CRON, ALLOW_LIVE
+from service.logger import get_logger
+from service.config import CRON, ALLOW_LIVE
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
 from analytics.allocation_engine import compute_weights
 from database import metric_coll
-from analytics import update_all_metrics, record_account, update_all_ticker_returns
+from analytics import update_all_metrics, record_account, update_all_ticker_scores
 
 _log = get_logger("sched")
 
@@ -60,7 +60,7 @@ class StrategyScheduler:
             update_all_metrics()
 
         def ticker_job():
-            update_all_ticker_returns()
+            update_all_ticker_scores()
 
         async def account_job():
             gw_main = AlpacaGateway(allow_live=ALLOW_LIVE)
@@ -81,7 +81,7 @@ class StrategyScheduler:
         )
         self.scheduler.add_job(metrics_job, "cron", hour=0, minute=5, id="metrics")
         self.scheduler.add_job(
-            ticker_job, "cron", day_of_week="sun", hour=6, minute=0, id="ticker_returns"
+            ticker_job, "cron", day_of_week="sun", hour=6, minute=0, id="ticker_scores"
         )
         self.scheduler.add_job(account_job, "cron", hour=0, minute=0, id="account")
         self.scheduler.start()

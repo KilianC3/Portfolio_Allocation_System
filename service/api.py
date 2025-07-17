@@ -9,14 +9,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
 
-from logger import get_logger
+from service.logger import get_logger
 from observability import metrics_router
 from ws import ws_router
 from observability.logging import LOG_DIR
 from database import pf_coll, trade_coll, metric_coll, init_db
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
-from config import ALLOW_LIVE
+from service.config import ALLOW_LIVE
 from scheduler import StrategyScheduler
 from analytics.utils import (
     portfolio_metrics,
@@ -24,12 +24,12 @@ from analytics.utils import (
     sector_exposures,
 )
 from metrics import rebalance_latency
-from analytics import update_all_metrics, update_all_ticker_returns
+from analytics import update_all_metrics, update_all_ticker_scores
 from analytics.account import account_coll
 from risk.var import historical_var, cvar
 from ledger import MasterLedger
 import httpx
-from config import (
+from service.config import (
     ALPACA_API_KEY,
     ALPACA_API_SECRET,
     ALPACA_BASE_URL,
@@ -159,7 +159,7 @@ async def startup_event():
             fetch_insider_buying(),
             fetch_stock_news(),
             asyncio.to_thread(fetch_sp500_history, 365),
-            asyncio.to_thread(update_all_ticker_returns),
+            asyncio.to_thread(update_all_ticker_scores),
         )
         if AUTO_START_SCHED:
             sched.start()

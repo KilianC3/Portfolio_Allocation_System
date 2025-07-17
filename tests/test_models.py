@@ -32,7 +32,7 @@ def test_biotech_check(monkeypatch):
     assert SmallCapMomentum.is_biotech("AAPL")
 
 
-def test_update_ticker_returns(monkeypatch):
+def test_update_ticker_scores(monkeypatch):
     import analytics.tracking as trk
 
     dates = pd.date_range("2020-01-01", periods=10)
@@ -49,8 +49,21 @@ def test_update_ticker_returns(monkeypatch):
         def update_one(self, *a, **k):
             rec.append(a)
 
-    monkeypatch.setattr(trk, "ticker_return_coll", Coll())
-    trk.update_ticker_returns(["AAPL"], "S&P500")
+    monkeypatch.setattr(trk, "ticker_score_coll", Coll())
+    monkeypatch.setattr(
+        trk,
+        "compute_fundamental_metrics",
+        lambda s: {
+            "piotroski": 5,
+            "altman": 3,
+            "roic": 10,
+            "fcf_yield": 5,
+            "beneish": -1,
+            "short_ratio": 0.1,
+            "insider_buying": 1,
+        },
+    )
+    trk.update_ticker_scores(["AAPL"], "S&P500")
     assert rec and rec[0][1]["$set"]["index_name"] == "S&P500"
 
 

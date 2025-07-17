@@ -10,8 +10,8 @@ import psycopg2
 from psycopg2.extras import RealDictCursor, Json
 import duckdb
 
-from logger import get_logger
-from config import PG_URI, ALLOW_LIVE
+from service.logger import get_logger
+from service.config import PG_URI, ALLOW_LIVE
 
 _log = get_logger("db")
 
@@ -325,9 +325,5 @@ news_coll = db["news_headlines"]
 insider_buy_coll = db["insider_buying"]
 reddit_coll = db["reddit_mentions"]
 sp500_coll = db["sp500_index"]
-sp500_universe_coll = db["sp500_universe"]
-sp1500_universe_coll = db["sp1500_universe"]
-russell2000_universe_coll = db["russell2000_universe"]
-sp400_universe_coll = db["sp400_universe"]
-sp600_universe_coll = db["sp600_universe"]
-ticker_return_coll = db["ticker_returns"]
+universe_coll = db["universe"]
+ticker_score_coll = db["ticker_scores"]

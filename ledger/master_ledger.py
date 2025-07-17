@@ -6,7 +6,7 @@ import os
 
 import redis.asyncio as aioredis
 
-from logger import get_logger
+from service.logger import get_logger
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 _log = get_logger("ledger")

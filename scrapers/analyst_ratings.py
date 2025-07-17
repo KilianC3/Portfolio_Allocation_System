@@ -10,7 +10,7 @@ from typing import cast
 
 from infra.smart_scraper import get as scrape_get
 from infra.rate_limiter import DynamicRateLimiter
-from config import QUIVER_RATE_SEC
+from service.config import QUIVER_RATE_SEC
 from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
 

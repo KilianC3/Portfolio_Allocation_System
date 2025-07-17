@@ -15,26 +15,30 @@ import yfinance as yf
 from tqdm import tqdm
 from unidecode import unidecode
 
+from scrapers.universe import load_sp500, load_sp400, load_russell2000
+
 _log = logging.getLogger("scrapers.wiki_attention")
 _log.setLevel(logging.INFO)
 
 REST = "https://wikimedia.org/api/rest_v1"
 HEADERS = {"User-Agent": "QuantWikiBot/2.0"}
-SP1500_URL = "https://en.wikipedia.org/wiki/S%26P_1500"
 TOPVIEWS_URL = (
     f"{REST}/metrics/pageviews/top/en.wikipedia/all-access/{{yyyy}}/{{mm}}/{{dd}}"
 )
 
 
 @functools.lru_cache(maxsize=1)
-def sp1500_map() -> Dict[str, str]:
-    """Return {symbol: company_name} for S&P 1500 (cached)."""
-    _log.info("Fetching S&P 1500 constituents …")
-    html = requests.get(SP1500_URL, headers=HEADERS, timeout=30).text
-    dfs = pd.read_html(StringIO(html))
-    big = pd.concat(dfs[:3])
-    big.columns = big.columns.str.lower()
-    return dict(zip(big["ticker"], big["security"]))
+def index_map() -> Dict[str, str]:
+    """Return {symbol: company_name} for the combined universe."""
+    syms = set(load_sp500()) | set(load_sp400()) | set(load_russell2000())
+    out: Dict[str, str] = {}
+    for sym in syms:
+        try:
+            name = yf.Ticker(sym).info.get("shortName") or sym
+        except Exception:
+            name = sym
+        out[sym] = name
+    return out
 
 
 def wiki_title(name: str) -> Optional[str]:
@@ -143,16 +147,12 @@ def adv_float(sym: str) -> Tuple[float, float]:
         return 0.0, 0.0
 
 
-@functools.lru_cache(maxsize=1)
-def sector_table() -> pd.DataFrame:
-    t = pd.read_html(SP1500_URL)[0]
-    t.columns = [c.lower() for c in t.columns]
-    return t.set_index("symbol")["gics sector"]
-
-
+@functools.lru_cache(maxsize=None)
 def sector_of(sym: str) -> str:
-    tbl = sector_table()
-    return tbl.get(sym, "Other")
+    try:
+        return yf.Ticker(sym).info.get("sector", "Other")
+    except Exception:
+        return "Other"
 
 
 def sector_weights(series: pd.Series) -> Dict[str, float]:
@@ -171,7 +171,7 @@ def build_wiki_portfolio(
     prev_weights: Optional[pd.Series] = None,
 ) -> pd.DataFrame:
     """Build weights for the Wikipedia Most-Viewed strategy."""
-    uni = universe or sp1500_map()
+    uni = universe or index_map()
     if include_trending:
         uni.update(trending_candidates())
 
@@ -191,7 +191,7 @@ def build_wiki_portfolio(
                 score=score,
                 views_30d=int(series.tail(30).sum()),
                 sector=sector_of(sym),
-                source="universe" if sym in sp1500_map() else "trending",
+                source="universe" if sym in index_map() else "trending",
             )
         )
 
@@ -213,7 +213,7 @@ def build_wiki_portfolio(
     w_raw = df.views_30d.astype(float).pow(alpha_power)
     df["w_raw"] = w_raw / w_raw.sum()
 
-    bench = sector_weights(pd.Series({**{s: 1 for s in sp1500_map()}, **{}}))
+    bench = sector_weights(pd.Series({**{s: 1 for s in index_map()}, **{}}))
     sec = sector_weights(df.set_index("symbol").w_raw)
     for sector, w_sect in sec.items():
         bench_w = bench.get(sector, 0)

@@ -11,7 +11,7 @@ from database import trade_coll, pf_coll, weight_coll
 from execution.gateway import ExecutionGateway
 from ledger import MasterLedger
 from risk import PositionRisk
-from logger import get_logger
+from service.logger import get_logger
 
 from .portfolio import Portfolio
 

@@ -24,9 +24,9 @@ cd "$APP_DIR"
 
 python3 -m venv "$VENV_DIR"
 "$VENV_DIR/bin/pip" install --upgrade pip
-"$VENV_DIR/bin/pip" install -r requirements.txt
+"$VENV_DIR/bin/pip" install -r deploy/requirements.txt
 
-sed -i "s|^PG_URI:.*|PG_URI: 'postgresql://${PG_USER}:${PG_PASS}@localhost:5432/${PG_DB}'|" config.yaml
+sed -i "s|^PG_URI:.*|PG_URI: 'postgresql://${PG_USER}:${PG_PASS}@localhost:5432/${PG_DB}'|" service/config.yaml
 
 # Seed the database with a full scrape before starting the service
 "$VENV_DIR/bin/python" -m scripts.bootstrap
@@ -49,7 +49,7 @@ Requires=postgresql.service
 Type=simple
 WorkingDirectory=$APP_DIR
 ExecStartPre=/usr/local/bin/wait-for-postgres.sh
-ExecStart=$VENV_DIR/bin/python start.py
+ExecStart=$VENV_DIR/bin/python -m service.start
 Restart=on-failure
 WatchdogSec=30
 

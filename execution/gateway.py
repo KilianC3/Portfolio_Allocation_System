@@ -13,8 +13,8 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     REST = object  # placeholder so tests run without the package
 
-from logger import get_logger
-from config import ALPACA_API_KEY, ALPACA_API_SECRET, ALPACA_BASE_URL
+from service.logger import get_logger
+from service.config import ALPACA_API_KEY, ALPACA_API_SECRET, ALPACA_BASE_URL
 from database import trade_coll
 from ledger import MasterLedger
 from risk import PositionRisk
