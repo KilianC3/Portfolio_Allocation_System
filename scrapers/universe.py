@@ -92,3 +92,20 @@ def load_sp500() -> List[str]:
 def load_russell2000() -> List[str]:
     path = DATA_DIR / "russell2000.csv"
     return pd.read_csv(path).symbol.dropna().astype(str).str.upper().tolist()
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Download ticker universes")
+    parser.add_argument(
+        "--refresh-universe",
+        action="store_true",
+        help="download all universes and store to the database",
+    )
+    args = parser.parse_args()
+
+    if args.refresh_universe:
+        download_sp500()
+        download_sp400()
+        download_russell2000()

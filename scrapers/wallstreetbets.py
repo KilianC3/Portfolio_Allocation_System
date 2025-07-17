@@ -8,6 +8,10 @@ import pandas as pd
 
 from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
+from metrics import scrape_latency, scrape_errors
+from service.logger import get_logger
+
+log = get_logger(__name__)
 from scripts.wsb_strategy import run_analysis
 
 reddit_coll = db["reddit_mentions"] if db else pf_coll
@@ -15,8 +19,15 @@ reddit_coll = db["reddit_mentions"] if db else pf_coll
 
 async def fetch_wsb_mentions(days: int = 7, top_n: int = 15) -> List[dict]:
     """Collect WallStreetBets mention counts."""
+    log.info("fetch_wsb_mentions start")
     init_db()
-    df = await asyncio.to_thread(run_analysis, days, top_n)
+    with scrape_latency.labels("reddit_mentions").time():
+        try:
+            df = await asyncio.to_thread(run_analysis, days, top_n)
+        except Exception as exc:
+            scrape_errors.labels("reddit_mentions").inc()
+            log.warning(f"fetch_wsb_mentions failed: {exc}")
+            raise
     if df.empty:
         return []
     now = dt.datetime.now(dt.timezone.utc)
@@ -38,6 +49,7 @@ async def fetch_wsb_mentions(days: int = 7, top_n: int = 15) -> List[dict]:
         )
         rows.append(item)
     append_snapshot("reddit_mentions", rows)
+    log.info(f"fetched {len(rows)} wsb rows")
     return rows
 
 

@@ -9,6 +9,10 @@ from infra.smart_scraper import get as scrape_get
 from infra.rate_limiter import DynamicRateLimiter
 from database import db, pf_coll
 from infra.data_store import append_snapshot
+from metrics import scrape_latency, scrape_errors
+from service.logger import get_logger
+
+log = get_logger(__name__)
 
 news_coll = db["news_headlines"] if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
@@ -16,9 +20,16 @@ rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 async def fetch_stock_news(limit: int = 50) -> List[dict]:
     """Scrape recent stock news from Finviz."""
+    log.info("fetch_stock_news start")
     url = "https://finviz.com/news.ashx?v=3"
-    async with rate:
-        html = await scrape_get(url)
+    with scrape_latency.labels("news_headlines").time():
+        try:
+            async with rate:
+                html = await scrape_get(url)
+        except Exception as exc:
+            scrape_errors.labels("news_headlines").inc()
+            log.warning(f"fetch_stock_news failed: {exc}")
+            raise
     soup = BeautifulSoup(html, "html.parser")
     rows: List[dict] = []
     now = dt.datetime.now(dt.timezone.utc)
@@ -56,6 +67,7 @@ async def fetch_stock_news(limit: int = 50) -> List[dict]:
         if len(rows) >= limit:
             break
     append_snapshot("news_headlines", rows)
+    log.info(f"fetched {len(rows)} news rows")
     return rows
 
 
