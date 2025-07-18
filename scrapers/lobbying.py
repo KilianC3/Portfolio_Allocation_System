@@ -3,7 +3,10 @@ import json
 from typing import List, Optional, cast
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from playwright.async_api import async_playwright
+try:
+    from playwright.async_api import async_playwright
+except Exception:  # noqa: S110
+    async_playwright = None
 from service.config import QUIVER_RATE_SEC
 from infra.rate_limiter import DynamicRateLimiter
 from infra.smart_scraper import get as scrape_get
@@ -34,6 +37,8 @@ async def fetch_lobbying_data() -> List[dict]:
             scrape_errors.labels("lobbying").inc()
             log.warning(f"lobbying API failed: {exc}; using headless browser")
             try:
+                if async_playwright is None:
+                    raise RuntimeError("playwright not installed")
                 async with async_playwright() as pw:
                     browser = await pw.chromium.launch(headless=True)
                     page = await browser.new_page()
