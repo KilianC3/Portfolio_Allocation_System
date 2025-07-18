@@ -51,3 +51,27 @@ def test_health(monkeypatch):
     out = hc.check_system()
     assert out["database"] == "ok"
     assert out["tracked_universe"] == 2
+
+
+@pytest.mark.asyncio
+async def test_system_checklist(monkeypatch):
+    monkeypatch.setattr(boot, "db_ping", lambda: True)
+
+    class DummyGW:
+        async def account(self):
+            return {"id": 1}
+
+        async def close(self):
+            pass
+
+    class DummyLedger:
+        def __init__(self) -> None:
+            class R:
+                async def ping(self):
+                    pass
+
+            self.redis = R()
+
+    monkeypatch.setattr(boot, "AlpacaGateway", lambda: DummyGW())
+    monkeypatch.setattr(boot, "MasterLedger", DummyLedger)
+    await boot.system_checklist()
