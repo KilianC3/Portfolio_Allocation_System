@@ -16,3 +16,5 @@ Google Trends, lobbying and Finviz. All scrapers obtain a logger via
 `get_logger(__name__)` so log output is consistent across modules.
 Network errors are handled by a simple retry helper. The `DynamicRateLimiter`
 ensures polite crawling so external services are not overwhelmed.
+
+- **Reminder:** triple-check modifications and run tests to prevent regressions.

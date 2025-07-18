@@ -6,3 +6,5 @@ Shared Prometheus metrics setup.
 Used by the API module and the scheduler to expose real-time statistics.
 Recent commits expanded metrics to track scraper success counts and strategy
 weights for regression tests.
+
+- **Reminder:** triple-check modifications and run tests to prevent regressions.

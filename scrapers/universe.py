@@ -7,6 +7,11 @@ from typing import List
 
 import pandas as pd
 import requests
+from bs4 import BeautifulSoup
+try:
+    from playwright.sync_api import sync_playwright
+except Exception:  # noqa: S110 - optional dependency
+    sync_playwright = None
 
 from database import init_db, universe_coll
 from io import StringIO
@@ -19,6 +24,11 @@ log = get_logger(__name__)
 SP500_URL = "https://datahub.io/core/s-and-p-500-companies/_r/-/data/constituents.csv"
 SP400_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_400_companies"
 R2000_URL = "https://en.wikipedia.org/wiki/List_of_Russell_2000_companies"
+FINANCHLE_URL = "https://financhle.com/russell2000-companies-by-weight"
+MARKETSCREENER_URL = (
+    "https://www.marketscreener.com/quote/index/"
+    "RUSSELL-2000-157793769/components/"
+)
 
 
 def _tickers_from_wiki(url: str) -> List[str]:
@@ -31,6 +41,59 @@ def _tickers_from_wiki(url: str) -> List[str]:
                 out.extend(tbl[col].astype(str).str.upper())
                 break
     return out
+
+
+def _tickers_from_financhle() -> List[str]:
+    """Scrape Russell 2000 tickers from Financhle using Playwright."""
+    if sync_playwright is None:
+        raise RuntimeError("playwright not installed")
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        context = browser.new_context(ignore_https_errors=True)
+        page = context.new_page()
+        page.goto(FINANCHLE_URL)
+        try:
+            page.click("button.show-full-list-button", timeout=5000)
+            page.wait_for_timeout(3000)
+        except Exception:
+            pass
+        html = page.content()
+        browser.close()
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.find("table")
+    if table is None:
+        return []
+    df = pd.read_html(StringIO(str(table)))[0]
+    if "Ticker" in df.columns:
+        col = "Ticker"
+    else:
+        col = df.columns[0]
+    return df[col].astype(str).str.upper().tolist()
+
+
+def _tickers_from_marketscreener() -> List[str]:
+    """Scrape Russell 2000 tickers from MarketScreener."""
+    if sync_playwright is None:
+        raise RuntimeError("playwright not installed")
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        context = browser.new_context(ignore_https_errors=True)
+        page = context.new_page()
+        page.goto(MARKETSCREENER_URL)
+        page.wait_for_timeout(2000)
+        html = page.content()
+        browser.close()
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.find("table")
+    if table is None:
+        return []
+    df = pd.read_html(StringIO(str(table)))[0]
+    col = [c for c in df.columns if "symbol" in str(c).lower() or "ticker" in str(c).lower()]
+    if col:
+        col = col[0]
+    else:
+        col = df.columns[0]
+    return df[col].astype(str).str.upper().tolist()
 
 
 def _store_universe(tickers: List[str], index_name: str) -> None:
@@ -80,7 +143,20 @@ def download_russell2000(path: Path | None = None) -> Path:
     """Download Russell 2000 constituents to CSV."""
     log.info("download_russell2000 start")
     path = path or DATA_DIR / "russell2000.csv"
-    tickers = _tickers_from_wiki(R2000_URL)
+    try:
+        tickers = _tickers_from_wiki(R2000_URL)
+    except Exception:
+        tickers = []
+    if not tickers:
+        try:
+            tickers = _tickers_from_financhle()
+        except Exception as exc:
+            log.warning(f"financhle scrape failed: {exc}")
+            try:
+                tickers = _tickers_from_marketscreener()
+            except Exception as exc2:
+                log.warning(f"marketscreener scrape failed: {exc2}")
+                tickers = []
     pd.DataFrame(sorted(tickers), columns=["symbol"]).to_csv(path, index=False)
     _store_universe(list(tickers), "Russell2000")
     log.info(f"download_russell2000 wrote {len(tickers)} symbols")
@@ -114,6 +190,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.refresh_universe:
-        download_sp500()
-        download_sp400()
-        download_russell2000()
+        sp500 = download_sp500()
+        sp400 = download_sp400()
+        r2000 = download_russell2000()
+        for p in (sp500, sp400, r2000):
+            df = pd.read_csv(p)
+            print(f"ROWS={len(df)} COLUMNS={df.shape[1]}")

@@ -8,3 +8,5 @@ Strategies now cover the Congressional-Trading Aggregate, DC insider scores,
 government contracts, app reviews, Google Trends and politician sleeves for
 Nancy Pelosi, Dan Meuser and Shelley Moore Capito. They are executed on a
 schedule and validated by unit tests.
+
+- **Reminder:** triple-check modifications and run tests to prevent regressions.

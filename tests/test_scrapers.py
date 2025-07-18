@@ -109,12 +109,12 @@ async def test_scraper_suite(
 
 
 def test_helpers(monkeypatch, tmp_path):
-    df = pd.DataFrame({"date": pd.to_datetime(["2024-01-01"]), "rating": ["upgrade"]})
+    data = [{"date_utc": "2024-01-01T00:00:00Z", "ticker": "AAPL", "action": "UPGRADE"}]
 
-    async def fake_fetch(sym):
-        return df
+    async def fake_fetch(limit=200):
+        return data
 
-    monkeypatch.setattr(ar, "_fetch_ticker", fake_fetch)
+    monkeypatch.setattr(ar, "fetch_analyst_ratings", fake_fetch)
     out = asyncio.run(ar.fetch_changes(["AAPL"], weeks=4))
     assert not out.empty and out.iloc[0]["symbol"] == "AAPL"
     print(out.iloc[0])

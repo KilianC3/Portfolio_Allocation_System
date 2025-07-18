@@ -107,3 +107,11 @@ def fetch_fundamentals(symbol: str) -> Dict[str, float | None | str]:
     }
     log.info("fetch_fundamentals complete")
     return data
+
+
+if __name__ == "__main__":
+    import pandas as pd
+    sym = "AAPL"
+    data = fetch_fundamentals(sym)
+    df = pd.DataFrame([data])
+    print(f"ROWS={len(df)} COLUMNS={df.shape[1]}")

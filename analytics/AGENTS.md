@@ -20,3 +20,5 @@ functions to build portfolios. Recent commits introduced a tangency allocator th
 - When signal quality is uncertain, favour volatility scaling or equal-weight fallbacks for stability.
 - Clip extreme weekly returns before estimating covariance and revert to the
   previous allocation if the computed volatility is clearly abnormal.
+
+- **Reminder:** triple-check modifications and run tests to prevent regressions.

@@ -155,7 +155,7 @@ async def startup_event():
             fetch_app_reviews(),
             fetch_google_trends(),
             fetch_wsb_mentions(),
-            fetch_analyst_ratings(["AAPL", "MSFT"]),
+            fetch_analyst_ratings(),
             fetch_insider_buying(),
             fetch_stock_news(),
             asyncio.to_thread(fetch_sp500_history, 365),

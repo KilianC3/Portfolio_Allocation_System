@@ -54,13 +54,13 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 | Government-Contracts Momentum | Quiver gov contracts | Monthly | Own firms with \$50M+ new federal contracts |
 | Corporate Insider Buying Pulse | Quiver insider filings | Weekly | Long 25 tickers with strongest buying |
 | Wikipedia Attention Surge | Wikimedia page views | Weekly | Long top 10 names by page‑view jump |
-| Wall Street Bets Buzz | Reddit API | Weekly | Long 15 tickers with fastest rise in mentions |
+| Wall Street Bets Buzz | ApeWisdom API | Weekly | Long 15 tickers with fastest rise in mentions |
 | App Reviews Hype Score | Quiver app ratings | Weekly | Long 20 names with largest hype increase |
 | Google Trends + News Sentiment | Quiver Google Trends + Finviz news | Monthly | Long 30 tickers with rising search interest and good news |
 | Sector Risk-Parity Momentum | Yahoo Finance | Weekly | Rotate sector ETFs using risk‑parity weights |
 | Leveraged Sector Momentum | Yahoo Finance | Weekly | Momentum rotation among leveraged sector ETFs |
 | Volatility-Scaled Momentum | Yahoo Finance | Weekly | Rank stocks by 12‑month return scaled by volatility |
-| Upgrade Momentum | Finviz analyst revisions | Weekly | Tilt toward names with improving analyst revisions |
+| Upgrade Momentum | Benzinga upgrades | Weekly | Tilt toward names with improving analyst revisions |
 | Small Cap Momentum | Various filings | Monthly | Trade small caps before catalysts, exit after 50% gain or 3 months |
 | Sector-Neutral Mini-Portfolios | Composite screener | Quarterly | Equal-weight top value names by sector |
 | Micro-Small Composite Leaders | Composite screener | Monthly | Value and momentum leaders in micro/small caps |
@@ -79,7 +79,7 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 | Google Trends | https://www.quiverquant.com/googletrends/ |
 | Insider Buying | https://www.quiverquant.com/insiders/ |
 | Wikipedia Views | https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/all-agents/{Page_Title}/daily/{start}/{end} |
-| Analyst Ratings | https://finviz.com/quote.ashx?t=AAPL&ty=c&p=d&b=1 |
+| Analyst Ratings (Playwright) | https://www.benzinga.com/analyst-ratings/upgrades |
 | Finviz Fundamentals | https://finviz.com/quote.ashx?t=AAPL&p=d&ty=ea |
 | Finviz Stock News | https://finviz.com/news.ashx?v=3 |
 | S&P 500 Index | https://finance.yahoo.com/quote/%5EGSPC |
