@@ -7,8 +7,12 @@ from typing import Iterable, List, Optional
 import pandas as pd
 import yfinance as yf
 from bs4 import BeautifulSoup, Tag
+from typing import Callable, Any
+
+async_playwright: Callable[..., Any] | None
 try:
-    from playwright.async_api import async_playwright
+    from playwright.async_api import async_playwright as _ap
+    async_playwright = _ap
 except Exception:  # noqa: S110 - optional dependency
     async_playwright = None
 

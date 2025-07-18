@@ -8,8 +8,12 @@ from typing import List
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+from typing import Callable, Any
+
+sync_playwright: Callable[..., Any] | None
 try:
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import sync_playwright as _sp
+    sync_playwright = _sp
 except Exception:  # noqa: S110 - optional dependency
     sync_playwright = None
 

@@ -7,8 +7,12 @@ from typing import Dict, Optional
 
 import yfinance as yf
 from bs4 import BeautifulSoup, Tag
+from typing import Callable, Any
+
+sync_playwright: Callable[..., Any] | None
 try:
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import sync_playwright as _sp
+    sync_playwright = _sp
 except Exception:  # noqa: S110
     sync_playwright = None
 

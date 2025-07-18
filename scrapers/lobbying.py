@@ -2,8 +2,12 @@ import datetime as dt
 from typing import List, Optional, cast
 from bs4 import BeautifulSoup
 from bs4.element import Tag
+from typing import Callable, Any
+
+async_playwright: Callable[..., Any] | None
 try:
-    from playwright.async_api import async_playwright
+    from playwright.async_api import async_playwright as _ap
+    async_playwright = _ap
 except Exception:  # noqa: S110
     async_playwright = None
 from service.config import QUIVER_RATE_SEC
