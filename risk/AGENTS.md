@@ -9,3 +9,5 @@ Risk management models and limits.
 Strategies query these modules before executing trades.
 The circuit breaker now stores breach events in DuckDB so tests can verify
 triggered stops without a running Postgres instance.
+
+- **Reminder:** triple-check modifications and run tests to prevent regressions.

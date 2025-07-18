@@ -8,3 +8,5 @@ Core data classes representing portfolios and assets.
 These classes are used by strategies and analytics across the project.
 Recent commits introduced chunked return fetching and portfolio tracking for
 large universes which rely heavily on these base dataclasses.
+
+- **Reminder:** triple-check modifications and run tests to prevent regressions.

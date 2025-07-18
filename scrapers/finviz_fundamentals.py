@@ -7,8 +7,12 @@ from typing import Dict, Optional
 
 import yfinance as yf
 from bs4 import BeautifulSoup, Tag
+from typing import Callable, Any
+
+sync_playwright: Callable[..., Any] | None
 try:
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import sync_playwright as _sp
+    sync_playwright = _sp
 except Exception:  # noqa: S110
     sync_playwright = None
 
@@ -107,3 +111,11 @@ def fetch_fundamentals(symbol: str) -> Dict[str, float | None | str]:
     }
     log.info("fetch_fundamentals complete")
     return data
+
+
+if __name__ == "__main__":
+    import pandas as pd
+    sym = "AAPL"
+    data = fetch_fundamentals(sym)
+    df = pd.DataFrame([data])
+    print(f"ROWS={len(df)} COLUMNS={df.shape[1]}")

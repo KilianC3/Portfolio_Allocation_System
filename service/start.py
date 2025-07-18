@@ -38,7 +38,7 @@ SCRAPERS = [
     ("app_reviews", fetch_app_reviews),
     ("google_trends", fetch_google_trends),
     ("wsb_mentions", fetch_wsb_mentions),
-    ("analyst_ratings", lambda: fetch_analyst_ratings(["AAPL", "MSFT"])),
+    ("analyst_ratings", fetch_analyst_ratings),
     ("insider_buying", fetch_insider_buying),
     ("stock_news", fetch_stock_news),
     ("sp500_history", lambda: fetch_sp500_history(365)),

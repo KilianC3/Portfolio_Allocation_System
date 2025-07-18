@@ -10,6 +10,7 @@ from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 from service.logger import get_logger
+from .apewisdom_api import get_mentions as aw_get_mentions
 
 log = get_logger(__name__)
 
@@ -212,12 +213,12 @@ reddit_coll = db["reddit_mentions"] if db else pf_coll
 
 
 async def fetch_wsb_mentions(days: int = 7, top_n: int = 15) -> List[dict]:
-    """Collect WallStreetBets mention counts."""
+    """Collect WallStreetBets mention counts via ApeWisdom."""
     log.info("fetch_wsb_mentions start")
     init_db()
     with scrape_latency.labels("reddit_mentions").time():
         try:
-            df = await asyncio.to_thread(run_analysis, days, top_n)
+            df = await asyncio.to_thread(aw_get_mentions, "wallstreetbets", top_n)
         except Exception as exc:
             scrape_errors.labels("reddit_mentions").inc()
             log.warning(f"fetch_wsb_mentions failed: {exc}")
@@ -228,11 +229,11 @@ async def fetch_wsb_mentions(days: int = 7, top_n: int = 15) -> List[dict]:
     rows: List[dict] = []
     for _, row in df.iterrows():
         item = {
-            "ticker": row["symbol"],
-            "mentions": int(row["mentions"]),
-            "pos": int(row.get("pos", 0)),
-            "neu": int(row.get("neu", 0)),
-            "neg": int(row.get("neg", 0)),
+            "ticker": row.get("ticker") or row.get("symbol"),
+            "mentions": int(row.get("mentions", 0)),
+            "pos": None,
+            "neu": None,
+            "neg": None,
             "date": str(dt.date.today()),
             "_retrieved": now,
         }

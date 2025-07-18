@@ -10,3 +10,5 @@ implementation details. Recent documentation updates list every data source URL,
 explain how scrapers run automatically at startup, describe the
 `index_name` field in `ticker_scores` and document metrics like
 `weekly_vol`, `weekly_sortino`, `atr_14d` and `rsi_14d`.
+
+- **Reminder:** triple-check modifications and run tests to prevent regressions.

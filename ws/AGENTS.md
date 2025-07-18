@@ -6,3 +6,5 @@ WebSocket hub used for push updates to the frontend.
 Depends on the API module to orchestrate portfolio events.
 Recent commits added automatic connection metrics so clients can monitor feed
 health via Prometheus.
+
+- **Reminder:** triple-check modifications and run tests to prevent regressions.

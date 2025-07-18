@@ -12,3 +12,5 @@ The helpers are used by scrapers to store raw data and by strategies to fetch
 historic metrics. Startup calls `init_db()` here to create tables. When
 Postgres is unavailable the code falls back to an in-memory DuckDB database so
 all components keep functioning.
+
+- **Reminder:** triple-check modifications and run tests to prevent regressions.
