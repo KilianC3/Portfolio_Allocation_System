@@ -11,6 +11,7 @@ import scrapers.wiki as wiki
 import scrapers.analyst_ratings as ar
 import scrapers.universe as univ
 import scrapers.sp500_index as spx
+import scrapers.google_trends as gt
 
 
 async def _fake_get(*_args, **_kw):
@@ -23,12 +24,7 @@ async def _fake_get(*_args, **_kw):
 
 
 async def _fake_get_lobby(*_args, **_kw):
-    return """
-    <table>
-        <tr><th>Ticker</th><th>Client</th><th>Amount</th><th>Date</th></tr>
-        <tr><td>AAPL</td><td>X</td><td>1</td><td>2024-01-01</td></tr>
-    </table>
-    """
+    return '[{"ticker": "AAPL", "client": "X", "amount": "1", "date": "2024-01-01"}]'
 
 
 async def _fake_get_politician(*_args, **_kw):
@@ -119,3 +115,70 @@ def test_helpers(monkeypatch, tmp_path):
     data2 = pd.read_csv(p2)
     assert data2.iloc[0][0] == "MSFT"
     print(data2.iloc[0].to_dict())
+
+
+@pytest.mark.asyncio
+async def test_google_trends_json(monkeypatch):
+    monkeypatch.setattr(gt, "trends_coll", mock.Mock())
+
+    async def fake_get(url):
+        return '[{"ticker": "AAPL", "score": "1", "date": "2024-01-01"}]'
+
+    class DummyRate:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            pass
+
+    monkeypatch.setattr(gt, "scrape_get", fake_get)
+    monkeypatch.setattr(gt, "rate", DummyRate())
+    rows = await gt.fetch_google_trends()
+    assert rows and rows[0]["ticker"] == "AAPL"
+
+
+@pytest.mark.asyncio
+async def test_lobbying_no_table(monkeypatch):
+    monkeypatch.setattr(lb, "lobby_coll", mock.Mock())
+
+    async def fake_get(*_a, **_k):
+        raise RuntimeError("boom")
+
+    class DummyPW:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            pass
+
+        class chromium:
+            @staticmethod
+            async def launch(headless=True):
+                class B:
+                    async def new_page(self):
+                        class P:
+                            async def goto(self, _):
+                                pass
+
+                            async def content(self):
+                                return "<html></html>"
+
+                        return P()
+
+                    async def close(self):
+                        pass
+
+                return B()
+
+    class DummyRate:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            pass
+
+    monkeypatch.setattr(lb, "scrape_get", fake_get)
+    monkeypatch.setattr(lb, "rate", DummyRate())
+    monkeypatch.setattr(lb, "async_playwright", lambda: DummyPW())
+    rows = await lb.fetch_lobbying_data()
+    assert rows == []

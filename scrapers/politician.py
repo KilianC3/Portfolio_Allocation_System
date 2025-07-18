@@ -7,16 +7,26 @@ from infra.rate_limiter import DynamicRateLimiter
 from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
+from metrics import scrape_latency, scrape_errors
+from service.logger import get_logger
 
 politician_coll = db["politician_trades"] if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
+log = get_logger(__name__)
 
 
 async def fetch_politician_trades() -> List[dict]:
+    log.info("fetch_politician_trades start")
     init_db()
     url = "https://www.quiverquant.com/congresstrading/"
-    async with rate:
-        html = await scrape_get(url)
+    with scrape_latency.labels("politician_trades").time():
+        try:
+            async with rate:
+                html = await scrape_get(url)
+        except Exception as exc:
+            scrape_errors.labels("politician_trades").inc()
+            log.warning(f"fetch_politician_trades failed: {exc}")
+            raise
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))
     data = []
@@ -44,6 +54,7 @@ async def fetch_politician_trades() -> List[dict]:
                     upsert=True,
                 )
     append_snapshot("politician_trades", data)
+    log.info(f"fetched {len(data)} politician trade rows")
     return data
 
 

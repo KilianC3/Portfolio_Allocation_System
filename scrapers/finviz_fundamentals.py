@@ -3,10 +3,13 @@ from bs4 import BeautifulSoup, Tag
 import requests
 
 from database import init_db
+from service.logger import get_logger
 
 
 def fetch_fundamentals(symbol: str) -> Dict[str, Optional[float]]:
     """Fetch key fundamental metrics from Finviz."""
+    log = get_logger(__name__)
+    log.info(f"fetch_fundamentals start symbol={symbol}")
     init_db()
     url = f"https://finviz.com/quote.ashx?t={symbol}&p=d&ty=ea"
     r = requests.get(url, timeout=30)
@@ -24,6 +27,7 @@ def fetch_fundamentals(symbol: str) -> Dict[str, Optional[float]]:
                 vals[key] = float(val)
             except ValueError:
                 continue
+    log.info("fetch_fundamentals complete")
     return {
         "piotroski": vals.get("Piotroski F-Score"),
         "altman": vals.get("Altman Z-Score"),

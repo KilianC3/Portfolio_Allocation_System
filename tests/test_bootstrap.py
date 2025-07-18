@@ -14,6 +14,12 @@ async def test_run_scrapers(monkeypatch):
         return [{"ok": 1}]
 
     monkeypatch.setattr(boot, "init_db", lambda: calls.append("init"))
+    monkeypatch.setattr(boot, "download_sp500", lambda: calls.append("u"))
+    monkeypatch.setattr(boot, "download_sp400", lambda: calls.append("u"))
+    monkeypatch.setattr(boot, "download_russell2000", lambda: calls.append("u"))
+    monkeypatch.setattr(boot, "load_sp500", lambda: ["AAPL"])
+    monkeypatch.setattr(boot, "load_sp400", lambda: ["MSFT"])
+    monkeypatch.setattr(boot, "load_russell2000", lambda: ["X"] * 2000)
     monkeypatch.setattr(boot, "fetch_politician_trades", fake)
     monkeypatch.setattr(boot, "fetch_lobbying_data", fake)
     monkeypatch.setattr(boot, "fetch_trending_wiki_views", fake)

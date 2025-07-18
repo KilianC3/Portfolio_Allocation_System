@@ -7,17 +7,27 @@ from infra.rate_limiter import DynamicRateLimiter
 from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
+from metrics import scrape_latency, scrape_errors
+from service.logger import get_logger
 
 contracts_coll = db["gov_contracts"] if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
+log = get_logger(__name__)
 
 
 async def fetch_gov_contracts() -> List[dict]:
     """Scrape top government contract recipients from QuiverQuant."""
+    log.info("fetch_gov_contracts start")
     init_db()
     url = "https://www.quiverquant.com/sources/govcontracts"
-    async with rate:
-        html = await scrape_get(url)
+    with scrape_latency.labels("gov_contracts").time():
+        try:
+            async with rate:
+                html = await scrape_get(url)
+        except Exception as exc:
+            scrape_errors.labels("gov_contracts").inc()
+            log.warning(f"fetch_gov_contracts failed: {exc}")
+            raise
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))
     data: List[dict] = []
@@ -39,6 +49,7 @@ async def fetch_gov_contracts() -> List[dict]:
                     upsert=True,
                 )
     append_snapshot("gov_contracts", data)
+    log.info(f"fetched {len(data)} gov contract rows")
     return data
 
 
