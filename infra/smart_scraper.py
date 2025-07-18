@@ -35,6 +35,10 @@ async def get(url: str, retries: int = 3) -> str:
     doc = cache.find_one({"key": key})
     if doc:
         expire = doc.get("expire")
+        if expire is not None:
+            # normalise to UTC if timezone info missing
+            if expire.tzinfo is None:
+                expire = expire.replace(tzinfo=dt.timezone.utc)
         if expire is not None and expire > dt.datetime.now(dt.timezone.utc):
             return doc["payload"]
 

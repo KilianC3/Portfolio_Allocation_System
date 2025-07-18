@@ -1,6 +1,14 @@
 import asyncio
 from service.logger import get_logger
 from database import init_db
+from scrapers.universe import (
+    download_sp500,
+    download_sp400,
+    download_russell2000,
+    load_sp500,
+    load_sp400,
+    load_russell2000,
+)
 from scrapers.politician import fetch_politician_trades
 from scrapers.lobbying import fetch_lobbying_data
 from scrapers.wiki import fetch_trending_wiki_views
@@ -19,6 +27,13 @@ _log = get_logger("bootstrap")
 
 
 async def run_scrapers() -> None:
+    # scrape universe first to ensure downstream scrapers have a full ticker list
+    await asyncio.to_thread(download_sp500)
+    await asyncio.to_thread(download_sp400)
+    await asyncio.to_thread(download_russell2000)
+    universe = set(load_sp500()) | set(load_sp400()) | set(load_russell2000())
+    if len(universe) < 2000:
+        _log.warning(f"universe size {len(universe)} < 2000")
     await asyncio.gather(
         fetch_politician_trades(),
         fetch_lobbying_data(),

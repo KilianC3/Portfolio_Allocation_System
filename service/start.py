@@ -8,6 +8,9 @@ from scrapers.universe import (
     download_sp500,
     download_sp400,
     download_russell2000,
+    load_sp500,
+    load_sp400,
+    load_russell2000,
 )
 from scrapers.politician import fetch_politician_trades
 from scrapers.lobbying import fetch_lobbying_data
@@ -86,6 +89,9 @@ def validate_startup() -> None:
     download_sp500()
     download_sp400()
     download_russell2000()
+    universe = set(load_sp500()) | set(load_sp400()) | set(load_russell2000())
+    if len(universe) < 2000:
+        log.warning(f"universe size {len(universe)} < 2000")
 
 
 if __name__ == "__main__":

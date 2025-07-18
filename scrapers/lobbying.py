@@ -32,6 +32,10 @@ async def fetch_lobbying_data() -> List[dict]:
             raise
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))
+    if table is None:
+        log.warning("lobbying: no <table> found – site layout may have changed")
+        append_snapshot("lobbying", [])
+        return []
     data: List[dict] = []
     now = dt.datetime.now(dt.timezone.utc)
     if table:
