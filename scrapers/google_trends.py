@@ -42,7 +42,7 @@ async def fetch_google_trends() -> List[dict]:
                 log.warning("google_trends: no <table> found – site layout may have changed")
                 append_snapshot("google_trends", [])
                 return []
-            rows = []
+            rows: List[dict] = []
             for row in cast(List[Tag], table.find_all("tr"))[1:]:
                 cells = [c.get_text(strip=True) for c in row.find_all("td")]
                 if len(cells) >= 3:

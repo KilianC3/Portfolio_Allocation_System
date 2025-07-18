@@ -44,7 +44,7 @@ async def fetch_lobbying_data() -> List[dict]:
                 )
                 append_snapshot("lobbying", [])
                 return []
-            rows = []
+            rows: List[dict] = []
             for row in cast(List[Tag], table.find_all("tr"))[1:]:
                 cells = [c.get_text(strip=True) for c in row.find_all("td")]
                 if len(cells) >= 4:

@@ -83,7 +83,7 @@ def _yf_extended(symbol: str) -> Dict[str, Optional[float]]:
     return {k: info.get(k) for k in _YF_KEYS}
 
 
-def fetch_fundamentals(symbol: str) -> Dict[str, Optional[float]]:
+def fetch_fundamentals(symbol: str) -> Dict[str, float | None | str]:
     """Return selected Finviz and yfinance fields for ``symbol``."""
     log.info(f"fetch_fundamentals start symbol={symbol}")
     init_db()
