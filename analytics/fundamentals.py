@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Iterable, Sequence, Dict, Optional
+from typing import Iterable, Sequence, Dict, Optional, cast
 
 import numpy as np
 import pandas as pd
@@ -215,7 +215,7 @@ def compute_fundamental_metrics(symbol: str) -> Dict[str, Optional[float]]:
         "roic": _roic(t),
         "fcf_yield": _fcf_yield(t),
         "beneish": _beneish(t),
-        "short_ratio": data.get("short_ratio"),
-        "insider_buying": data.get("insider_buying"),
+        "short_ratio": cast(Optional[float], data.get("short_ratio")),
+        "insider_buying": cast(Optional[float], data.get("insider_buying")),
     }
     return metrics

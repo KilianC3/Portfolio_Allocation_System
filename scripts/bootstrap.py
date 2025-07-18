@@ -1,6 +1,10 @@
 import asyncio
 from service.logger import get_logger
-from database import init_db
+from database import init_db, db_ping
+from execution.gateway import AlpacaGateway
+from ledger.master_ledger import MasterLedger
+from analytics.allocation_engine import compute_weights
+import pandas as pd
 from scrapers.universe import (
     download_sp500,
     download_sp400,
@@ -24,6 +28,36 @@ from scrapers.analyst_ratings import fetch_analyst_ratings
 from analytics.tracking import update_all_ticker_scores
 
 _log = get_logger("bootstrap")
+
+
+async def system_checklist() -> None:
+    """Verify connectivity to core components."""
+    errs = []
+    if not db_ping():
+        errs.append("postgres")
+    try:
+        gw = AlpacaGateway()
+        await gw.account()
+        await gw.close()
+    except Exception as exc:  # pragma: no cover - network optional
+        errs.append(f"alpaca: {exc}")
+    try:
+        led = MasterLedger()
+        await led.redis.ping()
+    except Exception as exc:  # pragma: no cover - redis optional
+        errs.append(f"ledger: {exc}")
+    try:
+        df = pd.DataFrame(
+            {"A": [0.1, -0.1], "B": [0.05, 0.02]},
+            index=pd.to_datetime(["2024-01-01", "2024-01-08"]),
+        )
+        compute_weights(df)
+    except Exception as exc:  # pragma: no cover - numeric errors
+        errs.append(f"allocation: {exc}")
+    if errs:
+        _log.warning({"checklist": errs})
+        raise RuntimeError("; ".join(errs))
+    _log.info("system checklist passed")
 
 
 async def run_scrapers() -> None:
@@ -54,6 +88,7 @@ async def run_scrapers() -> None:
 def main() -> None:
     _log.info("initialising database and running scrapers")
     init_db()
+    asyncio.run(system_checklist())
     asyncio.run(run_scrapers())
     _log.info("bootstrap complete")
 

@@ -18,7 +18,7 @@ log = get_logger(__name__)
 
 SP500_URL = "https://datahub.io/core/s-and-p-500-companies/_r/-/data/constituents.csv"
 SP400_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_400_companies"
-R2000_URL = "https://www.marketbeat.com/types-of-stock/russell-2000-stocks/"
+R2000_URL = "https://en.wikipedia.org/wiki/List_of_Russell_2000_companies"
 
 
 def _tickers_from_wiki(url: str) -> List[str]:
