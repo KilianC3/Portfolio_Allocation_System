@@ -13,17 +13,27 @@ from infra.rate_limiter import DynamicRateLimiter
 from service.config import QUIVER_RATE_SEC
 from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
+from metrics import scrape_latency, scrape_errors
+from service.logger import get_logger
 
 analyst_coll = db["analyst_ratings"] if db else pf_coll
 
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
+log = get_logger(__name__)
 
 
 async def _fetch_ticker(sym: str) -> pd.DataFrame:
+    log.info(f"_fetch_ticker start sym={sym}")
     init_db()
     url = f"https://finviz.com/quote.ashx?t={sym}&ty=c&p=d&b=1"
-    async with rate:
-        html = await scrape_get(url)
+    with scrape_latency.labels("analyst_ratings").time():
+        try:
+            async with rate:
+                html = await scrape_get(url)
+        except Exception as exc:
+            scrape_errors.labels("analyst_ratings").inc()
+            log.warning(f"_fetch_ticker failed for {sym}: {exc}")
+            raise
     soup = BeautifulSoup(html, "html.parser")
     table = soup.find("table", class_="js-table-ratings")
     if not isinstance(table, Tag):
@@ -53,11 +63,13 @@ async def _fetch_ticker(sym: str) -> pd.DataFrame:
     df = pd.DataFrame(rows)
     df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="coerce")
     df = df.dropna(subset=["date"])
+    log.info(f"fetched {len(df)} analyst rows for {sym}")
     return df
 
 
 async def fetch_analyst_ratings(symbols: Iterable[str]) -> List[dict]:
     """Fetch analyst rating tables for a list of tickers."""
+    log.info("fetch_analyst_ratings start")
     all_rows: List[dict] = []
     for sym in symbols:
         try:
@@ -65,6 +77,7 @@ async def fetch_analyst_ratings(symbols: Iterable[str]) -> List[dict]:
         except Exception:
             continue
         all_rows.extend(df.to_dict("records"))
+    log.info(f"fetched {len(all_rows)} analyst rating rows")
     return all_rows
 
 

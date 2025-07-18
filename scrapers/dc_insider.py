@@ -7,18 +7,28 @@ from infra.rate_limiter import DynamicRateLimiter
 from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
+from metrics import scrape_latency, scrape_errors
+from service.logger import get_logger
 
 # fallback to pf_coll when db not available in testing
 insider_coll = db["dc_insider_scores"] if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
+log = get_logger(__name__)
 
 
 async def fetch_dc_insider_scores() -> List[dict]:
     """Scrape DC Insider scores from QuiverQuant."""
+    log.info("fetch_dc_insider_scores start")
     init_db()
     url = "https://www.quiverquant.com/scores/dcinsider"
-    async with rate:
-        html = await scrape_get(url)
+    with scrape_latency.labels("dc_insider_scores").time():
+        try:
+            async with rate:
+                html = await scrape_get(url)
+        except Exception as exc:
+            scrape_errors.labels("dc_insider_scores").inc()
+            log.warning(f"fetch_dc_insider_scores failed: {exc}")
+            raise
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))
     data: List[dict] = []
@@ -40,6 +50,7 @@ async def fetch_dc_insider_scores() -> List[dict]:
                     upsert=True,
                 )
     append_snapshot("dc_insider_scores", data)
+    log.info(f"fetched {len(data)} dc insider rows")
     return data
 
 

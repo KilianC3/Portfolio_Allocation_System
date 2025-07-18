@@ -10,9 +10,11 @@ import requests
 
 from database import init_db, universe_coll
 from io import StringIO
+from service.logger import get_logger
 
 DATA_DIR = Path("cache") / "universes"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+log = get_logger(__name__)
 
 SP500_URL = "https://datahub.io/core/s-and-p-500-companies/_r/-/data/constituents.csv"
 SP400_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_400_companies"
@@ -51,6 +53,7 @@ def _store_universe(tickers: List[str], index_name: str) -> None:
 
 def download_sp500(path: Path | None = None) -> Path:
     """Download S&P 500 constituents to CSV and database."""
+    log.info("download_sp500 start")
     path = path or DATA_DIR / "sp500.csv"
     r = requests.get(SP500_URL, timeout=30)
     r.raise_for_status()
@@ -58,24 +61,29 @@ def download_sp500(path: Path | None = None) -> Path:
     tickers = df[df.columns[0]].astype(str).str.upper().tolist()
     pd.DataFrame(tickers, columns=["symbol"]).to_csv(path, index=False)
     _store_universe(tickers, "S&P500")
+    log.info(f"download_sp500 wrote {len(tickers)} symbols")
     return path
 
 
 def download_sp400(path: Path | None = None) -> Path:
     """Download S&P 400 constituents to CSV."""
+    log.info("download_sp400 start")
     path = path or DATA_DIR / "sp400.csv"
     tickers = _tickers_from_wiki(SP400_URL)
     pd.DataFrame(sorted(tickers), columns=["symbol"]).to_csv(path, index=False)
     _store_universe(list(tickers), "S&P400")
+    log.info(f"download_sp400 wrote {len(tickers)} symbols")
     return path
 
 
 def download_russell2000(path: Path | None = None) -> Path:
     """Download Russell 2000 constituents to CSV."""
+    log.info("download_russell2000 start")
     path = path or DATA_DIR / "russell2000.csv"
     tickers = _tickers_from_wiki(R2000_URL)
     pd.DataFrame(sorted(tickers), columns=["symbol"]).to_csv(path, index=False)
     _store_universe(list(tickers), "Russell2000")
+    log.info(f"download_russell2000 wrote {len(tickers)} symbols")
     return path
 
 

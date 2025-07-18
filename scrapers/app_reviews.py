@@ -8,17 +8,27 @@ from infra.rate_limiter import DynamicRateLimiter
 from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
+from metrics import scrape_latency, scrape_errors
+from service.logger import get_logger
 
 app_reviews_coll = db["app_reviews"] if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
+log = get_logger(__name__)
 
 
 async def fetch_app_reviews() -> List[dict]:
     """Scrape app review hype scores from QuiverQuant."""
+    log.info("fetch_app_reviews start")
     init_db()
     url = "https://www.quiverquant.com/sources/appratings"
-    async with rate:
-        html = await scrape_get(url)
+    with scrape_latency.labels("app_reviews").time():
+        try:
+            async with rate:
+                html = await scrape_get(url)
+        except Exception as exc:
+            scrape_errors.labels("app_reviews").inc()
+            log.warning(f"fetch_app_reviews failed: {exc}")
+            raise
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))
     data: List[dict] = []
@@ -40,6 +50,7 @@ async def fetch_app_reviews() -> List[dict]:
                     upsert=True,
                 )
     append_snapshot("app_reviews", data)
+    log.info(f"fetched {len(data)} app review rows")
     return data
 
 
