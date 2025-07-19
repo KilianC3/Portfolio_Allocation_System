@@ -4,12 +4,12 @@ import asyncio
 import datetime as dt
 import json
 import re
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple, cast
 
 import pandas as pd
 import requests
 import yfinance as yf
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
@@ -51,7 +51,7 @@ HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 def find_ratings_blob(html: str) -> List[dict]:
     soup = BeautifulSoup(html, "html.parser")
-    scripts = soup.find_all("script")
+    scripts: List[Tag] = list(cast(Iterable[Tag], soup.find_all("script")))
 
     def search(obj: object) -> Optional[List[dict]]:
         if isinstance(obj, list):
