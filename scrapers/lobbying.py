@@ -1,17 +1,20 @@
 import datetime as dt
-from typing import List, Optional, cast
+from typing import Callable, Any, List, Optional, cast
+
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from typing import Callable, Any
 
-async_playwright: Callable[..., Any] | None
+async_playwright: Any
 try:
     from playwright.async_api import async_playwright as _ap
+    HAVE_PW = True
     async_playwright = _ap
 except Exception:  # noqa: S110
+    HAVE_PW = False
     async_playwright = None
 from service.config import QUIVER_RATE_SEC
 from infra.rate_limiter import DynamicRateLimiter
+from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, lobbying_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
@@ -23,60 +26,80 @@ log = get_logger(__name__)
 lobby_coll = lobbying_coll if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
+def parse_lobbying(html: str) -> List[dict]:
+    soup = BeautifulSoup(html, "html.parser")
+    table = cast(Optional[Tag], soup.find("table"))
+    rows: List[dict] = []
+    if not table:
+        return rows
+    for tr in cast(List[Tag], table.find_all("tr"))[1:]:
+        tds = [td.get_text(strip=True) for td in tr.find_all("td")]
+        if len(tds) < 3:
+            continue
+        ticker = tds[0].upper()
+        if len(tds) == 3:
+            client = ""
+            amount_raw = tds[1]
+            date = tds[2]
+        else:
+            client = tds[1]
+            amount_raw = tds[2]
+            date = tds[3]
+        amount_raw = amount_raw.replace("$", "").replace(",", "")
+        try:
+            amount = float(amount_raw)
+        except Exception:
+            continue
+        rows.append({
+            "ticker": ticker,
+            "client": client,
+            "amount": amount,
+            "date": date,
+        })
+    return rows
+
 
 async def fetch_lobbying_data() -> List[dict]:
     """Scrape corporate lobbying spending from QuiverQuant."""
     log.info("fetch_lobbying_data start")
     init_db()
     url = "https://www.quiverquant.com/lobbying/"
+    rows: List[dict] = []
     with scrape_latency.labels("lobbying").time():
+        # Static fetch
         try:
-            if async_playwright is None:
-                raise RuntimeError("playwright not installed")
             async with rate:
+                html = await scrape_get(url)
+            rows = parse_lobbying(html)
+        except Exception as exc:  # pragma: no cover - network optional
+            log.warning(f"lobbying http failed: {exc}")
+            scrape_errors.labels("lobbying").inc()
+        # Playwright fallback
+        if not rows and HAVE_PW:
+            try:
                 async with async_playwright() as pw:
                     browser = await pw.chromium.launch(headless=True)
                     page = await browser.new_page()
-                    await page.goto(url)
+                    await page.goto(url, timeout=60000)
+                    await page.wait_for_selector("table", timeout=60000)
                     html = await page.content()
                     await browser.close()
-            soup = BeautifulSoup(html, "html.parser")
-            table = cast(Optional[Tag], soup.find("table"))
-            if table is None:
-                log.warning(
-                    "lobbying: no <table> found – site layout may have changed"
-                )
-                append_snapshot("lobbying", [])
-                return []
-            rows: List[dict] = []
-            for row in cast(List[Tag], table.find_all("tr"))[1:]:
-                cells = [c.get_text(strip=True) for c in row.find_all("td")]
-                if len(cells) >= 4:
-                    rows.append(
-                        {
-                            "ticker": cells[0],
-                            "client": cells[1],
-                            "amount": cells[2],
-                            "date": cells[3],
-                        }
-                    )
-        except Exception as exc:
-            scrape_errors.labels("lobbying").inc()
-            log.warning(f"lobbying fetch failed: {exc}")
-            raise
-    data: List[dict] = []
+                rows = parse_lobbying(html)
+            except Exception as exc:  # pragma: no cover - network optional
+                log.warning(f"lobbying playwright failed: {exc}")
+
     now = dt.datetime.now(dt.timezone.utc)
     for item in rows:
         item["_retrieved"] = now
-        data.append(item)
         lobby_coll.update_one(
             {"ticker": item["ticker"], "date": item["date"]},
             {"$set": item},
             upsert=True,
         )
-    append_snapshot("lobbying", data)
-    log.info(f"fetched {len(data)} lobbying rows")
-    return data
+    if rows:
+        append_snapshot("lobbying", rows)
+    log.info("fetched %d lobbying rows", len(rows))
+    return rows
 
 
 if __name__ == "__main__":
