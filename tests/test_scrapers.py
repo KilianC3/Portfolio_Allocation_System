@@ -25,7 +25,12 @@ async def _fake_get(*_args, **_kw):
 
 
 async def _fake_get_lobby(*_args, **_kw):
-    return '[{"ticker": "AAPL", "client": "X", "amount": "1", "date": "2024-01-01"}]'
+    return """
+    <table>
+        <tr><th>Ticker</th><th>Client</th><th>Amount</th><th>Date</th></tr>
+        <tr><td>AAPL</td><td>X</td><td>$1</td><td>2024-01-01</td></tr>
+    </table>
+    """
 
 
 async def _fake_get_politician(*_args, **_kw):
@@ -45,6 +50,8 @@ async def _fake_get_wiki(*_args, **_kw):
 @mock.patch.object(gc, "scrape_get", side_effect=_fake_get)
 @mock.patch.object(pol, "scrape_get", side_effect=_fake_get_politician)
 @mock.patch.object(wiki, "scrape_get", side_effect=_fake_get_wiki)
+@mock.patch.object(gt, "scrape_get", side_effect=_fake_get)
+@mock.patch.object(lb, "scrape_get", side_effect=_fake_get_lobby)
 @mock.patch.object(dc, "insider_coll", new=mock.Mock())
 @mock.patch.object(lb, "lobby_coll", new=mock.Mock())
 @mock.patch.object(gc, "contracts_coll", new=mock.Mock())
@@ -59,10 +66,12 @@ async def _fake_get_wiki(*_args, **_kw):
 @pytest.mark.asyncio
 async def test_scraper_suite(
     _dl,
-    _mw,
-    _mp,
-    _mg,
-    _md,
+    _lb_get,
+    _gt_get,
+    _wiki_get,
+    _pol_get,
+    _gc_get,
+    _dc_get,
     monkeypatch,
 ):
     class DummyPW:
@@ -153,6 +162,7 @@ def test_helpers(monkeypatch, tmp_path):
 @pytest.mark.asyncio
 async def test_google_trends_json(monkeypatch):
     monkeypatch.setattr(gt, "trends_coll", mock.Mock())
+    monkeypatch.setattr(gt, "scrape_get", _fake_get)
 
     class DummyPW:
         async def __aenter__(self):
@@ -200,6 +210,7 @@ async def test_google_trends_json(monkeypatch):
 @pytest.mark.asyncio
 async def test_lobbying_no_table(monkeypatch):
     monkeypatch.setattr(lb, "lobby_coll", mock.Mock())
+    monkeypatch.setattr(lb, "scrape_get", lambda *_a, **_k: "<html></html>")
 
     class DummyPW:
         async def __aenter__(self):

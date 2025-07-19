@@ -13,6 +13,7 @@ fi
 source "$VENV_DIR/bin/activate"
 pip install --upgrade pip
 pip install -r "$APP_DIR/deploy/requirements.txt"
+python -m playwright install chromium || true
 
 # Refresh ticker universe before running other scrapers
 PYTHONPATH="$APP_DIR" python3 -m scrapers.universe --refresh-universe

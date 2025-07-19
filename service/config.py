@@ -65,9 +65,6 @@ class Settings(BaseSettings):
     MIN_ALLOC: float = Field(0.02, alias="MIN_ALLOCATION")
     MAX_ALLOC: float = Field(0.40, alias="MAX_ALLOCATION")
 
-    REDDIT_CLIENT_ID: str | None = None
-    REDDIT_CLIENT_SECRET: str | None = None
-    REDDIT_USER_AGENT: str = "WSB-Strategy/1.0"
 
     API_TOKEN: str | None = None
 
@@ -92,9 +89,6 @@ PG_URI = settings.PG_URI
 MIN_ALLOC = settings.MIN_ALLOC
 MAX_ALLOC = settings.MAX_ALLOC
 
-REDDIT_CLIENT_ID = settings.REDDIT_CLIENT_ID
-REDDIT_CLIENT_SECRET = settings.REDDIT_CLIENT_SECRET
-REDDIT_USER_AGENT = settings.REDDIT_USER_AGENT
 
 FRED_API_KEY = settings.FRED_API_KEY
 

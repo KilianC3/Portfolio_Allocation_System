@@ -8,6 +8,7 @@ import re
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
+import numpy as np
 import requests  # type: ignore[import-untyped]
 from io import StringIO
 import wikipedia
@@ -26,6 +27,15 @@ TOPVIEWS_URL = (
     f"{REST}/metrics/pageviews/top/en.wikipedia/all-access/{{yyyy}}/{{mm}}/{{dd}}"
 )
 
+# --- Momentum Config ---
+TOP_N = 15
+PRICE_LOOKBACK_SHORT = 5
+PRICE_LOOKBACK_LONG = 20
+MOM_BLEND_WEIGHTS = (0.6, 0.4)
+SCORE_WEIGHTS = dict(momentum=0.7, z=0.3)
+PERIOD = "2mo"
+TICKER_BATCH = 50
+PCT_CLIP = (1, 99)
 
 @functools.lru_cache(maxsize=1)
 def index_map() -> Dict[str, str]:
@@ -112,14 +122,20 @@ def _ticker_from_wikidata(title: str) -> Optional[Tuple[str, str]]:
 
 
 def trending_candidates(min_views: int = 3_000) -> Dict[str, str]:
-    """Return {symbol: company} from yesterday's top-viewed list."""
+    """Return {symbol: company} from yesterday's top-viewed list.
+
+    Only tickers present in the combined index universe are included.
+    """
+
     yday = dt.date.today() - dt.timedelta(days=1)
     try:
         arts = _fetch_topviews(yday)
     except Exception as e:
         _log.warning("Topviews fetch failed: %s", e)
         return {}
-    out = {}
+
+    allowed = index_map()
+    out: Dict[str, str] = {}
     for art in arts:
         if art["views"] < min_views:
             break
@@ -127,9 +143,12 @@ def trending_candidates(min_views: int = 3_000) -> Dict[str, str]:
         if not _looks_like_company(title):
             continue
         tup = _ticker_from_wikidata(title)
-        if tup:
-            sym, name = tup
+        if not tup:
+            continue
+        sym, name = tup
+        if sym in allowed:
             out[sym] = name
+
     return out
 
 
@@ -159,75 +178,113 @@ def sector_weights(series: pd.Series) -> Dict[str, float]:
     return series.groupby(sector_of).sum().to_dict()
 
 
-def build_wiki_portfolio(
-    *,
-    universe: Dict[str, str] | None = None,
-    include_trending: bool = True,
-    top_k: int = 50,
-    min_adv_usd: float = 3_000_000,
-    min_float_usd: float = 500_000_000,
-    turnover_thresh: float = 0.005,
-    alpha_power: float = 0.7,
-    prev_weights: Optional[pd.Series] = None,
-) -> pd.DataFrame:
-    """Build weights for the Wikipedia Most-Viewed strategy."""
-    uni = universe or index_map()
-    if include_trending:
-        uni.update(trending_candidates())
+def robust_minmax(s: pd.Series, pct_clip: tuple[int, int] = PCT_CLIP) -> pd.Series:
+    s = s.astype(float)
+    lo, hi = np.nanpercentile(s, pct_clip[0]), np.nanpercentile(s, pct_clip[1])
+    s = s.clip(lo, hi)
+    span = hi - lo if hi > lo else 1.0
+    return (s - lo) / span
 
-    rows = []
-    for sym, name in tqdm(uni.items(), desc="views", unit="stk", leave=False):
-        page = wiki_title(name)
-        if not page:
+
+def _extract_price_frame(raw: pd.DataFrame | pd.Series | None) -> pd.DataFrame:
+    if raw is None or raw.empty:
+        return pd.DataFrame()
+    if isinstance(raw, pd.DataFrame):
+        if isinstance(raw.columns, pd.MultiIndex):
+            lvl0 = raw.columns.get_level_values(0)
+            for candidate in ("Adj Close", "Close"):
+                if candidate in lvl0:
+                    return raw.xs(candidate, axis=1)
+            return raw.xs(lvl0[0], axis=1)
+        return raw
+    if isinstance(raw, pd.Series):
+        return raw.to_frame()
+    return pd.DataFrame()
+
+
+def get_momentum_returns(tickers: list[str]) -> pd.DataFrame:
+    results = {}
+    for i in range(0, len(tickers), TICKER_BATCH):
+        batch = tickers[i : i + TICKER_BATCH]
+        try:
+            raw = yf.download(batch, period=PERIOD, auto_adjust=True, progress=False)
+            px = _extract_price_frame(raw)
+        except Exception:
             continue
-        series = cached_views(page)
-        if len(series) < 185:
+        if px.empty:
             continue
-        score = z_score(series) * persistence(series)
-        rows.append(
-            dict(
-                symbol=sym,
-                company=name,
-                score=score,
-                views_30d=int(series.tail(30).sum()),
-                sector=sector_of(sym),
-                source="universe" if sym in index_map() else "trending",
-            )
-        )
+        for t in batch:
+            if t not in px.columns:
+                continue
+            s = px[t].dropna()
+            if len(s) < PRICE_LOOKBACK_LONG + 1:
+                continue
+            last = s.iloc[-1]
+            try:
+                p5 = s.iloc[-(PRICE_LOOKBACK_SHORT + 1)]
+                p20 = s.iloc[-(PRICE_LOOKBACK_LONG + 1)]
+            except Exception:
+                continue
+            ret5 = last / p5 - 1
+            ret20 = last / p20 - 1
+            momentum = MOM_BLEND_WEIGHTS[0] * ret20 + MOM_BLEND_WEIGHTS[1] * ret5
+            results[t] = dict(ret_5d=ret5, ret_20d=ret20, momentum=momentum)
+    return pd.DataFrame.from_dict(results, orient="index")
 
-    df = pd.DataFrame(rows).sort_values("score", ascending=False).head(top_k)
-    if df.empty:
-        _log.warning("No candidates after score ranking.")
-        return df
 
-    keep = []
-    for sym in tqdm(df.symbol, desc="liquidity", leave=False):
-        adv, float_cap = adv_float(sym)
-        if adv >= min_adv_usd and float_cap >= min_float_usd:
-            keep.append(sym)
-    df = df[df.symbol.isin(keep)]
-    if df.empty:
-        _log.warning("Liquidity filter removed all names.")
-        return df
+def build_wiki_portfolio(df_base: pd.DataFrame, top_n: int = TOP_N) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Rank tickers by momentum blended with Wikipedia z-score.
 
-    w_raw = df.views_30d.astype(float).pow(alpha_power)
-    df["w_raw"] = w_raw / w_raw.sum()
+    Parameters
+    ----------
+    df_base : pd.DataFrame
+        Must contain ``ticker`` and ``z_score`` columns for the universe.
+    top_n : int
+        Number of names to return.
 
-    bench = sector_weights(pd.Series({**{s: 1 for s in index_map()}, **{}}))
-    sec = sector_weights(df.set_index("symbol").w_raw)
-    for sector, w_sect in sec.items():
-        bench_w = bench.get(sector, 0)
-        diff = w_sect - bench_w
-        if abs(diff) > 0.05:
-            factor = (bench_w + math.copysign(0.05, diff)) / w_sect
-            df.loc[df.sector == sector, "w_raw"] *= factor
-    df["w_raw"] /= df.w_raw.sum()
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.DataFrame]
+        ``(top, full)`` ranked DataFrames.
+    """
 
-    if prev_weights is not None and not prev_weights.empty:
-        merged = df.set_index("symbol").join(prev_weights.rename("prev"), how="outer")
-        delta = (merged.w_raw.fillna(0) - merged.prev.fillna(0)).abs()
-        merged.loc[delta <= turnover_thresh, "w_raw"] = merged.prev
-        df = merged.reset_index()
+    required = {"ticker", "z_score"}
+    missing = required - set(df_base.columns)
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
 
-    df["weight"] = df.w_raw / df.w_raw.sum()
-    return df[["symbol", "weight", "score", "views_30d", "sector", "source"]]
+    base = df_base.copy()
+    base["ticker"] = base["ticker"].str.upper()
+    tickers = base["ticker"].unique().tolist()
+
+    mom = get_momentum_returns(tickers)
+    if mom.empty:
+        raise RuntimeError("No momentum data retrieved.")
+
+    merged = base.merge(mom, left_on="ticker", right_index=True, how="left")
+    merged = merged.dropna(subset=["momentum"])
+
+    merged["mom_norm"] = robust_minmax(merged["momentum"])
+    merged["z_norm"] = robust_minmax(merged["z_score"])
+
+    merged["score"] = (
+        SCORE_WEIGHTS["momentum"] * merged["mom_norm"]
+        + SCORE_WEIGHTS["z"] * merged["z_norm"]
+    )
+
+    merged = merged.sort_values("score", ascending=False)
+    top = merged.head(top_n).copy()
+    top["weight_score"] = top["score"] / top["score"].sum()
+    top["weight_equal"] = 1.0 / len(top)
+
+    cols = [
+        "ticker",
+        "score",
+        "weight_score",
+        "weight_equal",
+        "momentum",
+        "ret_5d",
+        "ret_20d",
+        "z_score",
+    ]
+    return top[cols].reset_index(drop=True), merged

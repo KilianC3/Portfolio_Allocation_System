@@ -65,12 +65,29 @@ async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7) -> List[dict]
     return data
 
 
-async def fetch_trending_wiki_views(top_k: int = 10, days: int = 7) -> List[dict]:
-    """Collect page views for top trending tickers by z-score."""
-    # use a zero threshold so we gather enough candidates and always
-    # return ``top_k`` tickers even when yesterday's traffic was low
-    log.info("fetch_trending_wiki_views start")
-    cand = trending_candidates(min_views=0)
+async def fetch_trending_wiki_views(
+    top_k: int = 10, days: int = 7, min_views: int = 0
+) -> List[dict]:
+    """Collect page views for top trending tickers by z-score.
+
+    Parameters
+    ----------
+    top_k : int
+        Number of tickers to return.
+    days : int
+        History length for ``fetch_wiki_views``.
+    min_views : int
+        Minimum views used when calling :func:`trending_candidates`.
+    """
+
+    log.info(
+        "fetch_trending_wiki_views start top_k=%s days=%s min_views=%s",
+        top_k,
+        days,
+        min_views,
+    )
+    cand = trending_candidates(min_views=min_views)
+    log.info("trending_candidates returned %s symbols", len(cand))
     scores = []
     for sym, name in cand.items():
         page = wiki_title(name)
@@ -84,7 +101,11 @@ async def fetch_trending_wiki_views(top_k: int = 10, days: int = 7) -> List[dict
     top = [p for _s, p in sorted(scores, key=lambda x: x[0], reverse=True)[:top_k]]
     out: List[dict] = []
     for pg in top:
-        out.extend(await fetch_wiki_views(pg, days))
+        try:
+            out.extend(await fetch_wiki_views(pg, days))
+        except Exception as exc:  # pragma: no cover - network optional
+            log.warning(f"fetch_wiki_views failed for {pg}: {exc}")
+            continue
     log.info(f"fetched {len(out)} trending wiki rows")
     return out
 

@@ -30,13 +30,10 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
    ```
    The startup script now runs each scraper in sequence and logs a checklist
    once data is loaded. Failed scrapers print their output so you can debug
-   issues, and the systemd unit sets `PYTHONPATH` so imports resolve.
-   If `wsb_mentions` fails with "Universe is empty" run the universe builder
-   first:
-   ```bash
-   python -m scrapers.universe --refresh-universe
-   sudo bash scripts/bootstrap.sh
-   ```
+   issues, and the systemd unit sets `PYTHONPATH` so imports resolve. Wall
+   Street Bets mentions are fetched via the ApeWisdom API and no longer depend
+   on the ticker universe. The `wsb_cli.py` script keeps its `--days` argument
+   for compatibility but the value is ignored.
 5. Install the optional test dependencies and run the unit tests
    ```bash
    pip install -r deploy/requirements-test.txt
@@ -53,7 +50,7 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 | DC Insider Score Tilt | Quiver DC Insider scores | Weekly | Long top 30 ranked by score |
 | Government-Contracts Momentum | Quiver gov contracts | Monthly | Own firms with \$50M+ new federal contracts |
 | Corporate Insider Buying Pulse | Quiver insider filings | Weekly | Long 25 tickers with strongest buying |
-| Wikipedia Attention Surge | Wikimedia page views | Weekly | Long top 10 names by page‑view jump |
+| Wikipedia Attention Surge | Wikimedia page views | Monthly | Long top 10 names by page‑view jump |
 | Wall Street Bets Buzz | ApeWisdom API | Weekly | Long 15 tickers with fastest rise in mentions |
 | App Reviews Hype Score | Quiver app ratings | Weekly | Long 20 names with largest hype increase |
 | Google Trends + News Sentiment | Quiver Google Trends + Finviz news | Monthly | Long 30 tickers with rising search interest and good news |
@@ -79,7 +76,7 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 | Google Trends | https://www.quiverquant.com/googletrends/ |
 | Insider Buying | https://www.quiverquant.com/insiders/ |
 | Wikipedia Views | https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/all-agents/{Page_Title}/daily/{start}/{end} |
-| Analyst Ratings (Playwright) | https://www.benzinga.com/analyst-ratings/upgrades |
+| Analyst Ratings | https://www.benzinga.com/analyst-ratings/upgrades |
 | Finviz Fundamentals | https://finviz.com/quote.ashx?t=AAPL&p=d&ty=ea |
 | Finviz Stock News | https://finviz.com/news.ashx?v=3 |
 | S&P 500 Index | https://finance.yahoo.com/quote/%5EGSPC |
