@@ -10,7 +10,6 @@ duckdb>=0.10.2
 pytest-asyncio>=0.23.5
 respx>=0.21.1
 scikit-learn>=1.4.2
-praw>=7.7.1
 bs4>=0.0.2
 yfinance>=0.2.40
 structlog>=24.1.0

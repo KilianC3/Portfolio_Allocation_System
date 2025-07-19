@@ -5,11 +5,8 @@ Fetch ticker mentions from ApeWisdom public API.
 
 from __future__ import annotations
 
-import datetime as dt
+import math, datetime as dt, requests, pandas as pd
 from typing import List
-
-import pandas as pd
-import requests
 
 from service.logger import get_logger
 
@@ -41,13 +38,21 @@ HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 
 def fetch_page(filter_name: str, page: int) -> dict:
+    """Return raw page JSON from ApeWisdom."""
     url = BASE.format(filter=filter_name, page=page)
-    r = requests.get(url, headers=HEADERS, timeout=20)
-    r.raise_for_status()
+    log.info(f"fetch_page start filter={filter_name} page={page}")
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=20)
+        r.raise_for_status()
+    except Exception as exc:  # pragma: no cover - network optional
+        log.warning(f"fetch_page failed: {exc}")
+        raise
     return r.json()
 
 
 def get_mentions(filter_name: str = "wallstreetbets", limit: int = 20) -> pd.DataFrame:
+    """Return ``limit`` most mentioned tickers for ``filter_name``."""
+    log.info(f"get_mentions start filter={filter_name} limit={limit}")
     if filter_name not in FILTERS:
         raise ValueError(f"Unsupported filter '{filter_name}'")
     if limit <= 0:
@@ -86,7 +91,9 @@ def get_mentions(filter_name: str = "wallstreetbets", limit: int = 20) -> pd.Dat
         if c in df.columns
     ]
     df = df[order]
-    return df.sort_values("rank").reset_index(drop=True)
+    out = df.sort_values("rank").reset_index(drop=True)
+    log.info(f"get_mentions fetched {len(out)} rows")
+    return out
 
 
 if __name__ == "__main__":
