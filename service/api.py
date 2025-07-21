@@ -13,10 +13,12 @@ from service.logger import get_logger
 from observability import metrics_router
 from ws import ws_router
 from observability.logging import LOG_DIR
-from database import pf_coll, trade_coll, metric_coll, init_db
+from database import pf_coll, trade_coll, metric_coll, init_db, db
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
 from service.config import ALLOW_LIVE
+from fastapi.responses import HTMLResponse
+import scripts.dashboard as scripts_dashboard
 from scheduler import StrategyScheduler
 from analytics.utils import (
     portfolio_metrics,
@@ -54,8 +56,13 @@ app.add_middleware(
 
 @app.middleware("http")
 async def auth(request: Request, call_next):
+    token = request.headers.get("Authorization")
+    if not token:
+        token = request.query_params.get("token")
+        if token:
+            token = f"Bearer {token}"
     if API_TOKEN and request.url.path not in {"/health", "/readyz"}:
-        if request.headers.get("Authorization") != f"Bearer {API_TOKEN}":
+        if token != f"Bearer {API_TOKEN}":
             return JSONResponse(status_code=401, content={"detail": "unauthorized"})
     return await call_next(request)
 
@@ -322,6 +329,43 @@ def get_logs(lines: int = 100):
     except Exception:
         tail = ""
     return {"logs": tail}
+
+
+@app.get("/db/{table}")
+def read_table(table: str, limit: int = 50):
+    """Return rows from the requested table."""
+    coll = db[table]
+    docs = list(coll.find({}).limit(limit))
+    res = []
+    for d in docs:
+        if "_id" in d:
+            d["id"] = str(d.pop("_id"))
+        if "_retrieved" in d:
+            d["_retrieved"] = _iso(d["_retrieved"])
+        res.append(d)
+    return {"records": res}
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard(limit: int = 5):
+    """Render a simple dashboard with health, jobs and table samples."""
+    try:
+        health_info = asyncio.run(readyz())
+    except Exception as exc:
+        health_info = {"status": "fail", "error": str(exc)}
+    jobs = list_jobs()["jobs"]
+    parts = ["<h2>Health</h2>", f"<pre>{health_info}</pre>"]
+    if jobs:
+        df = pd.DataFrame(jobs)
+        parts.append("<h2>Schedule</h2>")
+        parts.append(df.to_html(index=False))
+    for name in scripts_dashboard.TABLES:
+        docs = read_table(name, limit=limit)["records"]
+        parts.append(f"<h3>{name} ({len(docs)})</h3>")
+        if docs:
+            df = pd.DataFrame(docs)
+            parts.append(df.to_html(index=False))
+    return "\n".join(parts)
 
 
 # Scheduler management endpoints
@@ -602,4 +646,4 @@ async def stream_account() -> StreamingResponse:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)

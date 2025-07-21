@@ -34,6 +34,25 @@ MARKETSCREENER_URL = (
     "https://www.marketscreener.com/quote/index/" "RUSSELL-2000-157793769/components/"
 )
 
+# Tickers consistently missing price data from Yahoo. Remove them
+# from the universe to avoid repeated download errors.
+BAD_TICKERS = {
+    "BF.B",
+    "BRK.B",
+    "CRD.A",
+    "CLSKW",
+    "GEF.B",
+    "MOG.A",
+}
+
+
+def _clean_symbols(symbols: List[str]) -> List[str]:
+    cleaned = [s for s in symbols if s.upper() not in BAD_TICKERS]
+    removed = len(symbols) - len(cleaned)
+    if removed:
+        log.info("removed %d delisted tickers", removed)
+    return cleaned
+
 
 def _tickers_from_wiki(url: str) -> List[str]:
     html = requests.get(url, timeout=30).text
@@ -130,6 +149,7 @@ def download_sp500(path: Path | None = None) -> Path:
     r.raise_for_status()
     df = pd.read_csv(io.StringIO(r.text))
     tickers = df[df.columns[0]].astype(str).str.upper().tolist()
+    tickers = _clean_symbols(tickers)
     pd.DataFrame(tickers, columns=["symbol"]).to_csv(path, index=False)
     _store_universe(tickers, "S&P500")
     log.info(f"download_sp500 wrote {len(tickers)} symbols")
@@ -141,6 +161,7 @@ def download_sp400(path: Path | None = None) -> Path:
     log.info("download_sp400 start")
     path = path or DATA_DIR / "sp400.csv"
     tickers = _tickers_from_wiki(SP400_URL)
+    tickers = _clean_symbols(list(tickers))
     pd.DataFrame(sorted(tickers), columns=["symbol"]).to_csv(path, index=False)
     _store_universe(list(tickers), "S&P400")
     log.info(f"download_sp400 wrote {len(tickers)} symbols")
@@ -165,6 +186,7 @@ def download_russell2000(path: Path | None = None) -> Path:
             except Exception as exc2:
                 log.warning(f"marketscreener scrape failed: {exc2}")
                 tickers = []
+    tickers = _clean_symbols(list(tickers))
     pd.DataFrame(sorted(tickers), columns=["symbol"]).to_csv(path, index=False)
     _store_universe(list(tickers), "Russell2000")
     log.info(f"download_russell2000 wrote {len(tickers)} symbols")
@@ -173,17 +195,20 @@ def download_russell2000(path: Path | None = None) -> Path:
 
 def load_sp400() -> List[str]:
     path = DATA_DIR / "sp400.csv"
-    return pd.read_csv(path).symbol.dropna().astype(str).str.upper().tolist()
+    syms = pd.read_csv(path).symbol.dropna().astype(str).str.upper().tolist()
+    return _clean_symbols(syms)
 
 
 def load_sp500() -> List[str]:
     path = DATA_DIR / "sp500.csv"
-    return pd.read_csv(path).symbol.dropna().astype(str).str.upper().tolist()
+    syms = pd.read_csv(path).symbol.dropna().astype(str).str.upper().tolist()
+    return _clean_symbols(syms)
 
 
 def load_russell2000() -> List[str]:
     path = DATA_DIR / "russell2000.csv"
-    return pd.read_csv(path).symbol.dropna().astype(str).str.upper().tolist()
+    syms = pd.read_csv(path).symbol.dropna().astype(str).str.upper().tolist()
+    return _clean_symbols(syms)
 
 
 if __name__ == "__main__":
