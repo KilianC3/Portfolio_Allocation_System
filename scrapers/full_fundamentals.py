@@ -9,7 +9,7 @@ current directory.
 import math
 import datetime as dt
 import warnings
-from typing import List, Sequence, Dict, Iterable
+from typing import List, Sequence, Dict, Iterable, Tuple
 
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
 
@@ -49,18 +49,33 @@ ALIASES = {
     "ocf": ["Total Cash From Operating Activities", "Operating Cash Flow"],
     "capex": ["Capital Expenditures", "Capital Expenditure"],
     "total_assets": ["Total Assets"],
-    "total_liabilities": ["Total Liab", "Total Liabilities Net Minority Interest", "Total Liabilities"],
+    "total_liabilities": [
+        "Total Liab",
+        "Total Liabilities Net Minority Interest",
+        "Total Liabilities",
+    ],
     "current_assets": ["Total Current Assets", "Current Assets"],
     "current_liabilities": ["Total Current Liabilities", "Current Liabilities"],
-    "retained_earnings": ["Retained Earnings", "Retained Earnings (Accumulated Deficit)"],
+    "retained_earnings": [
+        "Retained Earnings",
+        "Retained Earnings (Accumulated Deficit)",
+    ],
     "long_debt": ["Long Term Debt", "Long Term Debt And Capital Lease Obligation"],
     "short_debt": ["Short Long Term Debt", "Short Term Debt"],
     "equity": ["Total Stockholder Equity", "Total Equity Gross Minority Interest"],
     "common_stock": ["Common Stock", "Common Stock Total Equity"],
     "receivables": ["Net Receivables", "Accounts Receivable"],
     "ppe": ["Property Plant Equipment", "Property Plant And Equipment"],
-    "sga": ["Selling General Administrative", "Selling General & Administrative", "SG&A Expense"],
-    "depreciation": ["Depreciation", "Depreciation Amortization", "Depreciation & Amortization"],
+    "sga": [
+        "Selling General Administrative",
+        "Selling General & Administrative",
+        "SG&A Expense",
+    ],
+    "depreciation": [
+        "Depreciation",
+        "Depreciation Amortization",
+        "Depreciation & Amortization",
+    ],
 }
 
 
@@ -105,14 +120,24 @@ def max_drawdown(series: pd.Series):
     return (series / cm - 1.0).min()
 
 
-def download_prices_batch(tickers: List[str], lookback_days=PRICE_LOOKBACK_DAYS) -> (pd.DataFrame, Dict[str, pd.DataFrame]):
+def download_prices_batch(
+    tickers: List[str], lookback_days: int = PRICE_LOOKBACK_DAYS
+) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
     end = dt.date.today()
     start = end - dt.timedelta(days=lookback_days)
     all_close = {}
     all_ohlcv = {}
     for i in range(0, len(tickers), BATCH_SIZE_PRICES):
         batch = tickers[i : i + BATCH_SIZE_PRICES]
-        data = yf.download(batch, start=start, end=end, progress=False, group_by="ticker", threads=False, auto_adjust=False)
+        data = yf.download(
+            batch,
+            start=start,
+            end=end,
+            progress=False,
+            group_by="ticker",
+            threads=False,
+            auto_adjust=False,
+        )
         if isinstance(data.columns, pd.MultiIndex):
             for t in batch:
                 sub = {}
@@ -122,7 +147,9 @@ def download_prices_batch(tickers: List[str], lookback_days=PRICE_LOOKBACK_DAYS)
                 if sub:
                     df = pd.DataFrame(sub)
                     all_ohlcv[t] = df
-                    all_close[t] = df["Adj Close"] if "Adj Close" in df.columns else df["Close"]
+                    all_close[t] = (
+                        df["Adj Close"] if "Adj Close" in df.columns else df["Close"]
+                    )
         else:
             t = batch[0]
             all_ohlcv[t] = data
@@ -132,6 +159,7 @@ def download_prices_batch(tickers: List[str], lookback_days=PRICE_LOOKBACK_DAYS)
                 all_close[t] = data["Close"]
         if BATCH_SLEEP_SEC and i + BATCH_SIZE_PRICES < len(tickers):
             import time
+
             time.sleep(BATCH_SLEEP_SEC)
     close_df = pd.DataFrame(all_close).sort_index()
     return close_df, all_ohlcv
@@ -177,7 +205,11 @@ def compute_piotroski(fin, bs, cf):
     at1 = safe_div(rev1, ta1)
     common0 = gv(bs, ALIASES["common_stock"], 0, np.nan)
     common1 = gv(bs, ALIASES["common_stock"], 1, np.nan)
-    share_flag = 1 if (np.isnan(common0) or np.isnan(common1) or common0 <= common1 * 1.01) else 0
+    share_flag = (
+        1
+        if (np.isnan(common0) or np.isnan(common1) or common0 <= common1 * 1.01)
+        else 0
+    )
     score = 0
     score += int(roa0 > 0)
     score += int(cfo0 > 0)
@@ -219,7 +251,14 @@ def quality_metrics(fin, bs, cf):
     cfo0 = gv(cf, ALIASES["ocf"], 0)
     assets0 = gv(bs, ALIASES["total_assets"], 0)
     accruals = safe_div(ni0 - cfo0, assets0)
-    return dict(roic=roic, roe=roe, gross_margin=gross_margin, oper_margin=oper_margin, net_margin=net_margin, accruals=accruals)
+    return dict(
+        roic=roic,
+        roe=roe,
+        gross_margin=gross_margin,
+        oper_margin=oper_margin,
+        net_margin=net_margin,
+        accruals=accruals,
+    )
 
 
 def growth_metrics(fin):
@@ -237,7 +276,12 @@ def growth_metrics(fin):
     gm_trend = (gm0 - gm1) if not (np.isnan(gm0) or np.isnan(gm1)) else np.nan
     ebitda_growth = safe_div(e0 - e1, e1)
     accel = (ebitda_growth - rev_growth) + gm_trend
-    return dict(revenue_growth=rev_growth, gross_margin_trend=gm_trend, ebitda_growth=ebitda_growth, growth_acceleration=accel)
+    return dict(
+        revenue_growth=rev_growth,
+        gross_margin_trend=gm_trend,
+        ebitda_growth=ebitda_growth,
+        growth_acceleration=accel,
+    )
 
 
 def value_metrics(fin, bs, cf, info, shares_prev):
@@ -251,7 +295,9 @@ def value_metrics(fin, bs, cf, info, shares_prev):
     mcap = info.get("marketCap")
     total_debt = info.get("totalDebt")
     if total_debt is None or np.isnan(total_debt):
-        total_debt = gv(bs, ALIASES["long_debt"], 0, 0.0) + gv(bs, ALIASES["short_debt"], 0, 0.0)
+        total_debt = gv(bs, ALIASES["long_debt"], 0, 0.0) + gv(
+            bs, ALIASES["short_debt"], 0, 0.0
+        )
     cash = info.get("totalCash") or info.get("cash") or 0.0
     ev = info.get("enterpriseValue")
     if ev is None or np.isnan(ev):
@@ -267,7 +313,9 @@ def value_metrics(fin, bs, cf, info, shares_prev):
     ps = safe_div(mcap, revenue)
     price = info.get("currentPrice") or info.get("regularMarketPrice")
     dividend_rate = info.get("dividendRate")
-    dividend_yield = safe_div(dividend_rate, price) if (dividend_rate and price) else 0.0
+    dividend_yield = (
+        safe_div(dividend_rate, price) if (dividend_rate and price) else 0.0
+    )
     shares_now = info.get("sharesOutstanding")
     buyback_yield = 0.0
     if shares_now and shares_prev and shares_prev > 0:
@@ -291,15 +339,25 @@ def value_metrics(fin, bs, cf, info, shares_prev):
 def strength_metrics(fin, bs, cf, info):
     ebit = gv(fin, ALIASES["ebit"], 0)
     interest_exp = gv(fin, ALIASES["interest_exp"], 0)
-    interest_cov = safe_div(ebit, abs(interest_exp)) if (interest_exp not in (0, np.nan)) else np.nan
+    interest_cov = (
+        safe_div(ebit, abs(interest_exp))
+        if (interest_exp not in (0, np.nan))
+        else np.nan
+    )
     ebitda = gv(fin, ALIASES["ebitda"], 0)
-    total_debt = gv(bs, ALIASES["long_debt"], 0, 0.0) + gv(bs, ALIASES["short_debt"], 0, 0.0)
+    total_debt = gv(bs, ALIASES["long_debt"], 0, 0.0) + gv(
+        bs, ALIASES["short_debt"], 0, 0.0
+    )
     cash = info.get("totalCash") or info.get("cash") or 0.0 if info else 0.0
     net_debt = total_debt - (cash or 0.0)
     net_debt_ebitda = safe_div(net_debt, ebitda)
     equity = gv(bs, ALIASES["equity"], 0)
     debt_equity = safe_div(total_debt, equity)
-    return dict(interest_coverage=interest_cov, net_debt_ebitda=net_debt_ebitda, debt_equity=debt_equity)
+    return dict(
+        interest_coverage=interest_cov,
+        net_debt_ebitda=net_debt_ebitda,
+        debt_equity=debt_equity,
+    )
 
 
 def collect_fundamentals(ticker: str):
@@ -325,7 +383,9 @@ def collect_fundamentals(ticker: str):
 def compute_altman(fin, bs, info):
     if any(x is None or x.empty for x in [fin, bs]):
         return np.nan
-    WC = gv(bs, ALIASES["current_assets"], 0) - gv(bs, ALIASES["current_liabilities"], 0)
+    WC = gv(bs, ALIASES["current_assets"], 0) - gv(
+        bs, ALIASES["current_liabilities"], 0
+    )
     TA = gv(bs, ALIASES["total_assets"], 0)
     RE = gv(bs, ALIASES["retained_earnings"], 0)
     EBIT = gv(fin, ALIASES["ebit"], 0)
@@ -334,12 +394,24 @@ def compute_altman(fin, bs, info):
     price = info.get("currentPrice") or info.get("regularMarketPrice") if info else None
     shares = info.get("sharesOutstanding") if info else None
     MVE = price * shares if (price and shares) else np.nan
-    if any(np.isnan(x) for x in [WC, TA, RE, EBIT, TL, Sales, MVE]) or TA <= 0 or TL <= 0:
+    if (
+        any(np.isnan(x) for x in [WC, TA, RE, EBIT, TL, Sales, MVE])
+        or TA <= 0
+        or TL <= 0
+    ):
         return np.nan
-    return 1.2 * (WC / TA) + 1.4 * (RE / TA) + 3.3 * (EBIT / TA) + 0.6 * (MVE / TL) + 1.0 * (Sales / TA)
+    return (
+        1.2 * (WC / TA)
+        + 1.4 * (RE / TA)
+        + 3.3 * (EBIT / TA)
+        + 0.6 * (MVE / TL)
+        + 1.0 * (Sales / TA)
+    )
 
 
-def build_price_metrics(px: pd.DataFrame, ohlcv: Dict[str, pd.DataFrame], tickers: List[str]) -> pd.DataFrame:
+def build_price_metrics(
+    px: pd.DataFrame, ohlcv: Dict[str, pd.DataFrame], tickers: List[str]
+) -> pd.DataFrame:
     rets = px.pct_change().replace([np.inf, -np.inf], np.nan)
     rows = []
     for t in tickers:
@@ -350,7 +422,11 @@ def build_price_metrics(px: pd.DataFrame, ohlcv: Dict[str, pd.DataFrame], ticker
         ret_6m = pct_change_price(s, 126)
         ret_9m = pct_change_price(s, 189)
         ret_12m = pct_change_price(s, 252)
-        ret_12m_ex1m = (ret_12m - ret_1m) if (not np.isnan(ret_12m) and not np.isnan(ret_1m)) else np.nan
+        ret_12m_ex1m = (
+            (ret_12m - ret_1m)
+            if (not np.isnan(ret_12m) and not np.isnan(ret_1m))
+            else np.nan
+        )
         r6 = r.tail(126)
         sharpe_6m = sortino_6m = np.nan
         if r6.size >= 60:
@@ -363,7 +439,9 @@ def build_price_metrics(px: pd.DataFrame, ohlcv: Dict[str, pd.DataFrame], ticker
                 dsd = neg.std(ddof=0)
                 if dsd:
                     sortino_6m = (mu / dsd) * math.sqrt(252)
-        vol_63d = r.tail(63).std(ddof=0) * math.sqrt(252) if r.tail(63).size >= 40 else np.nan
+        vol_63d = (
+            r.tail(63).std(ddof=0) * math.sqrt(252) if r.tail(63).size >= 40 else np.nan
+        )
         mdd = max_drawdown(s)
         addv_60d = turnover_60d = spread_proxy = days_to_liq = np.nan
         if t in ohlcv:
@@ -372,14 +450,20 @@ def build_price_metrics(px: pd.DataFrame, ohlcv: Dict[str, pd.DataFrame], ticker
                 recent = df.tail(60)
                 if not recent.empty:
                     addv_60d = (recent["Close"] * recent["Volume"]).mean()
-                    spread_proxy = ((recent["High"] - recent["Low"]) / recent["Close"]).mean()
+                    spread_proxy = (
+                        (recent["High"] - recent["Low"]) / recent["Close"]
+                    ).mean()
                     avg_vol = recent["Volume"].mean()
                     info = yf.Ticker(t).info
                     shares = info.get("sharesOutstanding")
                     insider = info.get("heldPercentInsiders") or 0.0
                     float_shares = shares * (1 - insider) if shares else np.nan
                     turnover_60d = safe_div(avg_vol, float_shares)
-                    days_to_liq = safe_div(0.30 * POSITION_DOLLARS, addv_60d) if addv_60d else np.nan
+                    days_to_liq = (
+                        safe_div(0.30 * POSITION_DOLLARS, addv_60d)
+                        if addv_60d
+                        else np.nan
+                    )
         rows.append(
             dict(
                 ticker=t,
@@ -508,66 +592,140 @@ def sortino_score(s):
 def score_absolute(df: pd.DataFrame) -> pd.DataFrame:
     S = pd.DataFrame(index=df.index)
 
-    S["earnings_yield_score"] = df["earnings_yield"].apply(lambda x: linear_scale(x, -0.50, 0.50))
+    S["earnings_yield_score"] = df["earnings_yield"].apply(
+        lambda x: linear_scale(x, -0.50, 0.50)
+    )
     S["fcf_yield_score"] = df["fcf_yield"].apply(lambda x: linear_scale(x, -0.30, 0.40))
-    S["shareholder_yield_score"] = df["shareholder_yield"].apply(lambda x: linear_scale(x, -0.20, 0.20))
+    S["shareholder_yield_score"] = df["shareholder_yield"].apply(
+        lambda x: linear_scale(x, -0.20, 0.20)
+    )
     S["ev_ebitda_score"] = df["ev_ebitda"].apply(lambda x: log_inverted(x, 2, 45))
     S["ev_ebit_score"] = df["ev_ebit"].apply(lambda x: log_inverted(x, 3, 55))
     S["pb_score"] = df["pb"].apply(lambda x: log_inverted(x, 0.5, 15))
     S["ps_score"] = df["ps"].apply(lambda x: log_inverted(x, 0.7, 20))
-    S["value_score"] = S[["earnings_yield_score", "fcf_yield_score", "shareholder_yield_score", "ev_ebitda_score", "ev_ebit_score", "pb_score", "ps_score"]].mean(axis=1, skipna=True)
+    S["value_score"] = S[
+        [
+            "earnings_yield_score",
+            "fcf_yield_score",
+            "shareholder_yield_score",
+            "ev_ebitda_score",
+            "ev_ebit_score",
+            "pb_score",
+            "ps_score",
+        ]
+    ].mean(axis=1, skipna=True)
 
     S["roic_score"] = df["roic"].apply(lambda x: linear_scale(x, -0.10, 0.45))
     S["roe_score"] = df["roe"].apply(lambda x: linear_scale(x, -0.20, 0.65))
-    S["gross_margin_score"] = df["gross_margin"].apply(lambda x: linear_scale(x, 0, 0.95))
-    S["oper_margin_score"] = df["oper_margin"].apply(lambda x: linear_scale(x, -0.25, 0.45))
-    S["net_margin_score"] = df["net_margin"].apply(lambda x: linear_scale(x, -0.35, 0.40))
+    S["gross_margin_score"] = df["gross_margin"].apply(
+        lambda x: linear_scale(x, 0, 0.95)
+    )
+    S["oper_margin_score"] = df["oper_margin"].apply(
+        lambda x: linear_scale(x, -0.25, 0.45)
+    )
+    S["net_margin_score"] = df["net_margin"].apply(
+        lambda x: linear_scale(x, -0.35, 0.40)
+    )
     S["accruals_score"] = df["accruals"].apply(accrual_scale)
     S["int_coverage_score"] = df["interest_coverage"].apply(interest_cov_scale)
-    S["quality_score"] = S[["roic_score", "gross_margin_score", "oper_margin_score", "net_margin_score", "accruals_score", "int_coverage_score"]].mean(axis=1, skipna=True)
+    S["quality_score"] = S[
+        [
+            "roic_score",
+            "gross_margin_score",
+            "oper_margin_score",
+            "net_margin_score",
+            "accruals_score",
+            "int_coverage_score",
+        ]
+    ].mean(axis=1, skipna=True)
 
     S["altman_score"] = df["altman_z"].apply(lambda x: linear_scale(x, -2, 9))
     S["net_debt_ebitda_score"] = df["net_debt_ebitda"].apply(net_debt_ebitda_scale)
     S["debt_equity_score"] = df["debt_equity"].apply(debt_equity_scale)
-    S["financial_strength_score"] = S[["altman_score", "net_debt_ebitda_score", "debt_equity_score"]].mean(axis=1, skipna=True)
+    S["financial_strength_score"] = S[
+        ["altman_score", "net_debt_ebitda_score", "debt_equity_score"]
+    ].mean(axis=1, skipna=True)
 
-    S["rev_growth_score"] = df["revenue_growth"].apply(lambda x: linear_scale(x, -0.60, 1.20))
-    S["ebitda_growth_score"] = df["ebitda_growth"].apply(lambda x: linear_scale(x, -0.80, 1.50))
-    S["gm_trend_score"] = df["gross_margin_trend"].apply(lambda x: linear_scale(x, -0.12, 0.12))
-    S["growth_accel_score"] = df["growth_acceleration"].apply(lambda x: linear_scale(x, -0.50, 0.70))
-    S["growth_score"] = 0.30 * S["rev_growth_score"] + 0.30 * S["ebitda_growth_score"] + 0.20 * S["gm_trend_score"] + 0.20 * S["growth_accel_score"]
+    S["rev_growth_score"] = df["revenue_growth"].apply(
+        lambda x: linear_scale(x, -0.60, 1.20)
+    )
+    S["ebitda_growth_score"] = df["ebitda_growth"].apply(
+        lambda x: linear_scale(x, -0.80, 1.50)
+    )
+    S["gm_trend_score"] = df["gross_margin_trend"].apply(
+        lambda x: linear_scale(x, -0.12, 0.12)
+    )
+    S["growth_accel_score"] = df["growth_acceleration"].apply(
+        lambda x: linear_scale(x, -0.50, 0.70)
+    )
+    S["growth_score"] = (
+        0.30 * S["rev_growth_score"]
+        + 0.30 * S["ebitda_growth_score"]
+        + 0.20 * S["gm_trend_score"]
+        + 0.20 * S["growth_accel_score"]
+    )
 
     S["ret_1m_score"] = df["ret_1m"].apply(lambda x: linear_scale(x, -0.35, 0.35))
     S["ret_3m_score"] = df["ret_3m"].apply(lambda x: linear_scale(x, -0.50, 0.90))
     S["ret_6m_score"] = df["ret_6m"].apply(lambda x: linear_scale(x, -0.60, 1.40))
     S["ret_9m_score"] = df["ret_9m"].apply(lambda x: linear_scale(x, -0.70, 1.80))
-    S["ret_12m_ex1m_score"] = df["ret_12m_ex1m"].apply(lambda x: linear_scale(x, -0.70, 1.80))
+    S["ret_12m_ex1m_score"] = df["ret_12m_ex1m"].apply(
+        lambda x: linear_scale(x, -0.70, 1.80)
+    )
 
     def mom_accel(r1m, r3m):
         if np.isnan(r1m) or np.isnan(r3m):
             return np.nan
         return r1m - (r3m / 3.0)
 
-    accel = [mom_accel(df.loc[i, "ret_1m"], df.loc[i, "ret_3m"]) if "ret_3m" in df.columns else np.nan for i in df.index]
-    S["mom_accel_score"] = pd.Series(accel, index=df.index).apply(lambda x: linear_scale(x, -0.20, 0.25))
+    accel = [
+        (
+            mom_accel(df.loc[i, "ret_1m"], df.loc[i, "ret_3m"])
+            if "ret_3m" in df.columns
+            else np.nan
+        )
+        for i in df.index
+    ]
+    S["mom_accel_score"] = pd.Series(accel, index=df.index).apply(
+        lambda x: linear_scale(x, -0.20, 0.25)
+    )
 
-    base_mom = 0.35 * S["ret_1m_score"] + 0.35 * S["ret_3m_score"] + 0.15 * S["ret_6m_score"] + 0.10 * S["ret_9m_score"] + 0.05 * S["ret_12m_ex1m_score"]
+    base_mom = (
+        0.35 * S["ret_1m_score"]
+        + 0.35 * S["ret_3m_score"]
+        + 0.15 * S["ret_6m_score"]
+        + 0.10 * S["ret_9m_score"]
+        + 0.05 * S["ret_12m_ex1m_score"]
+    )
     penalty = (100 - S["ret_1m_score"]) * 0.15
-    S["momentum_score"] = base_mom - penalty.where(S["ret_1m_score"] < 50, 0) + 0.15 * S["mom_accel_score"]
+    S["momentum_score"] = (
+        base_mom
+        - penalty.where(S["ret_1m_score"] < 50, 0)
+        + 0.15 * S["mom_accel_score"]
+    )
 
     S["sharpe_score"] = df["sharpe_6m"].apply(sharpe_score)
     S["sortino_score"] = df["sortino_6m"].apply(sortino_score)
     S["vol_score"] = df["vol_63d"].apply(volatility_score)
     S["mdd_score"] = df["max_drawdown"].apply(drawdown_score)
-    S["risk_score"] = S[["sharpe_score", "sortino_score", "vol_score", "mdd_score"]].mean(axis=1, skipna=True)
+    S["risk_score"] = S[
+        ["sharpe_score", "sortino_score", "vol_score", "mdd_score"]
+    ].mean(axis=1, skipna=True)
 
     S["addv_score"] = df["addv_60d"].apply(addv_score)
     S["turnover_score"] = df["turnover_60d"].apply(turnover_score)
     S["spread_score"] = df["spread_proxy"].apply(spread_score)
     S["dtl_score"] = df["days_to_liq"].apply(days_to_liq_score)
-    S["liquidity_score"] = 0.35 * S["addv_score"] + 0.25 * S["turnover_score"] + 0.20 * S["spread_score"] + 0.20 * S["dtl_score"]
+    S["liquidity_score"] = (
+        0.35 * S["addv_score"]
+        + 0.25 * S["turnover_score"]
+        + 0.20 * S["spread_score"]
+        + 0.20 * S["dtl_score"]
+    )
 
-    S["piotroski_score"] = df["piotroski"].apply(lambda x: np.nan if np.isnan(x) else (x / 9) * 100)
+    S["piotroski_score"] = df["piotroski"].apply(
+        lambda x: np.nan if np.isnan(x) else (x / 9) * 100
+    )
 
     risk_multiplier = 0.85 + 0.30 * (S["risk_score"] / 100.0)
     S["growth_score_adj"] = S["growth_score"] * risk_multiplier
@@ -611,19 +769,25 @@ def load_default_universe() -> List[str]:
 def run_scoring(universe: Iterable[str]):
     merged = build_dataset(universe)
     scores = score_absolute(merged)
-    long_df = scores.reset_index().melt(id_vars="ticker", var_name="metric", value_name="value")
-    compact_cols = [c for c in [
-        "piotroski_raw",
-        "value_score",
-        "quality_score",
-        "financial_strength_score",
-        "growth_score_adj",
-        "momentum_score_adj",
-        "risk_score",
-        "liquidity_score",
-        "piotroski_score",
-        "overall_score",
-    ] if c in scores.columns]
+    long_df = scores.reset_index().melt(
+        id_vars="ticker", var_name="metric", value_name="value"
+    )
+    compact_cols = [
+        c
+        for c in [
+            "piotroski_raw",
+            "value_score",
+            "quality_score",
+            "financial_strength_score",
+            "growth_score_adj",
+            "momentum_score_adj",
+            "risk_score",
+            "liquidity_score",
+            "piotroski_score",
+            "overall_score",
+        ]
+        if c in scores.columns
+    ]
     compact = scores[compact_cols]
     return dict(wide=scores, long=long_df, compact=compact)
 

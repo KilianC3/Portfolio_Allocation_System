@@ -60,9 +60,7 @@ async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7) -> List[dict]
     return data
 
 
-async def fetch_trending_wiki_views(
-    top_k: int = 10, days: int = 7
-) -> List[dict]:
+async def fetch_trending_wiki_views(top_k: int = 10, days: int = 7) -> List[dict]:
     """Collect page views for top trending tickers by z-score.
 
     Parameters
@@ -98,8 +96,6 @@ async def fetch_trending_wiki_views(
             continue
     log.info(f"fetched {len(out)} trending wiki rows")
     return out
-
-
 
 
 """Additional portfolio builder using Wikipedia attention scores.
@@ -270,7 +266,9 @@ def load_universe_any() -> pd.DataFrame:
     raise RuntimeError("Could not load universe from any source.")
 
 
-def build_portfolio(universe_df: pd.DataFrame, top_n: int = TOP_N) -> tuple[pd.DataFrame, pd.DataFrame]:
+def build_portfolio(
+    universe_df: pd.DataFrame, top_n: int = TOP_N
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     ticker_col = None
     for cand in ("ticker", "symbol", "Symbol", "TICKER", "SYMBOL"):
         if cand in universe_df.columns:
@@ -335,7 +333,9 @@ def build_universe_portfolio() -> None:
     print(top[["ticker", "z_score", "ret_5d", "ret_20d", "momentum", "score"]])
 
     print("\n=== FULL (head 50) ===")
-    print(full.head(50)[["ticker", "z_score", "ret_5d", "ret_20d", "momentum", "score"]])
+    print(
+        full.head(50)[["ticker", "z_score", "ret_5d", "ret_20d", "momentum", "score"]]
+    )
 
     out_path = os.path.join(REPO_ROOT, "data", "universe_portfolio.csv")
     try:
