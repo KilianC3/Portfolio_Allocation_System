@@ -286,5 +286,9 @@ async def fetch_changes(symbols: Iterable[str], weeks: int = 4) -> pd.DataFrame:
 
 if __name__ == "__main__":
     df_raw, df_top = fetch_upgrades(limit=300)
-    print("Raw parsed shape:", df_raw.shape)
-    print("Top filtered shape:", df_top.shape)
+    if df_raw is None:
+        df = pd.DataFrame()
+    else:
+        df = df_top if not df_top.empty else df_raw
+    cols = df.shape[1] if not df.empty else 0
+    print(f"ROWS={len(df)} COLUMNS={cols}")
