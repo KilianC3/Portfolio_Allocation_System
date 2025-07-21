@@ -8,9 +8,9 @@ from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, wiki_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
-from service.logger import get_logger
+from service.logger import get_scraper_logger
 
-log = get_logger(__name__)
+log = get_scraper_logger(__name__)
 from strategies.wiki_attention import index_map, wiki_title
 
 wiki_collection = wiki_coll if db else pf_coll
@@ -23,7 +23,7 @@ async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7) -> List[dict]
     log.info(f"fetch_wiki_views start page={page}")
     init_db()
 
-    end = dt.date.today() - dt.timedelta(days=1)
+    end = dt.datetime.utcnow().date() - dt.timedelta(days=2)
     start = end - dt.timedelta(days=days - 1)
     url = (
         "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/"

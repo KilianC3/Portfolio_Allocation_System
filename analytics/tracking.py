@@ -18,7 +18,7 @@ from database import (
 )
 from analytics.utils import portfolio_metrics
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
-from analytics.fundamentals import compute_fundamental_metrics
+from analytics.fundamentals import compute_fundamental_metrics, yf_symbol
 import numpy as np
 from metrics import scrape_latency, scrape_errors
 from service.logger import get_logger
@@ -97,8 +97,9 @@ def _fetch_history(symbols: Iterable[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
         idx = pd.date_range(end=dt.date.today(), periods=1)
         return pd.DataFrame(index=idx), pd.DataFrame(index=idx)
 
+    yf_map = {yf_symbol(s): s for s in syms}
     df = yf.download(
-        syms,
+        list(yf_map.keys()),
         period="13mo",
         interval="1d",
         group_by="ticker",
@@ -108,12 +109,19 @@ def _fetch_history(symbols: Iterable[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
     closes = df["Close"]
     vols = df["Volume"] if "Volume" in df else None
     if isinstance(closes, pd.Series):
-        closes = closes.to_frame(syms[0])
+        key = list(yf_map.keys())[0]
+        closes = closes.to_frame(key)
         vols = (
-            vols.to_frame(syms[0])
+            vols.to_frame(key)
             if vols is not None
-            else pd.DataFrame(index=closes.index, columns=[syms[0]])
+            else pd.DataFrame(index=closes.index, columns=[key])
         )
+    closes = closes.rename(columns=yf_map)
+    if vols is not None:
+        vols = vols.rename(columns=yf_map)
+    missing = [orig for yf_t, orig in yf_map.items() if yf_t not in closes.columns]
+    for m in missing:
+        log.warning(f"no price data for {m}")
     if vols is None:
         vols = pd.DataFrame(1.0, index=closes.index, columns=closes.columns)
     return closes.dropna(how="all"), vols.reindex(closes.index)
@@ -225,11 +233,7 @@ def update_ticker_scores(symbols: Iterable[str], index_name: str) -> None:
             "symbol": row["symbol"],
             "index_name": row["index_name"],
             "date": today,
-            "fundamentals": float(row["fundamentals_score"]),
-            "momentum": float(row["momentum_score"]),
-            "liquidity_sentiment": float(row["liq_sent_score"]),
-            "risk_adjusted": float(row["risk_perf_score"]),
-            "overall": float(row["overall_score"]),
+            "score": float(row["overall_score"]),
         }
         ticker_score_coll.update_one(
             {"symbol": doc["symbol"], "date": today},
@@ -262,11 +266,7 @@ def update_all_ticker_scores() -> None:
             "symbol": row["symbol"],
             "index_name": row["index_name"],
             "date": today,
-            "fundamentals": float(row["fundamentals_score"]),
-            "momentum": float(row["momentum_score"]),
-            "liquidity_sentiment": float(row["liq_sent_score"]),
-            "risk_adjusted": float(row["risk_perf_score"]),
-            "overall": float(row["overall_score"]),
+            "score": float(row["overall_score"]),
         }
         ticker_score_coll.update_one(
             {"symbol": doc["symbol"], "date": today},
@@ -287,14 +287,14 @@ def record_top_scores(top_n: int = 20) -> None:
     df = pd.DataFrame(list(cur))
     if df.empty:
         return
-    df = df.sort_values("overall", ascending=False).head(top_n)
+    df = df.sort_values("score", ascending=False).head(top_n)
     top_score_coll.delete_many({"date": latest_date})
     for rank, row in enumerate(df.itertuples(index=False), 1):
         doc = {
             "date": latest_date,
             "symbol": row.symbol,
             "index_name": row.index_name,
-            "score": float(row.overall),
+            "score": float(row.score),
             "rank": rank,
         }
         top_score_coll.update_one(

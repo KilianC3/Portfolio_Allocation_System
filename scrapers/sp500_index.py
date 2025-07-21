@@ -8,9 +8,9 @@ import yfinance as yf
 from infra.data_store import append_snapshot
 from database import db, init_db
 from metrics import scrape_latency, scrape_errors
-from service.logger import get_logger
+from service.logger import get_scraper_logger
 
-log = get_logger(__name__)
+log = get_scraper_logger(__name__)
 
 sp500_coll = db["sp500_index"]
 

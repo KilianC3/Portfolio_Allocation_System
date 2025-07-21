@@ -13,25 +13,25 @@ from typing import Callable, Any
 sync_playwright: Callable[..., Any] | None
 try:
     from playwright.sync_api import sync_playwright as _sp
+
     sync_playwright = _sp
 except Exception:  # noqa: S110 - optional dependency
     sync_playwright = None
 
 from database import init_db, universe_coll
 from io import StringIO
-from service.logger import get_logger
+from service.logger import get_scraper_logger
 
 DATA_DIR = Path("cache") / "universes"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
-log = get_logger(__name__)
+log = get_scraper_logger(__name__)
 
 SP500_URL = "https://datahub.io/core/s-and-p-500-companies/_r/-/data/constituents.csv"
 SP400_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_400_companies"
 R2000_URL = "https://en.wikipedia.org/wiki/List_of_Russell_2000_companies"
 FINANCHLE_URL = "https://financhle.com/russell2000-companies-by-weight"
 MARKETSCREENER_URL = (
-    "https://www.marketscreener.com/quote/index/"
-    "RUSSELL-2000-157793769/components/"
+    "https://www.marketscreener.com/quote/index/" "RUSSELL-2000-157793769/components/"
 )
 
 
@@ -92,7 +92,11 @@ def _tickers_from_marketscreener() -> List[str]:
     if table is None:
         return []
     df = pd.read_html(StringIO(str(table)))[0]
-    col = [c for c in df.columns if "symbol" in str(c).lower() or "ticker" in str(c).lower()]
+    col = [
+        c
+        for c in df.columns
+        if "symbol" in str(c).lower() or "ticker" in str(c).lower()
+    ]
     if col:
         col = col[0]
     else:

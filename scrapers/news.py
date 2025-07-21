@@ -10,9 +10,9 @@ from infra.rate_limiter import DynamicRateLimiter
 from database import db, pf_coll
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
-from service.logger import get_logger
+from service.logger import get_scraper_logger
 
-log = get_logger(__name__)
+log = get_scraper_logger(__name__)
 
 news_coll = db["news_headlines"] if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)

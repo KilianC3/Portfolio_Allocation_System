@@ -1,7 +1,7 @@
 from .collector import record_snapshot
 from .covariance import estimate_covariance
 from .tracking import update_all_metrics, update_all_ticker_scores
-from .fundamentals import compute_fundamental_metrics
+from .fundamentals import compute_fundamental_metrics, yf_symbol
 from .robust import minmax_portfolio
 from .account import record_account
 from .allocation_engine import compute_weights
@@ -25,4 +25,5 @@ __all__ = [
     "sector_exposures",
     "ticker_sector",
     "compute_fundamental_metrics",
+    "yf_symbol",
 ]

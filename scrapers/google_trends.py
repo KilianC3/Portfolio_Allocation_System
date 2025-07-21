@@ -7,6 +7,7 @@ from bs4.element import Tag
 async_playwright: Any
 try:
     from playwright.async_api import async_playwright as _ap
+
     HAVE_PW = True
     async_playwright = _ap
 except Exception:  # noqa: S110
@@ -19,9 +20,9 @@ from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
-from service.logger import get_logger
+from service.logger import get_scraper_logger
 
-log = get_logger(__name__)
+log = get_scraper_logger(__name__)
 
 trends_coll = db["google_trends"] if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
@@ -39,7 +40,11 @@ def parse_google_trends(html: str) -> List[dict]:
             continue
         ticker = tds[0].upper()
         score = tds[1]
-        date = tds[2] if len(tds) > 2 else dt.datetime.now(dt.timezone.utc).date().isoformat()
+        date = (
+            tds[2]
+            if len(tds) > 2
+            else dt.datetime.now(dt.timezone.utc).date().isoformat()
+        )
         try:
             score_f = float(score)
         except Exception:

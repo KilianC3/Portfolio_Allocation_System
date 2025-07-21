@@ -8,9 +8,9 @@ from __future__ import annotations
 import math, datetime as dt, requests, pandas as pd
 from typing import List
 
-from service.logger import get_logger
+from service.logger import get_scraper_logger
 
-log = get_logger(__name__)
+log = get_scraper_logger(__name__)
 
 BASE = "https://apewisdom.io/api/v1.0/filter/{filter}/page/{page}"
 FILTERS = {
