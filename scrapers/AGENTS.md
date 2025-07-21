@@ -13,7 +13,7 @@ Scrapers store their results via `database/` helpers and are triggered on
 startup by the scheduler. Each scraper hits the URLs documented in the README,
 including QuiverQuant pages and the Wikimedia API. Playwright is used for
 Google Trends, lobbying and Finviz. All scrapers obtain a logger via
-`get_logger(__name__)` so log output is consistent across modules.
+`get_scraper_logger(__name__)` so log output is consistent across modules.
 Network errors are handled by a simple retry helper. The `DynamicRateLimiter`
 ensures polite crawling so external services are not overwhelmed.
 

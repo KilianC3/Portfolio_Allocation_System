@@ -75,13 +75,13 @@ def test_record_top_scores(monkeypatch):
         {
             "symbol": "AAPL",
             "index_name": "S&P500",
-            "overall": 9.0,
+            "score": 9.0,
             "date": dt.date(2024, 1, 1),
         },
         {
             "symbol": "MSFT",
             "index_name": "S&P500",
-            "overall": 8.5,
+            "score": 8.5,
             "date": dt.date(2024, 1, 1),
         },
     ]

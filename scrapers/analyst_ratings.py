@@ -14,10 +14,10 @@ from bs4 import BeautifulSoup, Tag
 from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
-from service.logger import get_logger
+from service.logger import get_scraper_logger
 
 analyst_coll = db["analyst_ratings"] if db else pf_coll
-log = get_logger(__name__)
+log = get_scraper_logger(__name__)
 
 URL = "https://www.benzinga.com/analyst-stock-ratings/upgrades"
 

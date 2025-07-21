@@ -3,10 +3,18 @@ from __future__ import annotations
 import math
 from typing import Iterable, Sequence, Dict, Optional, cast
 
+from service.logger import get_logger
+
 import numpy as np
 import pandas as pd
 import yfinance as yf
 
+log = get_logger(__name__)
+
+
+def yf_symbol(sym: str) -> str:
+    """Return Yahoo Finance compatible ticker."""
+    return sym.replace(".", "-")
 
 
 def _val(df: pd.DataFrame, keys: Sequence[str], idx: int = 0) -> float:
@@ -206,15 +214,27 @@ def _beneish(t: yf.Ticker) -> float:
 
 def compute_fundamental_metrics(symbol: str) -> Dict[str, Optional[float]]:
     """Return fundamental metrics for ``symbol`` computed from statements."""
-    t = yf.Ticker(symbol)
-    info = t.info
-    metrics = {
-        "piotroski": _piotroski(t),
-        "altman": _altman(t),
-        "roic": _roic(t),
-        "fcf_yield": _fcf_yield(t),
-        "beneish": _beneish(t),
-        "short_ratio": cast(Optional[float], info.get("shortRatio")),
-        "insider_buying": cast(Optional[float], info.get("heldPercentInsiders")),
-    }
+    t = yf.Ticker(yf_symbol(symbol))
+    try:
+        info = t.info
+        metrics = {
+            "piotroski": _piotroski(t),
+            "altman": _altman(t),
+            "roic": _roic(t),
+            "fcf_yield": _fcf_yield(t),
+            "beneish": _beneish(t),
+            "short_ratio": cast(Optional[float], info.get("shortRatio")),
+            "insider_buying": cast(Optional[float], info.get("heldPercentInsiders")),
+        }
+    except Exception as exc:  # pragma: no cover - network optional
+        log.warning(f"fundamental metrics failed for {symbol}: {exc}")
+        metrics = {
+            "piotroski": math.nan,
+            "altman": math.nan,
+            "roic": math.nan,
+            "fcf_yield": math.nan,
+            "beneish": math.nan,
+            "short_ratio": math.nan,
+            "insider_buying": math.nan,
+        }
     return metrics

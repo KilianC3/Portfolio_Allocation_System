@@ -7,6 +7,7 @@ from bs4.element import Tag
 async_playwright: Any
 try:
     from playwright.async_api import async_playwright as _ap
+
     HAVE_PW = True
     async_playwright = _ap
 except Exception:  # noqa: S110
@@ -18,13 +19,14 @@ from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, lobbying_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
-from service.logger import get_logger
+from service.logger import get_scraper_logger
 
-log = get_logger(__name__)
+log = get_scraper_logger(__name__)
 
 # fallback to pf_coll when db not available in testing
 lobby_coll = lobbying_coll if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
+
 
 def parse_lobbying(html: str) -> List[dict]:
     soup = BeautifulSoup(html, "html.parser")
@@ -50,12 +52,14 @@ def parse_lobbying(html: str) -> List[dict]:
             amount = float(amount_raw)
         except Exception:
             continue
-        rows.append({
-            "ticker": ticker,
-            "client": client,
-            "amount": amount,
-            "date": date,
-        })
+        rows.append(
+            {
+                "ticker": ticker,
+                "client": client,
+                "amount": amount,
+                "date": date,
+            }
+        )
     return rows
 
 

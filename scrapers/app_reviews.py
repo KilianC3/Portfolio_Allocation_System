@@ -9,11 +9,11 @@ from infra.smart_scraper import get as scrape_get
 from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
-from service.logger import get_logger
+from service.logger import get_scraper_logger
 
 app_reviews_coll = db["app_reviews"] if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
-log = get_logger(__name__)
+log = get_scraper_logger(__name__)
 
 
 async def fetch_app_reviews() -> List[dict]:
