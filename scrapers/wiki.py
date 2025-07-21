@@ -293,9 +293,8 @@ def build_portfolio(
             z_col = cand
             break
     if z_col is None:
-        rng = np.random.default_rng(seed=42)
-        df["z_score"] = rng.normal(0, 1, len(df)) + 1.0
-        print("[INFO] No z_score column found; fabricated placeholder scores.")
+        print("[INFO] No z_score column found; skipping z-score weighting.")
+        df["z_score"] = 0.0
     else:
         df["z_score"] = pd.to_numeric(df[z_col], errors="coerce").fillna(0.0)
 
@@ -316,6 +315,11 @@ def build_portfolio(
 
     full = full.sort_values("score", ascending=False).reset_index(drop=True)
     top = full.head(top_n).copy()
+
+    if z_col is None:
+        full = full.drop(columns=["z_score", "z_norm"])
+        top = top.drop(columns=["z_score", "z_norm"])
+
     return top, full
 
 
@@ -330,12 +334,13 @@ def build_universe_portfolio() -> None:
     elapsed = time.time() - start_time
 
     print("\n=== TOP SELECTION ===")
-    print(top[["ticker", "z_score", "ret_5d", "ret_20d", "momentum", "score"]])
+    cols = ["ticker", "ret_5d", "ret_20d", "momentum", "score"]
+    if "z_score" in top.columns:
+        cols.insert(1, "z_score")
+    print(top[cols])
 
     print("\n=== FULL (head 50) ===")
-    print(
-        full.head(50)[["ticker", "z_score", "ret_5d", "ret_20d", "momentum", "score"]]
-    )
+    print(full.head(50)[cols])
 
     out_path = os.path.join(REPO_ROOT, "data", "universe_portfolio.csv")
     try:
