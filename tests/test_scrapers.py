@@ -12,7 +12,6 @@ import scrapers.analyst_ratings as ar
 import scrapers.universe as univ
 import scrapers.sp500_index as spx
 import scrapers.google_trends as gt
-import scrapers.finviz_fundamentals as fin
 
 
 async def _fake_get(*_args, **_kw):
@@ -251,45 +250,3 @@ async def test_lobbying_no_table(monkeypatch):
     assert rows == []
 
 
-def test_finviz_sync(monkeypatch):
-    class DummyPW:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_):
-            pass
-
-        class firefox:
-            @staticmethod
-            def launch(headless=True):
-                class B:
-                    def new_page(self):
-                        class P:
-                            def set_extra_http_headers(self, *_):
-                                pass
-
-                            def goto(self, _):
-                                pass
-
-                            def content(self):
-                                return (
-                                    "<table class='snapshot-table2'>"
-                                    "<tr><td>Short Ratio</td><td>2</td></tr>"
-                                    "<tr><td>Insider Trans</td><td>0%</td></tr>"
-                                    "</table>"
-                                )
-
-                        return P()
-
-                    def close(self):
-                        pass
-
-                return B()
-
-    monkeypatch.setattr(fin, "sync_playwright", lambda: DummyPW())
-    class DummyTicker:
-        info = {"shortRatio": 1}
-
-    monkeypatch.setattr(fin.yf, "Ticker", lambda s: DummyTicker())
-    data = fin.fetch_fundamentals("AAPL")
-    assert data["short_ratio"] == 2.0

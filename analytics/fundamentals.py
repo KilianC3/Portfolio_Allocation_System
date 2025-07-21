@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
-from scrapers.finviz_fundamentals import fetch_fundamentals
 
 
 def _val(df: pd.DataFrame, keys: Sequence[str], idx: int = 0) -> float:
@@ -208,14 +207,14 @@ def _beneish(t: yf.Ticker) -> float:
 def compute_fundamental_metrics(symbol: str) -> Dict[str, Optional[float]]:
     """Return fundamental metrics for ``symbol`` computed from statements."""
     t = yf.Ticker(symbol)
-    data = fetch_fundamentals(symbol)
+    info = t.info
     metrics = {
         "piotroski": _piotroski(t),
         "altman": _altman(t),
         "roic": _roic(t),
         "fcf_yield": _fcf_yield(t),
         "beneish": _beneish(t),
-        "short_ratio": cast(Optional[float], data.get("short_ratio")),
-        "insider_buying": cast(Optional[float], data.get("insider_buying")),
+        "short_ratio": cast(Optional[float], info.get("shortRatio")),
+        "insider_buying": cast(Optional[float], info.get("heldPercentInsiders")),
     }
     return metrics

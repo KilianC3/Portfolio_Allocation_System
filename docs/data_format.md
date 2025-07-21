@@ -43,8 +43,6 @@ under `cache/universes/` for offline use.
 Composite scores in `ticker_scores` are calculated by ranking each metric
 across the entire universe and applying the weights listed in the README.
 The `top_scores` table archives the highest ranked names after each monthly update.
-Fundamental ratios like the Piotroski F‑Score, Altman Z‑Score, ROIC,
-Free Cash Flow Yield and the Beneish M‑Score are computed from Yahoo
-Finance statements with Finviz providing short interest and insider
-transaction data.
+Fundamental ratios like the Piotroski F‑Score, Altman Z‑Score, ROIC and
+Free Cash Flow Yield are computed entirely from Yahoo Finance statements.
 `weight_history` simply records the raw weight vector for each portfolio.

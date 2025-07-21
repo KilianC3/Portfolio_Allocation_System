@@ -10,7 +10,7 @@ from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 from service.logger import get_logger
-from .apewisdom_api import get_mentions as aw_get_mentions
+from .wallstreetbets_api import get_mentions as aw_get_mentions
 
 log = get_logger(__name__)
 

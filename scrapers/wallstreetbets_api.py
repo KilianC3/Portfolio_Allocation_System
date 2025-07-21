@@ -99,4 +99,3 @@ def get_mentions(filter_name: str = "wallstreetbets", limit: int = 20) -> pd.Dat
 if __name__ == "__main__":
     df = get_mentions("wallstreetbets", 20)
     print(f"ROWS={len(df)} COLUMNS={df.shape[1]}")
-

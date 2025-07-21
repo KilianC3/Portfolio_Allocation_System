@@ -112,7 +112,11 @@ def fetch_upgrades(limit: int = 200) -> Tuple[pd.DataFrame, pd.DataFrame]:
         pt_curr = rec.get("pt_current")
         pct = rec.get("pt_pct_change")
         try:
-            if (pct is None or pct == "" or str(pct).lower() == "nan") and pt_prior and pt_curr:
+            if (
+                (pct is None or pct == "" or str(pct).lower() == "nan")
+                and pt_prior
+                and pt_curr
+            ):
                 pt_prior_f = float(pt_prior)
                 pt_curr_f = float(pt_curr)
                 if pt_prior_f:
@@ -146,14 +150,22 @@ def fetch_upgrades(limit: int = 200) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     df["action_lower"] = df["action"].fillna("").str.lower()
     df["rating_lower"] = df["rating_current"].fillna("").str.lower()
-    df["upgrade_action"] = df["action_lower"].apply(lambda x: any(t in x for t in UPGRADE_TERMS))
-    df["bullish_rating"] = df["rating_lower"].apply(lambda x: any(b in x for b in BULLISH_RATINGS))
+    df["upgrade_action"] = df["action_lower"].apply(
+        lambda x: any(t in x for t in UPGRADE_TERMS)
+    )
+    df["bullish_rating"] = df["rating_lower"].apply(
+        lambda x: any(b in x for b in BULLISH_RATINGS)
+    )
     df["significant_pt_move"] = df["pt_pct_change"].abs() >= PT_CHANGE_THRESHOLD
 
-    signal = df[df["upgrade_action"] | df["bullish_rating"] | df["significant_pt_move"]].copy()
+    signal = df[
+        df["upgrade_action"] | df["bullish_rating"] | df["significant_pt_move"]
+    ].copy()
 
     if KEEP_NA_IMPORTANCE:
-        high_rated = signal[(signal["importance"].isna()) | (signal["importance"] >= IMPORTANCE_MIN)]
+        high_rated = signal[
+            (signal["importance"].isna()) | (signal["importance"] >= IMPORTANCE_MIN)
+        ]
     else:
         high_rated = signal[signal["importance"] >= IMPORTANCE_MIN]
 
@@ -161,7 +173,9 @@ def fetch_upgrades(limit: int = 200) -> Tuple[pd.DataFrame, pd.DataFrame]:
         cutoff = None
         if high_rated["date"].notna().any():
             cutoff = high_rated["date"].max() - pd.Timedelta(days=MOMENTUM_DAYS)
-        window_df = high_rated if cutoff is None else high_rated[high_rated["date"] >= cutoff]
+        window_df = (
+            high_rated if cutoff is None else high_rated[high_rated["date"] >= cutoff]
+        )
         momentum_counts = window_df.groupby("ticker").size().rename("momentum_count")
         high_rated = high_rated.merge(momentum_counts, on="ticker", how="left")
     else:
@@ -171,9 +185,13 @@ def fetch_upgrades(limit: int = 200) -> Tuple[pd.DataFrame, pd.DataFrame]:
     high_rated["momentum_window_days"] = MOMENTUM_DAYS
 
     high_rated["abs_pt_move"] = high_rated["pt_pct_change"].abs()
-    high_rated["score"] = high_rated["abs_pt_move"].fillna(0) * (1 + 0.15 * high_rated["momentum_count"]) + 2 * high_rated["importance"].fillna(0)
+    high_rated["score"] = high_rated["abs_pt_move"].fillna(0) * (
+        1 + 0.15 * high_rated["momentum_count"]
+    ) + 2 * high_rated["importance"].fillna(0)
 
-    ranked = high_rated.sort_values(["score", "abs_pt_move"], ascending=False).head(TOP_N)
+    ranked = high_rated.sort_values(["score", "abs_pt_move"], ascending=False).head(
+        TOP_N
+    )
 
     display_cols = [
         "date",
@@ -286,5 +304,9 @@ async def fetch_changes(symbols: Iterable[str], weeks: int = 4) -> pd.DataFrame:
 
 if __name__ == "__main__":
     df_raw, df_top = fetch_upgrades(limit=300)
-    print("Raw parsed shape:", df_raw.shape)
-    print("Top filtered shape:", df_top.shape)
+    if df_raw is None:
+        df = pd.DataFrame()
+    else:
+        df = df_top if not df_top.empty else df_raw
+    cols = df.shape[1] if not df.empty else 0
+    print(f"ROWS={len(df)} COLUMNS={cols}")
