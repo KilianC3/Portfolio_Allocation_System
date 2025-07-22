@@ -9,6 +9,7 @@ from execution.gateway import AlpacaGateway
 from analytics.allocation_engine import compute_weights
 from database import metric_coll
 from analytics import update_all_metrics, record_account, update_all_ticker_scores
+from scrapers.wallstreetbets import fetch_wsb_mentions
 
 _log = get_logger("sched")
 
@@ -62,6 +63,9 @@ class StrategyScheduler:
         def ticker_job():
             update_all_ticker_scores()
 
+        async def wsb_job():
+            await fetch_wsb_mentions()
+
         async def account_job():
             gw_main = AlpacaGateway(allow_live=ALLOW_LIVE)
             try:
@@ -81,7 +85,16 @@ class StrategyScheduler:
         )
         self.scheduler.add_job(metrics_job, "cron", hour=0, minute=5, id="metrics")
         self.scheduler.add_job(
-            ticker_job, "cron", day_of_week="sun", hour=6, minute=0, id="ticker_scores"
+            ticker_job,
+            "cron",
+            id="ticker_scores",
+            **CRON["monthly"],
+        )
+        self.scheduler.add_job(
+            wsb_job,
+            "cron",
+            id="wsb_mentions",
+            **CRON["monthly"],
         )
         self.scheduler.add_job(account_job, "cron", hour=0, minute=0, id="account")
         self.scheduler.start()

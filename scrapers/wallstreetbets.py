@@ -52,7 +52,7 @@ def fetch_page(filter_name: str, page: int) -> dict:
     return r.json()
 
 
-def get_mentions(filter_name: str = "wallstreetbets", limit: int = 20) -> pd.DataFrame:
+def get_mentions(filter_name: str = "wallstreetbets", limit: int = 15) -> pd.DataFrame:
     """Return ``limit`` most mentioned tickers for ``filter_name``."""
     log.info(f"get_mentions start filter={filter_name} limit={limit}")
     if filter_name not in FILTERS:
