@@ -606,8 +606,10 @@ def sector_exposure(pf_id: str):
 
 
 @app.get("/analytics/{pf_id}")
-def get_analytics(pf_id: str, start: Optional[str] = None, end: Optional[str] = None):
-    q = {"portfolio_id": pf_id}
+def get_analytics(
+    pf_id: str, start: Optional[str] = None, end: Optional[str] = None
+) -> Dict[str, Any]:
+    q: Dict[str, Any] = {"portfolio_id": pf_id}
     if start or end:
         q["date"] = {}
     if start:
