@@ -31,7 +31,11 @@ async def test_run_scrapers(monkeypatch):
     monkeypatch.setattr(boot, "fetch_analyst_ratings", fake)
     monkeypatch.setattr(boot, "fetch_stock_news", fake)
     monkeypatch.setattr(boot, "fetch_insider_buying", fake)
-    monkeypatch.setattr(boot, "fetch_sp500_history", lambda d: [{"close": 1}])
+    monkeypatch.setattr(
+        boot,
+        "fetch_sp500_history",
+        lambda d: [{"open": 1, "high": 1, "low": 1, "close": 1, "volume": 1}],
+    )
     monkeypatch.setattr(boot, "update_all_ticker_scores", lambda: calls.append("s"))
 
     await boot.run_scrapers()

@@ -7,8 +7,9 @@ from scrapers import wallstreetbets as wsb
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--days", type=int, default=1,
-                    help="ignored; kept for backward compatibility")
+    ap.add_argument(
+        "--days", type=int, default=1, help="ignored; kept for backward compatibility"
+    )
     ap.add_argument("--top", type=int, default=20)
     args = ap.parse_args()
 

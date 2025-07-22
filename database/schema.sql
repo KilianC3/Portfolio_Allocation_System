@@ -166,7 +166,11 @@ CREATE TABLE IF NOT EXISTS reddit_mentions (
 CREATE TABLE IF NOT EXISTS sp500_index (
     id SERIAL PRIMARY KEY,
     date TEXT UNIQUE,
+    open DOUBLE PRECISION,
+    high DOUBLE PRECISION,
+    low DOUBLE PRECISION,
     close DOUBLE PRECISION,
+    volume BIGINT,
     _retrieved TIMESTAMPTZ
 );
 

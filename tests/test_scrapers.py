@@ -59,7 +59,16 @@ async def _fake_get_wiki(*_args, **_kw):
 @mock.patch.object(
     spx.yf,
     "download",
-    return_value=pd.DataFrame({"Close": [5000]}, index=pd.to_datetime(["2024-01-01"])),
+    return_value=pd.DataFrame(
+        {
+            "Open": [4950],
+            "High": [5050],
+            "Low": [4900],
+            "Close": [5000],
+            "Volume": [1000000],
+        },
+        index=pd.to_datetime(["2024-01-01"]),
+    ),
 )
 @mock.patch.object(spx, "sp500_coll", new=mock.Mock())
 @pytest.mark.asyncio
@@ -79,7 +88,6 @@ async def test_scraper_suite(
 
         async def __aexit__(self, *_):
             pass
-
 
         class chromium:
             @staticmethod
@@ -113,7 +121,7 @@ async def test_scraper_suite(
     w = await wiki.fetch_wiki_views()
     index = spx.fetch_sp500_history(1)
     assert d and l and g and p and w and index
-    print(index[0])
+    assert "open" in index[0]
 
 
 def test_helpers(monkeypatch, tmp_path):
@@ -181,8 +189,8 @@ async def test_google_trends_json(monkeypatch):
 
                             async def content(self):
                                 return (
-                                    "<table><tr><th>Ticker</th><th>Val1</th><th>Date" 
-                                    "</th></tr><tr><td>AAPL</td><td>1</td><td>2024-01-01" 
+                                    "<table><tr><th>Ticker</th><th>Val1</th><th>Date"
+                                    "</th></tr><tr><td>AAPL</td><td>1</td><td>2024-01-01"
                                     "</td></tr></table>"
                                 )
 
@@ -248,5 +256,3 @@ async def test_lobbying_no_table(monkeypatch):
     monkeypatch.setattr(lb, "async_playwright", lambda: DummyPW())
     rows = await lb.fetch_lobbying_data()
     assert rows == []
-
-

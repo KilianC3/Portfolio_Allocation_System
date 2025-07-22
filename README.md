@@ -34,17 +34,25 @@ performance monitoring.
 2. Edit `service/config.yaml` with your Postgres URI, Alpaca keys,
    `FRED_API_KEY` and an `API_TOKEN` that clients will use for
    authentication.
-3. Run the bootstrap script to install dependencies, load all datasets
+3. Enable remote Postgres access so other machines can reach the
+   database. Edit `/etc/postgresql/<version>/main/postgresql.conf`
+   and set `listen_addresses = '*'`. Then add a line to
+   `pg_hba.conf`:
+   `host all all 0.0.0.0/0 md5`. Restart Postgres and ensure port
+   `5432` is open in your firewall. Update `PG_URI` with the server's
+   IP address. Connect using PgAdmin4 with the same credentials
+   from `service/config.yaml`.
+4. Run the bootstrap script to install dependencies, load all datasets
    and start the service under systemd
    ```bash
    sudo scripts/bootstrap.sh
    ```
    When the script completes the API is running on port `8001`.
-4. Open the dashboard in your browser to verify the service
+5. Open the dashboard in your browser to verify the service
    ```
    http://localhost:8001/dashboard?token=<YOUR_TOKEN>
    ```
-5. (Optional) install test dependencies and run the unit tests
+6. (Optional) install test dependencies and run the unit tests
    ```bash
    pip install -r deploy/requirements-test.txt
    pytest -q
@@ -105,7 +113,7 @@ performance monitoring.
 - `news_headlines`
 - `analyst_ratings`
 - `insider_buying`
-- `sp500_index`
+- `sp500_index` – weekly OHLCV history for the S&P 500
 - `universe` – full list of tradable symbols with `index_name`
 - Ticker constituents from the S&P 500, S&P 400 and Russell 2000 populate this table
 - `portfolios` – stored weights for each strategy
