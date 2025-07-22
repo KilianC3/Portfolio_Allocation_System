@@ -2,26 +2,35 @@
 
 from __future__ import annotations
 
-import os
+import datetime as dt
 from typing import List, Dict
 
 import pandas as pd
-import duckdb
 
-DB_PATH = os.getenv("DATA_DB_PATH", "data/altdata.duckdb")
+from database import db
 
 
 def append_snapshot(table: str, records: List[Dict]) -> None:
-    """Append records to the DuckDB table creating it if necessary."""
-    if not records:
+    """Insert ``records`` into the Postgres table if a connection is available."""
+    if not records or not db.conn:
         return
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    con = duckdb.connect(DB_PATH)
-    df = pd.DataFrame(records)
-    for c in df.select_dtypes(include=["datetimetz"]):
-        df[c] = df[c].dt.tz_convert(None)
-    con.register("_tmp", df)
-    con.execute(f"CREATE TABLE IF NOT EXISTS {table} AS SELECT * FROM _tmp LIMIT 0")
-    con.execute(f"INSERT INTO {table} SELECT * FROM _tmp")
-    con.unregister("_tmp")
-    con.close()
+    coll = db[table]
+    data = []
+    for row in records:
+        item = row.copy()
+        for col, val in item.items():
+            if isinstance(val, dt.datetime):
+                item[col] = val.replace(tzinfo=None)
+        data.append(item)
+    try:
+        coll.insert_many(data)
+    except Exception:
+        pass
+
+
+def has_recent_rows(table: str, since: dt.datetime) -> bool:
+    """Return True if ``table`` contains recent rows in Postgres."""
+    if not db.conn:
+        return False
+    coll = db[table]
+    return coll.count_documents({"_retrieved": {"$gte": since}}) > 0

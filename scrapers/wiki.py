@@ -234,36 +234,13 @@ def load_universe_from_collection() -> pd.DataFrame | None:
         return None
 
 
-def load_universe_from_duckdb() -> pd.DataFrame | None:
-    duck_path = os.path.join(REPO_ROOT, "data", "altdata.duckdb")
-    if not os.path.exists(duck_path):
-        return None
-    try:
-        import duckdb
-
-        con = duckdb.connect(duck_path, read_only=True)
-        tables = [r[0] for r in con.execute("SHOW TABLES").fetchall()]
-        matches = [t for t in tables if t.lower() == "universe"]
-        if not matches:
-            return None
-        tbl = matches[0]
-        return con.execute(f"SELECT * FROM {tbl}").fetchdf()
-    except Exception as exc:
-        print(f"[INFO] DuckDB universe load failed: {exc}")
-        return None
-
-
 def load_universe_any() -> pd.DataFrame:
     init_db()
     df = load_universe_from_collection()
     if df is not None:
         print(f"[INFO] Loaded universe from collection: shape={df.shape}")
         return df
-    df = load_universe_from_duckdb()
-    if df is not None:
-        print(f"[INFO] Loaded universe from DuckDB: shape={df.shape}")
-        return df
-    raise RuntimeError("Could not load universe from any source.")
+    raise RuntimeError("Could not load universe from Postgres.")
 
 
 def build_portfolio(

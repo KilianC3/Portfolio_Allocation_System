@@ -11,7 +11,24 @@ if str(ROOT) not in sys.path:
 
 import requests
 import pandas as pd
-from service.config import API_TOKEN
+
+try:
+    from service.config import API_TOKEN
+except Exception:
+
+    def _parse_simple_yaml(path: Path) -> dict:
+        data = {}
+        if path.exists():
+            for raw in path.read_text().splitlines():
+                line = raw.split("#", 1)[0].strip()
+                if not line or ":" not in line:
+                    continue
+                k, v = line.split(":", 1)
+                data[k.strip()] = v.strip().strip("'\"")
+        return data
+
+    cfg = ROOT / "service" / "config.yaml"
+    API_TOKEN = _parse_simple_yaml(cfg).get("API_TOKEN")
 
 BASE_URL = os.environ.get("API_BASE", "http://localhost:8001")
 TOKEN = API_TOKEN or os.environ.get("API_TOKEN", "")
