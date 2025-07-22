@@ -607,26 +607,19 @@ def sector_exposure(pf_id: str):
 
 @app.get("/analytics/{pf_id}")
 def get_analytics(pf_id: str, start: Optional[str] = None, end: Optional[str] = None):
-    import duckdb
-
-    con = duckdb.connect("analytics.duckdb")
-    try:
-        q = "SELECT * FROM snapshots WHERE portfolio_id=?"
-        params = [pf_id]
-        if start:
-            q += " AND date>=?"
-            params.append(start)
-        if end:
-            q += " AND date<=?"
-            params.append(end)
-        q += " ORDER BY date"
-        df = con.execute(q, params).df()
-    finally:
-        con.close()
-    if df.empty:
+    q = {"portfolio_id": pf_id}
+    if start or end:
+        q["date"] = {}
+    if start:
+        q["date"]["$gte"] = dt.date.fromisoformat(start)
+    if end:
+        q["date"]["$lte"] = dt.date.fromisoformat(end)
+    docs = list(metric_coll.find(q).sort("date", 1))
+    if not docs:
         return {"analytics": []}
-    df["rolling_30"] = df["value"].rolling(30).mean()
-    df["rolling_90"] = df["value"].rolling(90).mean()
+    df = pd.DataFrame(docs)
+    df["rolling_30"] = df["ret"].rolling(30).mean()
+    df["rolling_90"] = df["ret"].rolling(90).mean()
     return {"analytics": df.to_dict(orient="records")}
 
 

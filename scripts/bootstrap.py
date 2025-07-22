@@ -1,10 +1,19 @@
 import asyncio
+import os
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))
+
 from service.logger import get_logger
 from database import init_db, db_ping
 from execution.gateway import AlpacaGateway
 from ledger.master_ledger import MasterLedger
 from analytics.allocation_engine import compute_weights
 import pandas as pd
+from infra.data_store import has_recent_rows
 from scrapers.universe import (
     download_sp500,
     download_sp400,
@@ -58,7 +67,10 @@ async def system_checklist() -> None:
         errs.append(f"ledger: {exc}")
 
     try:
-        df = pd.DataFrame({"A": [0.1, -0.1], "B": [0.05, 0.02]}, index=pd.to_datetime(["2024-01-01", "2024-01-08"]))
+        df = pd.DataFrame(
+            {"A": [0.1, -0.1], "B": [0.05, 0.02]},
+            index=pd.to_datetime(["2024-01-01", "2024-01-08"]),
+        )
         compute_weights(df)
         _log.info("allocation PASS")
     except Exception as exc:  # pragma: no cover - numeric errors
@@ -96,8 +108,19 @@ async def run_scrapers() -> None:
         ("ticker_scores", update_all_ticker_scores),
     ]
 
+    table_map = {
+        "sp500_history": "sp500_index",
+        "ticker_scores": "ticker_scores",
+    }
+
+    today = pd.Timestamp.utcnow().normalize()
+
     for name, func in scrapers:
         try:
+            table = table_map.get(name, name)
+            if has_recent_rows(table, today):
+                _log.info(f"{name} already current - skipping")
+                continue
             result = func()
             if asyncio.iscoroutine(result):
                 data = await result

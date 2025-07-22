@@ -8,7 +8,6 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import psycopg2
 from psycopg2.extras import RealDictCursor, Json
-import duckdb
 
 from service.logger import get_logger, register_db_handler
 from service.config import PG_URI, ALLOW_LIVE
@@ -16,7 +15,7 @@ from service.config import PG_URI, ALLOW_LIVE
 _log = get_logger("db")
 
 PLACEHOLDER = "%s"
-DB_FLAVOR = "pg"
+
 
 try:
     _conn = psycopg2.connect(PG_URI)
@@ -24,16 +23,13 @@ try:
     with _conn.cursor() as cur:
         cur.execute("SELECT 1")
 except Exception as e:  # pragma: no cover - db may not exist in tests
-    _log.error(f"Postgres connection failed: {e}; falling back to DuckDB")
-    os.makedirs("data", exist_ok=True)
-    _conn = duckdb.connect("data/fallback.duckdb")
-    PLACEHOLDER = "?"
-    DB_FLAVOR = "duck"
+    _log.error(f"Postgres connection failed: {e}")
+    _conn = None
 
 
 def db_ping() -> bool:
     """Return True if the Postgres connection is healthy."""
-    if DB_FLAVOR != "pg" or not _conn:
+    if not _conn:
         return False
     try:
         with _conn.cursor() as cur:
@@ -142,14 +138,9 @@ class PGQuery:
         if not self.conn:
             return iter([])
         sql, params = self._sql()
-        if DB_FLAVOR == "pg":
-            with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(sql, params)
-                rows = cur.fetchall()
-        else:
-            cur = self.conn.execute(sql, params)
-            cols = [d[0] for d in cur.description]
-            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(sql, params)
+            rows = cur.fetchall()
         for r in rows:
             if "id" in r:
                 r["_id"] = r.pop("id")
@@ -228,16 +219,14 @@ class PGCollection:
         ]
         placeholders = ",".join([PLACEHOLDER] * len(cols))
         if upsert:
-            if DB_FLAVOR == "pg":
-                conflict = ",".join(["id" if k == "_id" else k for k in match.keys()])
-                updates = ",".join([f"{c}=EXCLUDED.{c}" for c in cols])
-                sql = f"INSERT INTO {self.table} ({','.join(cols)}) VALUES ({placeholders}) ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
-                with self.conn.cursor() as cur:
-                    cur.execute(sql, vals)
-            else:
-                sql = f"INSERT OR REPLACE INTO {self.table} ({','.join(cols)}) VALUES ({placeholders})"
-                with self.conn.cursor() as cur:
-                    cur.execute(sql, vals)
+            conflict = ",".join(["id" if k == "_id" else k for k in match.keys()])
+            updates = ",".join([f"{c}=EXCLUDED.{c}" for c in cols])
+            sql = (
+                f"INSERT INTO {self.table} ({','.join(cols)}) VALUES ({placeholders}) "
+                f"ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
+            )
+            with self.conn.cursor() as cur:
+                cur.execute(sql, vals)
         else:
             set_clause = ",".join([f"{c}={PLACEHOLDER}" for c in cols])
             where, params = _build_where(match)
@@ -259,12 +248,8 @@ class PGCollection:
         sql = f"SELECT COUNT(*) FROM {self.table}"
         if where:
             sql += " WHERE " + where
-        if DB_FLAVOR == "pg":
-            with self.conn.cursor() as cur:
-                cur.execute(sql, params)
-                row = cur.fetchone()
-        else:
-            cur = self.conn.execute(sql, params)
+        with self.conn.cursor() as cur:
+            cur.execute(sql, params)
             row = cur.fetchone()
         return int(row[0]) if row else 0
 
@@ -275,17 +260,8 @@ def init_db() -> None:
         return
 
     def exec_sql(sql: str) -> None:
-        if DB_FLAVOR == "duck":
-            sql = (
-                sql.replace("SERIAL PRIMARY KEY", "INTEGER")
-                .replace("SERIAL", "INTEGER")
-                .replace("JSONB", "JSON")
-                .replace("TIMESTAMPTZ", "TIMESTAMP")
-            )
-            _conn.execute(sql)
-        else:
-            with _conn.cursor() as cur:
-                cur.execute(sql)
+        with _conn.cursor() as cur:
+            cur.execute(sql)
 
     schema_path = Path(__file__).with_name("schema.sql")
     with open(schema_path) as f:

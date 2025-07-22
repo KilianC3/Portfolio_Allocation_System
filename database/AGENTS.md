@@ -9,9 +9,9 @@ Database utilities built on psycopg2 for Postgres.
   and Russell 2000. The `ticker_scores` table stores composite metrics for
   each ticker along with its `index_name`.
 The helpers are used by scrapers to store raw data and by strategies to fetch
-historic metrics. Startup calls `init_db()` here to create tables. When
-Postgres is unavailable the code falls back to an in-memory DuckDB database so
-all components keep functioning.
+historic metrics. Startup calls `init_db()` here to create tables. If Postgres
+is unavailable the collections simply become no-ops so tests can run without a
+database.
 
 - **Reminder:** triple-check modifications and run tests to prevent regressions.
 

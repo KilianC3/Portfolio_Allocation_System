@@ -7,7 +7,7 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 - **FastAPI service** with token authentication
 - **APScheduler** for scheduled rebalances
 - **Alpaca** gateway with paper/live detection
-- **Postgres + DuckDB** data store
+- **Postgres** data store
 - **Prometheus metrics** and structured logging
 - **Correlation endpoint** to compare portfolio relationships
 - **Sector exposure endpoint** for portfolio sector breakdowns
@@ -15,8 +15,7 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 ## System Overview
 
 Scrapers gather alternative datasets from QuiverQuant, Benzinga and
-Wikimedia. All results are written to Postgres while a local DuckDB file
-mirrors the schema so analytics can run offline. Strategies read these
+Wikimedia. All results are written to Postgres. Strategies read these
 tables to compute composite scores and build target weights. The
 execution layer submits orders via Alpaca and records fills to the
 `trades` table. Metrics and account equity are archived nightly for
@@ -125,8 +124,7 @@ performance monitoring.
 
 ## Workflow
 
-1. On startup the scrapers fetch all datasets and populate Postgres. If
-   the connection fails the database layer automatically falls back to DuckDB.
+1. On startup the scrapers fetch all datasets and populate Postgres.
 2. Strategies pull data from these tables to build `EquityPortfolio` objects
    which are persisted to the `portfolios` table.
 3. Risk modules cap exposures before orders are sent to Alpaca through the

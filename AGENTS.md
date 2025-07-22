@@ -1,8 +1,8 @@
 # Repository Overview
 
 This project implements a complete portfolio allocation system with data scrapers,
-strategy modules and a FastAPI service for trading. Data is stored in Postgres
-with DuckDB as a fallback. Key folders:
+strategy modules and a FastAPI service for trading. Data is stored in Postgres.
+Key folders:
 
 - `scrapers/` – download alternative data and index constituents
 - `analytics/` – compute fundamental and momentum metrics

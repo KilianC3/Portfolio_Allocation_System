@@ -1,6 +1,6 @@
 # Data Store Format
 
-Scrapers normalise the raw HTML tables from QuiverQuant into columnar snapshots stored in DuckDB.
+Scrapers normalise the raw HTML tables from QuiverQuant into columnar snapshots stored in Postgres.
 Each table contains all historical rows appended with a `_retrieved` timestamp so later
 analysis can reproduce past views of the data.
 
