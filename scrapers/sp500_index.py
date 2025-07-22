@@ -15,8 +15,8 @@ log = get_scraper_logger(__name__)
 sp500_coll = db["sp500_index"]
 
 
-def fetch_sp500_history(days: int = 30) -> List[dict]:
-    """Download S&P 500 index closing prices via Yahoo Finance."""
+def fetch_sp500_history(days: int = 365) -> List[dict]:
+    """Download S&P 500 weekly OHLCV via Yahoo Finance."""
     log.info("fetch_sp500_history start")
     init_db()
     end = dt.date.today()
@@ -24,8 +24,12 @@ def fetch_sp500_history(days: int = 30) -> List[dict]:
     with scrape_latency.labels("sp500_index").time():
         try:
             df = yf.download(
-                "^GSPC", start=start, end=end, interval="1d", progress=False
-            )["Close"]
+                "^GSPC",
+                start=start,
+                end=end,
+                interval="1wk",
+                progress=False,
+            )
         except Exception as exc:
             scrape_errors.labels("sp500_index").inc()
             log.warning(f"fetch_sp500_history failed: {exc}")
@@ -34,21 +38,23 @@ def fetch_sp500_history(days: int = 30) -> List[dict]:
         return []
     now = dt.datetime.now(dt.timezone.utc)
     records = []
-    for date, val in df.items():
+    for date, row in df.iterrows():
         try:
-            dt_obj = (
-                dt.datetime.fromisoformat(str(date))
-                if not hasattr(date, "date")
-                else date
+            date_obj = (
+                date if hasattr(date, "date") else dt.datetime.fromisoformat(str(date))
             )
-            date_str = str(dt_obj.date())
+            date_str = str(date_obj.date())
         except Exception:
             date_str = str(date)
-        try:
-            close_val = float(val)
-        except Exception:
-            close_val = float(val.iloc[0]) if hasattr(val, "iloc") else float(val)
-        item = {"date": date_str, "close": close_val, "_retrieved": now}
+        item = {
+            "date": date_str,
+            "open": float(row.get("Open", 0)),
+            "high": float(row.get("High", 0)),
+            "low": float(row.get("Low", 0)),
+            "close": float(row.get("Close", row[0] if len(row) else 0)),
+            "volume": int(row.get("Volume", 0)),
+            "_retrieved": now,
+        }
         sp500_coll.update_one({"date": item["date"]}, {"$set": item}, upsert=True)
         records.append(item)
     append_snapshot("sp500_index", records)

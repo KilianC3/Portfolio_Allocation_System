@@ -2,6 +2,7 @@ import uvicorn
 import pandas as pd
 
 from service.config import API_TOKEN, PG_URI, CACHE_TTL
+import time
 from database import db_ping, init_db
 import asyncio
 from scrapers.universe import (
@@ -46,6 +47,15 @@ SCRAPERS = [
 ]
 
 
+def wait_for_postgres(retries: int = 5, delay: float = 2.0) -> bool:
+    """Try ``db_ping`` multiple times before giving up."""
+    for _ in range(retries):
+        if db_ping():
+            return True
+        time.sleep(delay)
+    return False
+
+
 async def run_startup_scrapers() -> None:
     """Run all data scrapers sequentially and log progress."""
     for name, func in SCRAPERS:
@@ -83,8 +93,8 @@ def validate_startup() -> None:
         raise RuntimeError("API_TOKEN not set")
     if CACHE_TTL <= 0:
         raise RuntimeError("CACHE_TTL must be positive")
-    if not db_ping():
-        raise RuntimeError("Postgres connection failed")
+    if not wait_for_postgres():
+        raise RuntimeError(f"Postgres connection failed ({PG_URI})")
     init_db()
     download_sp500()
     download_sp400()
