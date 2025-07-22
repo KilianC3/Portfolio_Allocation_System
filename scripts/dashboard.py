@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI dashboard for inspecting API health and table samples."""
+"""CLI dashboard for inspecting database health and table samples."""
 
 import os
 import sys
@@ -9,8 +9,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
-import requests
 import pandas as pd
+from database import init_db, db, db_ping
+from service.scheduler import StrategyScheduler
 
 try:
     from service.config import API_TOKEN
@@ -30,9 +31,7 @@ except Exception:
     cfg = ROOT / "service" / "config.yaml"
     API_TOKEN = _parse_simple_yaml(cfg).get("API_TOKEN")
 
-BASE_URL = os.environ.get("API_BASE", "http://localhost:8001")
-TOKEN = API_TOKEN or os.environ.get("API_TOKEN", "")
-HEADERS = {"Authorization": f"Bearer {TOKEN}"} if TOKEN else {}
+init_db()
 
 TABLES = [
     "portfolios",
@@ -59,25 +58,28 @@ TABLES = [
 ]
 
 
-def _fetch_json(path: str) -> dict:
-    resp = requests.get(f"{BASE_URL}{path}", headers=HEADERS)
-    resp.raise_for_status()
-    return resp.json()
-
-
 def main() -> None:
-    print("=== HEALTH ===")
-    print(_fetch_json("/health"))
-    print("\n=== READY ===")
-    print(_fetch_json("/readyz"))
+    print("=== DB HEALTH ===")
+    status = {"status": "ok" if db_ping() else "fail"}
+    print(status)
+
+    sched = StrategyScheduler()
+    sched.start()
+    jobs = [
+        {
+            "id": j.id,
+            "next_run": j.next_run_time.isoformat() if j.next_run_time else None,
+        }
+        for j in sched.scheduler.get_jobs()
+    ]
+    sched.stop()
 
     print("\n=== SCHEDULE ===")
-    jobs = _fetch_json("/scheduler/jobs").get("jobs", [])
     if jobs:
         print(pd.DataFrame(jobs).to_string(index=False))
 
     for name in TABLES:
-        data = _fetch_json(f"/db/{name}?limit=5").get("records", [])
+        data = list(db[name].find({}).limit(5))
         print(f"\n=== {name} ({len(data)}) ===")
         if data:
             print(pd.DataFrame(data).to_string(index=False))

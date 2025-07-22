@@ -12,6 +12,7 @@ import warnings
 from typing import List, Sequence, Dict, Iterable, Tuple
 
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
+from database import init_db, top_score_coll
 
 import numpy as np
 import pandas as pd
@@ -21,9 +22,6 @@ PRICE_LOOKBACK_DAYS = 400
 POSITION_DOLLARS = 5_000_000
 BATCH_SIZE_PRICES = 350
 BATCH_SLEEP_SEC = 1.0
-OUTPUT_WIDE_CSV = "scores_wide.csv"
-OUTPUT_LONG_CSV = "scores_long.csv"
-OUTPUT_COMPACT_CSV = "scores_compact.csv"
 
 WEIGHTS = {
     "value_score": 0.18,
@@ -792,6 +790,27 @@ def run_scoring(universe: Iterable[str]):
     return dict(wide=scores, long=long_df, compact=compact)
 
 
+def store_top_scores(df: pd.DataFrame, top_n: int = 20) -> None:
+    """Persist the top ``top_n`` names to the database."""
+    init_db()
+    today = dt.date.today()
+    top_score_coll.delete_many({"date": today})
+    ranked = df.sort_values("overall_score", ascending=False).head(top_n).reset_index()
+    for rank, row in enumerate(ranked.itertuples(index=False), 1):
+        doc = {
+            "date": today,
+            "symbol": row.ticker,
+            "index_name": "universe",
+            "score": float(row.overall_score),
+            "rank": rank,
+        }
+        top_score_coll.update_one(
+            {"date": doc["date"], "symbol": doc["symbol"]},
+            {"$set": doc},
+            upsert=True,
+        )
+
+
 def main(universe: Iterable[str] | None = None):
     """Run scoring for ``universe`` or the default combined universe."""
     if universe is None:
@@ -800,16 +819,10 @@ def main(universe: Iterable[str] | None = None):
         warnings.simplefilter("ignore")
         result = run_scoring(universe)
     wide_df = result["wide"]
-    long_df = result["long"]
-    compact_df = result["compact"]
-    wide_df.to_csv(OUTPUT_WIDE_CSV)
-    long_df.to_csv(OUTPUT_LONG_CSV, index=False)
-    compact_df.to_csv(OUTPUT_COMPACT_CSV)
-    print("=== Wide (preview) ===")
-    print(wide_df.head())
-    print("\n=== Compact ===")
-    print(compact_df.head())
-    print(f"\nSaved: {OUTPUT_WIDE_CSV}, {OUTPUT_LONG_CSV}, {OUTPUT_COMPACT_CSV}")
+    store_top_scores(wide_df)
+    top_preview = wide_df.sort_values("overall_score", ascending=False).head(5)
+    print("=== Top Preview ===")
+    print(top_preview[["overall_score"]])
 
 
 if __name__ == "__main__":  # pragma: no cover - manual execution

@@ -104,7 +104,12 @@ def validate_startup() -> None:
         log.warning(f"universe size {len(universe)} < 2000")
 
 
-if __name__ == "__main__":
+def start_api(host: str = "0.0.0.0", port: int = 8001) -> None:
+    """Run startup checks, then launch the FastAPI service."""
     validate_startup()
     asyncio.run(run_startup_scrapers())
-    uvicorn.run("service.api:app", host="0.0.0.0", port=8001)
+    uvicorn.run("service.api:app", host=host, port=port)
+
+
+if __name__ == "__main__":
+    start_api()

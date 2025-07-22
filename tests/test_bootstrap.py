@@ -94,6 +94,7 @@ def test_bootstrap_main_order(monkeypatch):
 
     monkeypatch.setattr(boot, "run_scrapers", fake_scrapers)
     monkeypatch.setattr(boot, "system_checklist", fake_checklist)
+    monkeypatch.setattr(boot, "start_api", lambda: calls.append("api"))
 
     boot.main()
-    assert calls == ["init", "scrapers", "checklist"]
+    assert calls == ["init", "scrapers", "checklist", "api"]

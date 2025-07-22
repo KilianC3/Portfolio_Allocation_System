@@ -35,6 +35,7 @@ from scrapers.insider_buying import fetch_insider_buying
 from scrapers.sp500_index import fetch_sp500_history
 from scrapers.analyst_ratings import fetch_analyst_ratings
 from analytics.tracking import update_all_ticker_scores
+from service.start import start_api
 
 _log = get_logger("bootstrap")
 
@@ -150,6 +151,7 @@ def main() -> None:
     asyncio.run(run_scrapers())
     asyncio.run(system_checklist())
     _log.info("bootstrap complete")
+    start_api()
 
 
 if __name__ == "__main__":

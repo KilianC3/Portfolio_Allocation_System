@@ -70,7 +70,7 @@ performance monitoring.
 | Government-Contracts Momentum | Quiver gov contracts | Monthly | Own firms with \$50M+ new federal contracts |
 | Corporate Insider Buying Pulse | Quiver insider filings | Weekly | Long 25 tickers with strongest buying |
 | Wikipedia Attention Surge | Wikimedia page views | Monthly | Long top 10 names by page‑view jump |
-| Wall Street Bets Buzz | ApeWisdom API | Weekly | Long 15 tickers with fastest rise in mentions |
+| Wall Street Bets Buzz | ApeWisdom API | Monthly | Long 15 tickers with fastest rise in mentions |
 | App Reviews Hype Score | Quiver app ratings | Weekly | Long 20 names with largest hype increase |
 | Google Trends + News Sentiment | Quiver Google Trends + Finviz news | Monthly | Long 30 tickers with rising search interest and good news |
 | Sector Risk-Parity Momentum | Yahoo Finance | Weekly | Rotate sector ETFs using risk‑parity weights |
@@ -142,14 +142,10 @@ performance monitoring.
 
 ## Database Dashboard
 
-The `/db/{table}` endpoint exposes read-only access to any table when the
-correct `API_TOKEN` is supplied. A lightweight web dashboard is served at
-`/dashboard` so you can inspect recent data and scheduler jobs from your
-browser. Pass the API token via the `Authorization` header or a `token`
-query parameter. Visit
-`http://localhost:8001/dashboard?token=<YOUR_TOKEN>` after bootstrap to see
-table samples. The helper script `scripts/dashboard.py` queries these
-endpoints and prints the latest rows in a tabular format as a CLI view.
+The helper script `scripts/dashboard.py` shows recent rows from each table
+directly from the database, so it works even if the FastAPI service is not
+running. When the API is available a simple web dashboard is served at
+`/dashboard` which exposes the same information behind the `API_TOKEN`.
 
 
 Run the dashboard with:
@@ -160,9 +156,8 @@ python scripts/dashboard.py
 
 ## API Access
 
-Make sure the API is running on port `8001` (either from `bootstrap.sh`
-or by manually starting `python -m service.start`). Authenticate each
-request with your API token using the `Authorization` header or a
+The API starts automatically after running `scripts/bootstrap.py` or
+`bootstrap.sh`. Authenticate each request with your API token using the `Authorization` header or a
 `token` query parameter.
 The token is defined in `service/config.yaml`.
 

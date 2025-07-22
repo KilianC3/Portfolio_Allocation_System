@@ -10,7 +10,7 @@ if __name__ == "__main__":
     ap.add_argument(
         "--days", type=int, default=1, help="ignored; kept for backward compatibility"
     )
-    ap.add_argument("--top", type=int, default=20)
+    ap.add_argument("--top", type=int, default=15)
     args = ap.parse_args()
 
     df = wsb.run_analysis(args.days, args.top)
