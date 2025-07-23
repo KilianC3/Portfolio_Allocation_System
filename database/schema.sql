@@ -210,7 +210,7 @@ CREATE TABLE IF NOT EXISTS alloc_log (
 );
 
 CREATE TABLE IF NOT EXISTS cache (
-    key VARCHAR(191) PRIMARY KEY,
+    cache_key VARCHAR(191) PRIMARY KEY,
     payload TEXT,
     expire TIMESTAMP
 );
