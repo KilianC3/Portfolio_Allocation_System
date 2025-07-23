@@ -21,46 +21,6 @@ sudo mysql -e "CREATE DATABASE IF NOT EXISTS quant_fund;"
 sudo mysql -e "GRANT ALL PRIVILEGES ON quant_fund.* TO 'maria'@'localhost' IDENTIFIED BY 'maria'; FLUSH PRIVILEGES;"
 python -m playwright install chromium || true
 
-# Refresh ticker universe before running other scrapers
-PYTHONPATH="$APP_DIR" python3 -m scrapers.universe --refresh-universe
-
-# Run each scraper sequentially and log the result
-echo "Starting data bootstrap..."
-LOG_CHECKLIST=()
-
-for script in "$APP_DIR"/scrapers/*.py; do
-  name="$(basename "$script" .py)"
-  # Skip __init__.py and the universe script already run above
-  [ "$name" = "__init__" ] && continue
-  [ "$name" = "universe" ] && continue
-
-  echo -e "\nRunning scraper: $name"
-  cd "$APP_DIR"
-  set +e
-  out=$(PYTHONPATH="$APP_DIR" python3 -m scrapers."$name" 2>&1)
-  status=$?
-  set -e
-  echo "$out"
-
-  if [ $status -eq 0 ] && grep -qE 'ROWS=[0-9]+ COLUMNS=[0-9]+' <<<"$out"; then
-    summary=$(grep -oE 'ROWS=[0-9]+ COLUMNS=[0-9]+' <<<"$out")
-    rows=$(sed -n 's/.*ROWS=\([0-9]\+\).*/\1/p' <<<"$summary")
-    cols=$(sed -n 's/.*COLUMNS=\([0-9]\+\).*/\1/p' <<<"$summary")
-    echo "[OK]  $name: ${rows}x${cols}"
-    LOG_CHECKLIST+=("[OK]  $name: ${rows}x${cols}")
-  elif [ $status -eq 0 ]; then
-    echo "[OK]  $name: 0x0 (no data summary)"
-    LOG_CHECKLIST+=("[OK]  $name: 0x0")
-  else
-    echo "[FAIL] $name: failed"
-    LOG_CHECKLIST+=("[FAIL] $name: failed")
-  fi
-done
-
-echo -e "\nBootstrap checklist:"
-for entry in "${LOG_CHECKLIST[@]}"; do
-  echo "  $entry"
-done
 
 # Register the service
 cat <<EOF >/etc/systemd/system/portfolio.service
@@ -73,7 +33,7 @@ Requires=mariadb.service
 Type=simple
 WorkingDirectory=$APP_DIR
 Environment=PYTHONPATH=$APP_DIR
-ExecStart=$VENV_DIR/bin/python -m service.start
+ExecStart=$VENV_DIR/bin/python -m service.start --host 192.168.0.59 --port 8001
 Restart=on-failure
 StandardOutput=journal
 StandardError=journal

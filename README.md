@@ -41,14 +41,18 @@ performance monitoring.
    `3306` is open in your firewall. Update `PG_URI` with the server's
    IP address. Connect using any MySQL client with the same credentials
    from `service/config.yaml`.
-4. Run the bootstrap script to install dependencies, load all datasets
-   and start the service under systemd
+4. Run the bootstrap script to install dependencies and register a
+   systemd service that launches ``service.start``. The FastAPI server
+   comes online immediately and background tasks then initialise the
+   database and populate all tables
    ```bash
    sudo scripts/bootstrap.sh
    ```
-   When the script completes the API is running on port `8001`
-   (customise `API_HOST` or `API_PORT` as needed). Ensure the
-   firewall allows incoming connections on this port.
+   When the script completes the API is running on ``192.168.0.59:8001``
+   (customise `API_HOST` or `API_PORT` as needed). ``service.start``
+   keeps the API responsive while scrapers fill the database in the
+   background. Ensure the firewall allows incoming connections on this
+   port.
 5. To expose the API manually with a token, run the helper script
    ```bash
    API_TOKEN=<YOUR_TOKEN> ./scripts/expose_db_api.sh
@@ -131,20 +135,25 @@ performance monitoring.
 - `account_metrics_live` – equity history for the live account
 - `account_metrics` – point-in-time equity snapshots
 - `schema_version` – schema migration tracking
- - `cache` – key/value store for HTTP responses (`cache_key`, `payload`, `expire`)
+ - `cache` – key/value store for HTTP responses (`cache_key`, `payload MEDIUMTEXT`, `expire`)
 - `alloc_log` – allocation diagnostics
 - `system_logs` – structured log records for the front end
 - `top_scores` – top 20 tickers by composite score each month
+Run `database.init_db()` after updating to ensure the `cache` table uses MEDIUMTEXT.
 
 ## Workflow
 
-1. On startup the scrapers fetch all datasets and populate MariaDB.
-2. Strategies pull data from these tables to build `EquityPortfolio` objects
+1. The FastAPI server starts immediately when `service.start` is
+   launched.
+2. Background tasks then initialise the database and run every scraper
+   to populate MariaDB.
+3. Strategies pull data from these tables to build `EquityPortfolio` objects
    which are persisted to the `portfolios` table.
-3. Risk modules cap exposures before orders are sent to Alpaca through the
+4. Risk modules cap exposures before orders are sent to Alpaca through the
    execution gateway.
-4. The scheduler runs nightly to update metrics, account equity snapshots and
+5. The scheduler runs nightly to update metrics, account equity snapshots and
    ticker scores. Any failed tasks are logged in `alloc_log` for later review.
+   The `full_fundamentals` scraper now runs once an hour after boot.
 
 ## Database Dashboard
 
@@ -158,6 +167,11 @@ Run the dashboard with:
 
 ```bash
 python scripts/dashboard.py
+```
+
+To refresh all datasets manually without starting the API run:
+```bash
+python scripts/populate.py
 ```
 
 ## API Access
