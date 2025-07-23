@@ -1,4 +1,5 @@
 import datetime as dt
+import asyncio
 import pandas as pd
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from importlib import import_module
@@ -10,6 +11,7 @@ from analytics.allocation_engine import compute_weights
 from database import metric_coll
 from analytics import update_all_metrics, record_account, update_all_ticker_scores
 from scrapers.wallstreetbets import fetch_wsb_mentions
+from scrapers import full_fundamentals
 
 _log = get_logger("sched")
 
@@ -89,6 +91,17 @@ class StrategyScheduler:
             "cron",
             id="ticker_scores",
             **CRON["monthly"],
+        )
+
+        async def fundamentals_job():
+            await asyncio.to_thread(full_fundamentals.main)
+
+        run_time = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)
+        self.scheduler.add_job(
+            fundamentals_job,
+            "date",
+            run_date=run_time,
+            id="full_fundamentals",
         )
         self.scheduler.add_job(
             wsb_job,

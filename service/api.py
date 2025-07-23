@@ -19,7 +19,7 @@ from execution.gateway import AlpacaGateway
 from service.config import ALLOW_LIVE
 from fastapi.responses import HTMLResponse
 import scripts.dashboard as scripts_dashboard
-from scheduler import StrategyScheduler
+from service.scheduler import StrategyScheduler
 from analytics.utils import (
     portfolio_metrics,
     portfolio_correlations,
@@ -133,7 +133,7 @@ def _iso(o):
     return o
 
 
-def _load_portfolios():
+def load_portfolios():
     for doc in pf_coll.find():
         pf = EquityPortfolio(
             doc.get("name", "pf"),
@@ -150,28 +150,7 @@ def _load_portfolios():
 
 @app.on_event("startup")
 async def startup_event():
-    try:
-        init_db()
-        _load_portfolios()
-        await asyncio.gather(
-            fetch_politician_trades(),
-            fetch_lobbying_data(),
-            fetch_trending_wiki_views(),
-            fetch_dc_insider_scores(),
-            fetch_gov_contracts(),
-            fetch_app_reviews(),
-            fetch_google_trends(),
-            fetch_wsb_mentions(),
-            fetch_analyst_ratings(),
-            fetch_insider_buying(),
-            fetch_stock_news(),
-            asyncio.to_thread(fetch_sp500_history, 365),
-            asyncio.to_thread(update_all_ticker_scores),
-        )
-        if AUTO_START_SCHED:
-            sched.start()
-    except Exception as e:
-        log.warning(f"startup load failed: {e}")
+    """Log when the API begins accepting requests."""
     log.info("api ready")
 
 

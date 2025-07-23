@@ -3,6 +3,7 @@ import pytest
 
 import scripts.bootstrap as boot
 import scripts.health_check as hc
+import scripts.populate as pop
 
 
 @pytest.mark.asyncio
@@ -13,32 +14,32 @@ async def test_run_scrapers(monkeypatch):
         calls.append("s")
         return [{"ok": 1}]
 
-    monkeypatch.setattr(boot, "init_db", lambda: calls.append("init"))
-    monkeypatch.setattr(boot, "download_sp500", lambda: calls.append("u"))
-    monkeypatch.setattr(boot, "download_sp400", lambda: calls.append("u"))
-    monkeypatch.setattr(boot, "download_russell2000", lambda: calls.append("u"))
-    monkeypatch.setattr(boot, "load_sp500", lambda: ["AAPL"])
-    monkeypatch.setattr(boot, "load_sp400", lambda: ["MSFT"])
-    monkeypatch.setattr(boot, "load_russell2000", lambda: ["X"] * 2000)
-    monkeypatch.setattr(boot, "fetch_politician_trades", fake)
-    monkeypatch.setattr(boot, "fetch_lobbying_data", fake)
-    monkeypatch.setattr(boot, "fetch_trending_wiki_views", fake)
-    monkeypatch.setattr(boot, "fetch_dc_insider_scores", fake)
-    monkeypatch.setattr(boot, "fetch_gov_contracts", fake)
-    monkeypatch.setattr(boot, "fetch_app_reviews", fake)
-    monkeypatch.setattr(boot, "fetch_google_trends", fake)
-    monkeypatch.setattr(boot, "fetch_wsb_mentions", fake)
-    monkeypatch.setattr(boot, "fetch_analyst_ratings", fake)
-    monkeypatch.setattr(boot, "fetch_stock_news", fake)
-    monkeypatch.setattr(boot, "fetch_insider_buying", fake)
+    monkeypatch.setattr(pop, "init_db", lambda: calls.append("init"))
+    monkeypatch.setattr(pop, "download_sp500", lambda: calls.append("u"))
+    monkeypatch.setattr(pop, "download_sp400", lambda: calls.append("u"))
+    monkeypatch.setattr(pop, "download_russell2000", lambda: calls.append("u"))
+    monkeypatch.setattr(pop, "load_sp500", lambda: ["AAPL"])
+    monkeypatch.setattr(pop, "load_sp400", lambda: ["MSFT"])
+    monkeypatch.setattr(pop, "load_russell2000", lambda: ["X"] * 2000)
+    monkeypatch.setattr(pop, "fetch_politician_trades", fake)
+    monkeypatch.setattr(pop, "fetch_lobbying_data", fake)
+    monkeypatch.setattr(pop, "fetch_trending_wiki_views", fake)
+    monkeypatch.setattr(pop, "fetch_dc_insider_scores", fake)
+    monkeypatch.setattr(pop, "fetch_gov_contracts", fake)
+    monkeypatch.setattr(pop, "fetch_app_reviews", fake)
+    monkeypatch.setattr(pop, "fetch_google_trends", fake)
+    monkeypatch.setattr(pop, "fetch_wsb_mentions", fake)
+    monkeypatch.setattr(pop, "fetch_analyst_ratings", fake)
+    monkeypatch.setattr(pop, "fetch_stock_news", fake)
+    monkeypatch.setattr(pop, "fetch_insider_buying", fake)
     monkeypatch.setattr(
-        boot,
+        pop,
         "fetch_sp500_history",
         lambda d: [{"open": 1, "high": 1, "low": 1, "close": 1, "volume": 1}],
     )
-    monkeypatch.setattr(boot, "update_all_ticker_scores", lambda: calls.append("s"))
+    monkeypatch.setattr(pop, "update_all_ticker_scores", lambda: calls.append("s"))
 
-    await boot.run_scrapers()
+    await pop.run_scrapers()
     assert calls.count("s") == 12
 
 
@@ -84,17 +85,11 @@ async def test_system_checklist(monkeypatch):
 def test_bootstrap_main_order(monkeypatch):
     calls = []
 
-    monkeypatch.setattr(boot, "init_db", lambda: calls.append("init"))
-
-    async def fake_scrapers():
-        calls.append("scrapers")
-
     async def fake_checklist():
         calls.append("checklist")
 
-    monkeypatch.setattr(boot, "run_scrapers", fake_scrapers)
     monkeypatch.setattr(boot, "system_checklist", fake_checklist)
     monkeypatch.setattr(boot, "start_api", lambda: calls.append("api"))
 
     boot.main()
-    assert calls == ["init", "scrapers", "checklist", "api"]
+    assert calls == ["checklist", "api"]

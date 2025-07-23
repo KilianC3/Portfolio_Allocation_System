@@ -1,8 +1,9 @@
 # Folder Overview
 
-Service layer exposing the REST API and scheduler.
-- `api.py` defines FastAPI endpoints and portfolio operations.
-- `start.py` validates startup and runs all scrapers once.
+- `api.py` defines FastAPI endpoints and portfolio operations. Startup only logs
+  readiness; all heavy initialisation happens elsewhere.
+- `start.py` launches uvicorn immediately, then initialises the database,
+  starts the scheduler and runs `scripts.populate.run_scrapers()`.
 - `scheduler.py` schedules recurring jobs using APScheduler.
 - `logger.py` wraps the structlog helpers for consistent logging.
 - `config.py` and `config.yaml` hold environment configuration.
