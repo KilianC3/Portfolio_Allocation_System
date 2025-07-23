@@ -5,7 +5,7 @@ All data collection scripts.
 - `full_fundamentals.py` computes fundamental and price-based scores across the entire universe.
 - `wiki.py` and others in this folder fetch alternative data from QuiverQuant and public APIs.
 
-Scrapers call `init_db()` to ensure tables exist and the `universe` helper stores index constituents to Postgres and CSV.
+Scrapers call `init_db()` to ensure tables exist and the `universe` helper stores index constituents to MariaDB and CSV.
 
 The startup script runs each scraper sequentially and logs a checklist so you can verify every dataset was downloaded successfully.
 

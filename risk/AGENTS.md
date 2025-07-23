@@ -7,7 +7,7 @@ Risk management models and limits.
 - `position_risk.py` and `var.py` – value-at-risk calculations.
 
 Strategies query these modules before executing trades.
-The circuit breaker logs breach events to Postgres so tests can verify
+The circuit breaker logs breach events to MariaDB so tests can verify
 triggered stops even without a live database connection.
 
 - **Reminder:** triple-check modifications and run tests to prevent regressions.

@@ -45,10 +45,10 @@ async def system_checklist() -> None:
     errs = []
 
     if db_ping():
-        _log.info("postgres PASS")
+        _log.info("mariadb PASS")
     else:
-        _log.warning("postgres FAIL")
-        errs.append("postgres")
+        _log.warning("mariadb FAIL")
+        errs.append("mariadb")
 
     try:
         gw = AlpacaGateway()

@@ -1,7 +1,14 @@
 import uvicorn
 import pandas as pd
+import argparse
 
-from service.config import API_TOKEN, PG_URI, CACHE_TTL
+from service.config import (
+    API_TOKEN,
+    PG_URI,
+    CACHE_TTL,
+    API_HOST,
+    API_PORT,
+)
 import time
 from database import db_ping, init_db
 import asyncio
@@ -47,7 +54,7 @@ SCRAPERS = [
 ]
 
 
-def wait_for_postgres(retries: int = 5, delay: float = 2.0) -> bool:
+def wait_for_mariadb(retries: int = 5, delay: float = 2.0) -> bool:
     """Try ``db_ping`` multiple times before giving up."""
     for _ in range(retries):
         if db_ping():
@@ -93,8 +100,8 @@ def validate_startup() -> None:
         raise RuntimeError("API_TOKEN not set")
     if CACHE_TTL <= 0:
         raise RuntimeError("CACHE_TTL must be positive")
-    if not wait_for_postgres():
-        raise RuntimeError(f"Postgres connection failed ({PG_URI})")
+    if not wait_for_mariadb():
+        raise RuntimeError(f"MariaDB connection failed ({PG_URI})")
     init_db()
     download_sp500()
     download_sp400()
@@ -104,12 +111,18 @@ def validate_startup() -> None:
         log.warning(f"universe size {len(universe)} < 2000")
 
 
-def start_api(host: str = "0.0.0.0", port: int = 8001) -> None:
+def start_api(host: str | None = None, port: int | None = None) -> None:
     """Run startup checks, then launch the FastAPI service."""
     validate_startup()
     asyncio.run(run_startup_scrapers())
-    uvicorn.run("service.api:app", host=host, port=port)
+    h = host or API_HOST
+    p = port or API_PORT
+    uvicorn.run("service.api:app", host=h, port=p)
 
 
 if __name__ == "__main__":
-    start_api()
+    parser = argparse.ArgumentParser(description="Start the portfolio API")
+    parser.add_argument("--host", default=None, help="Interface to bind")
+    parser.add_argument("--port", type=int, default=None, help="Port number")
+    args = parser.parse_args()
+    start_api(args.host, args.port)

@@ -3,7 +3,7 @@
 Supporting infrastructure used across the system.
 - `smart_scraper.py` – resilient HTTP client used by all scrapers.
 - `rate_limiter.py` – simple asyncio rate limiter.
-- `data_store.py` – helper for storing scraper snapshots in Postgres.
+- `data_store.py` – helper for storing scraper snapshots in MariaDB.
 - `charts/` and `grafana/` – static assets for observability dashboards.
 
 These tools are imported by `scrapers/` and monitored via `observability/`.
