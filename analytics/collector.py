@@ -6,7 +6,7 @@ from database import db
 
 
 def record_snapshot(portfolio_id: str, data: pd.DataFrame) -> None:
-    """Append daily snapshot rows to Postgres."""
+    """Append daily snapshot rows to MariaDB."""
     if not db.conn:
         return
     coll = db["snapshots"]

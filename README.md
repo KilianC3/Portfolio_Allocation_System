@@ -1,13 +1,13 @@
 # Portfolio Allocation System
 
-The Portfolio Allocation System runs a suite of alternative‑data strategies and exposes a REST API for automated trading.  Scrapers ingest public data into Postgres, strategies produce target weights and the execution gateway sends orders through Alpaca.  Metrics and logs are stored so performance can be reviewed at any time.
+The Portfolio Allocation System runs a suite of alternative‑data strategies and exposes a REST API for automated trading.  Scrapers ingest public data into MariaDB, strategies produce target weights and the execution gateway sends orders through Alpaca.  Metrics and logs are stored so performance can be reviewed at any time.
 
 ## Key Features
 
 - **FastAPI service** with token authentication
 - **APScheduler** for scheduled rebalances
 - **Alpaca** gateway with paper/live detection
-- **Postgres** data store
+- **MariaDB** data store
 - **Prometheus metrics** and structured logging
 - **Correlation endpoint** to compare portfolio relationships
 - **Sector exposure endpoint** for portfolio sector breakdowns
@@ -15,7 +15,7 @@ The Portfolio Allocation System runs a suite of alternative‑data strategies an
 ## System Overview
 
 Scrapers gather alternative datasets from QuiverQuant, Benzinga and
-Wikimedia. All results are written to Postgres. Strategies read these
+Wikimedia. All results are written to MariaDB. Strategies read these
 tables to compute composite scores and build target weights. The
 execution layer submits orders via Alpaca and records fills to the
 `trades` table. Metrics and account equity are archived nightly for
@@ -31,28 +31,34 @@ performance monitoring.
    source venv/bin/activate
    pip install -r deploy/requirements.txt
    ```
-2. Edit `service/config.yaml` with your Postgres URI, Alpaca keys,
+2. Edit `service/config.yaml` with your MariaDB URI, Alpaca keys,
    `FRED_API_KEY` and an `API_TOKEN` that clients will use for
-   authentication.
-3. Enable remote Postgres access so other machines can reach the
-   database. Edit `/etc/postgresql/<version>/main/postgresql.conf`
-   and set `listen_addresses = '*'`. Then add a line to
-   `pg_hba.conf`:
-   `host all all 0.0.0.0/0 md5`. Restart Postgres and ensure port
-   `5432` is open in your firewall. Update `PG_URI` with the server's
-   IP address. Connect using PgAdmin4 with the same credentials
+   authentication.  Optional `API_HOST` and `API_PORT` settings
+   control where the FastAPI server listens.
+3. Enable remote MariaDB access so other machines can reach the
+   database. Edit `/etc/mysql/mariadb.conf.d/50-server.cnf`
+   and set `bind-address = 0.0.0.0`. Restart MariaDB and ensure port
+   `3306` is open in your firewall. Update `PG_URI` with the server's
+   IP address. Connect using any MySQL client with the same credentials
    from `service/config.yaml`.
 4. Run the bootstrap script to install dependencies, load all datasets
    and start the service under systemd
    ```bash
    sudo scripts/bootstrap.sh
    ```
-   When the script completes the API is running on port `8001`.
-5. Open the dashboard in your browser to verify the service
+   When the script completes the API is running on port `8001`
+   (customise `API_HOST` or `API_PORT` as needed). Ensure the
+   firewall allows incoming connections on this port.
+5. To expose the API manually with a token, run the helper script
+   ```bash
+   API_TOKEN=<YOUR_TOKEN> ./scripts/expose_db_api.sh
+   ```
+   Pass a host and port to override the defaults of `0.0.0.0:8001`.
+6. Open the dashboard in your browser to verify the service
    ```
    http://localhost:8001/dashboard?token=<YOUR_TOKEN>
    ```
-6. (Optional) install test dependencies and run the unit tests
+7. (Optional) install test dependencies and run the unit tests
    ```bash
    pip install -r deploy/requirements-test.txt
    pytest -q
@@ -132,7 +138,7 @@ performance monitoring.
 
 ## Workflow
 
-1. On startup the scrapers fetch all datasets and populate Postgres.
+1. On startup the scrapers fetch all datasets and populate MariaDB.
 2. Strategies pull data from these tables to build `EquityPortfolio` objects
    which are persisted to the `portfolios` table.
 3. Risk modules cap exposures before orders are sent to Alpaca through the

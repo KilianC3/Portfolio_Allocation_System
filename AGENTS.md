@@ -1,7 +1,7 @@
 # Repository Overview
 
 This project implements a complete portfolio allocation system with data scrapers,
-strategy modules and a FastAPI service for trading. Data is stored in Postgres.
+strategy modules and a FastAPI service for trading. Data is stored in MariaDB.
 Key folders:
 
 - `scrapers/` – download alternative data and index constituents

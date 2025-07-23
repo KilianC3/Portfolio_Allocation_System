@@ -4,7 +4,7 @@ Ledger utilities for transaction records.
 - `master_ledger.py` manages a full history of trades for auditing.
 
 Trade data is ingested from the `execution/` layer and summarised by
-`analytics/` tools. Ledger histories are stored directly in Postgres so they
+`analytics/` tools. Ledger histories are stored directly in MariaDB so they
 persist across restarts.
 
 - **Reminder:** triple-check modifications and run tests to prevent regressions.

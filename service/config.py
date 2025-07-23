@@ -58,15 +58,17 @@ class Settings(BaseSettings):
 
     QUIVER_RATE_SEC: float = 1.1
 
-    PG_URI: str = "postgresql://postgres:postgres@localhost:5432/quant_fund"
+    PG_URI: str = "mysql+pymysql://maria:maria@localhost:3306/quant_fund"
 
     FRED_API_KEY: str | None = None
 
     MIN_ALLOC: float = Field(0.02, alias="MIN_ALLOCATION")
     MAX_ALLOC: float = Field(0.40, alias="MAX_ALLOCATION")
 
-
     API_TOKEN: str | None = None
+
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8001
 
     CACHE_TTL: int = Field(900, alias="CACHE_TTL")
 
@@ -94,6 +96,9 @@ FRED_API_KEY = settings.FRED_API_KEY
 
 API_TOKEN = settings.API_TOKEN
 CACHE_TTL = settings.CACHE_TTL
+
+API_HOST = settings.API_HOST
+API_PORT = settings.API_PORT
 
 CRON = {
     "monthly": {"day": "1", "hour": 3, "minute": 0},

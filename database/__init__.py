@@ -1,4 +1,4 @@
-"""Database helpers for Postgres access."""
+"""Database helpers for MariaDB access."""
 
 from __future__ import annotations
 
@@ -6,8 +6,11 @@ import os
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-import psycopg2
-from psycopg2.extras import RealDictCursor, Json
+import json
+import pymysql
+from pymysql.cursors import DictCursor
+from pymysql.connections import Connection
+from urllib.parse import urlparse
 
 from service.logger import get_logger, register_db_handler
 from service.config import PG_URI, ALLOW_LIVE
@@ -16,19 +19,29 @@ _log = get_logger("db")
 
 PLACEHOLDER = "%s"
 
+_conn: Optional[Connection] = None
+
 
 try:
-    _conn = psycopg2.connect(PG_URI)
-    _conn.autocommit = True
+    parts = urlparse(PG_URI)
+    _conn = pymysql.connect(
+        host=parts.hostname or "localhost",
+        user=parts.username or "root",
+        password=parts.password or "",
+        database=parts.path.lstrip("/"),
+        port=parts.port or 3306,
+        autocommit=True,
+        cursorclass=DictCursor,
+    )
     with _conn.cursor() as cur:
         cur.execute("SELECT 1")
 except Exception as e:  # pragma: no cover - db may not exist in tests
-    _log.error(f"Postgres connection failed: {e}")
+    _log.error(f"MariaDB connection failed: {e}")
     _conn = None
 
 
 def db_ping() -> bool:
-    """Return True if the Postgres connection is healthy."""
+    """Return True if the MariaDB connection is healthy."""
     if not _conn:
         return False
     try:
@@ -41,7 +54,7 @@ def db_ping() -> bool:
 
 
 class InMemoryCollection:
-    """Minimal in-memory fallback used when Postgres is unavailable."""
+    """Minimal in-memory fallback used when MariaDB is unavailable."""
 
     def __init__(self) -> None:
         self._store: dict[str, dict[str, Any]] = {}
@@ -138,7 +151,7 @@ class PGQuery:
         if not self.conn:
             return iter([])
         sql, params = self._sql()
-        with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
+        with self.conn.cursor() as cur:
             cur.execute(sql, params)
             rows = cur.fetchall()
         for r in rows:
@@ -191,7 +204,7 @@ class PGCollection:
             return
         cols = ["id" if c == "_id" else c for c in docs[0].keys()]
         values = [
-            [Json(d[c]) if isinstance(d[c], (dict, list)) else d[c] for c in d]
+            [json.dumps(d[c]) if isinstance(d[c], (dict, list)) else d[c] for c in d]
             for d in docs
         ]
         placeholders = ",".join(
@@ -214,16 +227,15 @@ class PGCollection:
         item.update(match)
         cols = ["id" if c == "_id" else c for c in item.keys()]
         vals = [
-            Json(item[k]) if isinstance(item[k], (dict, list)) else item[k]
+            json.dumps(item[k]) if isinstance(item[k], (dict, list)) else item[k]
             for k in item
         ]
         placeholders = ",".join([PLACEHOLDER] * len(cols))
         if upsert:
-            conflict = ",".join(["id" if k == "_id" else k for k in match.keys()])
-            updates = ",".join([f"{c}=EXCLUDED.{c}" for c in cols])
+            updates = ",".join([f"{c}=VALUES({c})" for c in cols])
             sql = (
                 f"INSERT INTO {self.table} ({','.join(cols)}) VALUES ({placeholders}) "
-                f"ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
+                f"ON DUPLICATE KEY UPDATE {updates}"
             )
             with self.conn.cursor() as cur:
                 cur.execute(sql, vals)
@@ -274,7 +286,7 @@ def init_db() -> None:
         exec_sql(stmt)
 
     # record version 1 if not present
-    exec_sql("INSERT INTO schema_version (version) VALUES (1) ON CONFLICT DO NOTHING")
+    exec_sql("INSERT IGNORE INTO schema_version (version) VALUES (1)")
 
 
 db = PGDatabase(_conn)

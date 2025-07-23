@@ -240,7 +240,7 @@ def load_universe_any() -> pd.DataFrame:
     if df is not None:
         print(f"[INFO] Loaded universe from collection: shape={df.shape}")
         return df
-    raise RuntimeError("Could not load universe from Postgres.")
+    raise RuntimeError("Could not load universe from MariaDB.")
 
 
 def build_portfolio(

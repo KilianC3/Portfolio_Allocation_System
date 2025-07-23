@@ -13,6 +13,12 @@ fi
 source "$VENV_DIR/bin/activate"
 pip install --upgrade pip
 pip install -r "$APP_DIR/deploy/requirements.txt"
+sudo apt-get update
+sudo apt-get install -y mariadb-server
+sudo systemctl enable mariadb
+sudo systemctl start mariadb
+sudo mysql -e "CREATE DATABASE IF NOT EXISTS quant_fund;"
+sudo mysql -e "GRANT ALL PRIVILEGES ON quant_fund.* TO 'maria'@'localhost' IDENTIFIED BY 'maria'; FLUSH PRIVILEGES;"
 python -m playwright install chromium || true
 
 # Refresh ticker universe before running other scrapers
@@ -60,8 +66,8 @@ done
 cat <<EOF >/etc/systemd/system/portfolio.service
 [Unit]
 Description=Portfolio Service
-After=network.target postgresql.service
-Requires=postgresql.service
+After=network.target mariadb.service
+Requires=mariadb.service
 
 [Service]
 Type=simple

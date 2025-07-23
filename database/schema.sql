@@ -5,240 +5,240 @@ CREATE TABLE IF NOT EXISTS schema_version (
 CREATE TABLE IF NOT EXISTS portfolios (
     id TEXT PRIMARY KEY,
     name TEXT,
-    weights JSONB
+    weights JSON
 );
 
 CREATE TABLE IF NOT EXISTS trades (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     portfolio_id TEXT REFERENCES portfolios(id),
     symbol TEXT,
-    qty DOUBLE PRECISION,
+    qty DOUBLE,
     side TEXT,
-    price DOUBLE PRECISION,
-    timestamp TIMESTAMPTZ DEFAULT NOW()
+    price DOUBLE,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS weight_history (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     portfolio_id TEXT REFERENCES portfolios(id),
     date DATE,
-    weights JSONB,
+    weights JSON,
     UNIQUE(portfolio_id, date)
 );
 
 
 CREATE TABLE IF NOT EXISTS metrics (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     portfolio_id TEXT REFERENCES portfolios(id),
     date DATE,
-    ret DOUBLE PRECISION,
-    benchmark DOUBLE PRECISION,
-    sharpe DOUBLE PRECISION,
-    alpha DOUBLE PRECISION,
-    beta DOUBLE PRECISION,
-    max_drawdown DOUBLE PRECISION,
-    ret_1d DOUBLE PRECISION,
-    ret_7d DOUBLE PRECISION,
-    ret_30d DOUBLE PRECISION,
-    ret_3m DOUBLE PRECISION,
-    ret_6m DOUBLE PRECISION,
-    ret_1y DOUBLE PRECISION,
-    ret_2y DOUBLE PRECISION,
-    cagr DOUBLE PRECISION,
-    win_rate DOUBLE PRECISION,
-    avg_win DOUBLE PRECISION,
-    avg_loss DOUBLE PRECISION,
-    annual_vol DOUBLE PRECISION,
-    annual_std DOUBLE PRECISION,
-    information_ratio DOUBLE PRECISION,
-    treynor_ratio DOUBLE PRECISION,
+    ret DOUBLE,
+    benchmark DOUBLE,
+    sharpe DOUBLE,
+    alpha DOUBLE,
+    beta DOUBLE,
+    max_drawdown DOUBLE,
+    ret_1d DOUBLE,
+    ret_7d DOUBLE,
+    ret_30d DOUBLE,
+    ret_3m DOUBLE,
+    ret_6m DOUBLE,
+    ret_1y DOUBLE,
+    ret_2y DOUBLE,
+    cagr DOUBLE,
+    win_rate DOUBLE,
+    avg_win DOUBLE,
+    avg_loss DOUBLE,
+    annual_vol DOUBLE,
+    annual_std DOUBLE,
+    information_ratio DOUBLE,
+    treynor_ratio DOUBLE,
     total_trades INTEGER,
-    var DOUBLE PRECISION,
-    cvar DOUBLE PRECISION,
+    var DOUBLE,
+    cvar DOUBLE,
     UNIQUE(portfolio_id, date)
 );
 CREATE TABLE IF NOT EXISTS politician_trades (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     politician TEXT,
     ticker TEXT,
     transaction TEXT,
     amount TEXT,
     date TEXT,
-    _retrieved TIMESTAMPTZ,
+    _retrieved TIMESTAMP,
     UNIQUE(politician, ticker, date)
 );
 
 CREATE TABLE IF NOT EXISTS lobbying (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     ticker TEXT,
     client TEXT,
     amount TEXT,
     date TEXT,
-    _retrieved TIMESTAMPTZ,
+    _retrieved TIMESTAMP,
     UNIQUE(ticker, date)
 );
 
 CREATE TABLE IF NOT EXISTS wiki_views (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     page TEXT,
     views TEXT,
     date TEXT,
-    _retrieved TIMESTAMPTZ,
+    _retrieved TIMESTAMP,
     UNIQUE(page, date)
 );
 
 CREATE TABLE IF NOT EXISTS dc_insider_scores (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     ticker TEXT,
     score TEXT,
     date TEXT,
-    _retrieved TIMESTAMPTZ,
+    _retrieved TIMESTAMP,
     UNIQUE(ticker, date)
 );
 
 CREATE TABLE IF NOT EXISTS gov_contracts (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     ticker TEXT,
     value TEXT,
     date TEXT,
-    _retrieved TIMESTAMPTZ,
+    _retrieved TIMESTAMP,
     UNIQUE(ticker, date)
 );
 
 CREATE TABLE IF NOT EXISTS app_reviews (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     ticker TEXT,
     hype TEXT,
     date TEXT,
-    _retrieved TIMESTAMPTZ,
+    _retrieved TIMESTAMP,
     UNIQUE(ticker, date)
 );
 
 CREATE TABLE IF NOT EXISTS google_trends (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     ticker TEXT,
     score TEXT,
     date TEXT,
-    _retrieved TIMESTAMPTZ,
+    _retrieved TIMESTAMP,
     UNIQUE(ticker, date)
 );
 
 CREATE TABLE IF NOT EXISTS analyst_ratings (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     ticker TEXT,
     rating TEXT,
     date TEXT,
-    _retrieved TIMESTAMPTZ,
+    _retrieved TIMESTAMP,
     UNIQUE(ticker, rating, date)
 );
 
 CREATE TABLE IF NOT EXISTS news_headlines (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     ticker TEXT,
     headline TEXT,
     link TEXT,
     source TEXT,
     time TEXT,
-    _retrieved TIMESTAMPTZ
+    _retrieved TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS insider_buying (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     ticker TEXT,
     exec TEXT,
     shares TEXT,
     date TEXT,
-    _retrieved TIMESTAMPTZ,
+    _retrieved TIMESTAMP,
     UNIQUE(ticker, exec, date)
 );
 
 CREATE TABLE IF NOT EXISTS reddit_mentions (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     ticker TEXT,
     mentions INTEGER,
     pos INTEGER,
     neu INTEGER,
     neg INTEGER,
     date TEXT,
-    _retrieved TIMESTAMPTZ,
+    _retrieved TIMESTAMP,
     UNIQUE(ticker, date)
 );
 
 CREATE TABLE IF NOT EXISTS sp500_index (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     date TEXT UNIQUE,
-    open DOUBLE PRECISION,
-    high DOUBLE PRECISION,
-    low DOUBLE PRECISION,
-    close DOUBLE PRECISION,
+    open DOUBLE,
+    high DOUBLE,
+    low DOUBLE,
+    close DOUBLE,
     volume BIGINT,
-    _retrieved TIMESTAMPTZ
+    _retrieved TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS universe (
     symbol TEXT PRIMARY KEY,
     index_name TEXT,
-    _retrieved TIMESTAMPTZ
+    _retrieved TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS ticker_scores (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     symbol TEXT,
     index_name TEXT,
     date DATE,
-    fundamentals DOUBLE PRECISION,
-    momentum DOUBLE PRECISION,
-    liquidity_sentiment DOUBLE PRECISION,
-    risk_adjusted DOUBLE PRECISION,
-    overall DOUBLE PRECISION,
+    fundamentals DOUBLE,
+    momentum DOUBLE,
+    liquidity_sentiment DOUBLE,
+    risk_adjusted DOUBLE,
+    overall DOUBLE,
     UNIQUE(symbol, date)
 );
 
 CREATE TABLE IF NOT EXISTS top_scores (
-    id SERIAL PRIMARY KEY,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
     date DATE,
     symbol TEXT,
     index_name TEXT,
-    score DOUBLE PRECISION,
+    score DOUBLE,
     rank INTEGER,
     UNIQUE(date, symbol)
 );
 
 
 CREATE TABLE IF NOT EXISTS alloc_log (
-    id SERIAL PRIMARY KEY,
-    data JSONB
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    data JSON
 );
 
 CREATE TABLE IF NOT EXISTS cache (
     key TEXT PRIMARY KEY,
     payload TEXT,
-    expire TIMESTAMPTZ
+    expire TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS account_metrics (
-    id SERIAL PRIMARY KEY,
-    timestamp TIMESTAMPTZ,
-    equity DOUBLE PRECISION,
-    last_equity DOUBLE PRECISION
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    timestamp TIMESTAMP,
+    equity DOUBLE,
+    last_equity DOUBLE
 );
 
 CREATE TABLE IF NOT EXISTS account_metrics_paper (
-    id SERIAL PRIMARY KEY,
-    timestamp TIMESTAMPTZ,
-    equity DOUBLE PRECISION,
-    last_equity DOUBLE PRECISION
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    timestamp TIMESTAMP,
+    equity DOUBLE,
+    last_equity DOUBLE
 );
 
 CREATE TABLE IF NOT EXISTS account_metrics_live (
-    id SERIAL PRIMARY KEY,
-    timestamp TIMESTAMPTZ,
-    equity DOUBLE PRECISION,
-    last_equity DOUBLE PRECISION
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    timestamp TIMESTAMP,
+    equity DOUBLE,
+    last_equity DOUBLE
 );
 
 CREATE TABLE IF NOT EXISTS system_logs (
-    id SERIAL PRIMARY KEY,
-    timestamp TIMESTAMPTZ,
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    timestamp TIMESTAMP,
     level TEXT,
     logger TEXT,
     message TEXT

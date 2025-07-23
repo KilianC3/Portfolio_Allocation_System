@@ -11,7 +11,7 @@ from database import db
 
 
 def append_snapshot(table: str, records: List[Dict]) -> None:
-    """Insert ``records`` into the Postgres table if a connection is available."""
+    """Insert ``records`` into the MariaDB table if a connection is available."""
     if not records or not db.conn:
         return
     coll = db[table]
@@ -29,7 +29,7 @@ def append_snapshot(table: str, records: List[Dict]) -> None:
 
 
 def has_recent_rows(table: str, since: dt.datetime) -> bool:
-    """Return True if ``table`` contains recent rows in Postgres."""
+    """Return True if ``table`` contains recent rows in MariaDB."""
     if not db.conn:
         return False
     coll = db[table]

@@ -1,7 +1,9 @@
 ALPACA_API_KEY: "your-alpaca-key"
 ALPACA_API_SECRET: "your-secret"
 ALPACA_BASE_URL: "https://paper-api.alpaca.markets"
-PG_URI: "postgresql://postgres:postgres@localhost:5432/quant_fund"
+PG_URI: "mysql+pymysql://maria:maria@localhost:3306/quant_fund"
 FRED_API_KEY: "your-fred-key"
 API_TOKEN: "changeme"
 AUTO_START_SCHED: true
+API_HOST: "0.0.0.0"
+API_PORT: 8001
