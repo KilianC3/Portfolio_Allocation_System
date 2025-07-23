@@ -3,15 +3,15 @@ CREATE TABLE IF NOT EXISTS schema_version (
 );
 
 CREATE TABLE IF NOT EXISTS portfolios (
-    id TEXT PRIMARY KEY,
+    id VARCHAR(36) PRIMARY KEY,
     name TEXT,
     weights JSON
 );
 
 CREATE TABLE IF NOT EXISTS trades (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
-    portfolio_id TEXT REFERENCES portfolios(id),
-    symbol TEXT,
+    portfolio_id VARCHAR(36) REFERENCES portfolios(id),
+    symbol VARCHAR(16),
     qty DOUBLE,
     side TEXT,
     price DOUBLE,
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS trades (
 );
 CREATE TABLE IF NOT EXISTS weight_history (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
-    portfolio_id TEXT REFERENCES portfolios(id),
+    portfolio_id VARCHAR(36) REFERENCES portfolios(id),
     date DATE,
     weights JSON,
     UNIQUE(portfolio_id, date)
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS weight_history (
 
 CREATE TABLE IF NOT EXISTS metrics (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
-    portfolio_id TEXT REFERENCES portfolios(id),
+    portfolio_id VARCHAR(36) REFERENCES portfolios(id),
     date DATE,
     ret DOUBLE,
     benchmark DOUBLE,
@@ -175,14 +175,14 @@ CREATE TABLE IF NOT EXISTS sp500_index (
 );
 
 CREATE TABLE IF NOT EXISTS universe (
-    symbol TEXT PRIMARY KEY,
+    symbol VARCHAR(16) PRIMARY KEY,
     index_name TEXT,
     _retrieved TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS ticker_scores (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
-    symbol TEXT,
+    symbol VARCHAR(16),
     index_name TEXT,
     date DATE,
     fundamentals DOUBLE,
@@ -196,7 +196,7 @@ CREATE TABLE IF NOT EXISTS ticker_scores (
 CREATE TABLE IF NOT EXISTS top_scores (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
     date DATE,
-    symbol TEXT,
+    symbol VARCHAR(16),
     index_name TEXT,
     score DOUBLE,
     rank INTEGER,
@@ -210,7 +210,7 @@ CREATE TABLE IF NOT EXISTS alloc_log (
 );
 
 CREATE TABLE IF NOT EXISTS cache (
-    key TEXT PRIMARY KEY,
+    key VARCHAR(191) PRIMARY KEY,
     payload TEXT,
     expire TIMESTAMP
 );
