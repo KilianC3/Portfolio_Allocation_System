@@ -60,15 +60,15 @@ class InMemoryCollection:
         self._store: dict[str, dict[str, Any]] = {}
 
     def find_one(self, q: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        key = q.get("key")
-        if not isinstance(key, str):
+        cache_key = q.get("cache_key")
+        if not isinstance(cache_key, str):
             return None
-        return self._store.get(key)
+        return self._store.get(cache_key)
 
     def replace_one(
         self, match: Dict[str, Any], doc: Dict[str, Any], upsert: bool = False
     ) -> None:
-        self._store[match["key"]] = doc
+        self._store[match["cache_key"]] = doc
 
 
 class PGClient:

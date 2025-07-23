@@ -131,7 +131,7 @@ performance monitoring.
 - `account_metrics_live` – equity history for the live account
 - `account_metrics` – point-in-time equity snapshots
 - `schema_version` – schema migration tracking
-- `cache` – key/value store for HTTP responses
+ - `cache` – key/value store for HTTP responses (`cache_key`, `payload`, `expire`)
 - `alloc_log` – allocation diagnostics
 - `system_logs` – structured log records for the front end
 - `top_scores` – top 20 tickers by composite score each month

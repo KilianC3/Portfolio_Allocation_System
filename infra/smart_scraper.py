@@ -32,7 +32,7 @@ async def get(url: str, retries: int = 3) -> str:
     """
 
     key = hashlib.md5(url.encode()).hexdigest()
-    doc = cache.find_one({"key": key})
+    doc = cache.find_one({"cache_key": key})
     if doc:
         expire = doc.get("expire")
         if expire is not None:
@@ -59,9 +59,9 @@ async def get(url: str, retries: int = 3) -> str:
 
                 text = await asyncio.to_thread(_fetch)
                 cache.replace_one(
-                    {"key": key},
+                    {"cache_key": key},
                     {
-                        "key": key,
+                        "cache_key": key,
                         "payload": text,
                         "expire": dt.datetime.now(dt.timezone.utc)
                         + dt.timedelta(seconds=TTL),
