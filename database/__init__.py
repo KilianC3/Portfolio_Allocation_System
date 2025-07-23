@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 import json
 import pymysql
 from pymysql.cursors import DictCursor
+from pymysql.connections import Connection
 from urllib.parse import urlparse
 
 from service.logger import get_logger, register_db_handler
@@ -17,6 +18,8 @@ from service.config import PG_URI, ALLOW_LIVE
 _log = get_logger("db")
 
 PLACEHOLDER = "%s"
+
+_conn: Optional[Connection] = None
 
 
 try:
