@@ -62,6 +62,7 @@ async def run_scrapers() -> None:
     today = pd.Timestamp.utcnow().normalize()
 
     for name, func in scrapers:
+        _log.info(f"{name} start")
         try:
             table = table_map.get(name, name)
             if has_recent_rows(table, today):

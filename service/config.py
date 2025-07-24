@@ -51,9 +51,12 @@ class Settings(BaseSettings):
     these settings can be loaded without a separate ``.env`` file.
     """
 
-    ALPACA_API_KEY: str | None = None
-    ALPACA_API_SECRET: str | None = None
-    ALPACA_BASE_URL: str = "https://paper-api.alpaca.markets"
+    ALPACA_PAPER_KEY: str | None = None
+    ALPACA_PAPER_SECRET: str | None = None
+    ALPACA_PAPER_URL: str = "https://paper-api.alpaca.markets"
+    ALPACA_LIVE_KEY: str | None = None
+    ALPACA_LIVE_SECRET: str | None = None
+    ALPACA_LIVE_URL: str = "https://api.alpaca.markets"
     ALLOW_LIVE: bool = False
 
     QUIVER_RATE_SEC: float = 1.1
@@ -80,9 +83,13 @@ class Settings(BaseSettings):
 # Pass defaults explicitly so mypy recognises optional fields
 settings = Settings(MIN_ALLOCATION=0.02, MAX_ALLOCATION=0.40, CACHE_TTL=900)
 
-ALPACA_API_KEY = settings.ALPACA_API_KEY
-ALPACA_API_SECRET = settings.ALPACA_API_SECRET
-ALPACA_BASE_URL = settings.ALPACA_BASE_URL
+ALLOW_LIVE = settings.ALLOW_LIVE
+
+ALPACA_API_KEY = settings.ALPACA_LIVE_KEY if ALLOW_LIVE else settings.ALPACA_PAPER_KEY
+ALPACA_API_SECRET = (
+    settings.ALPACA_LIVE_SECRET if ALLOW_LIVE else settings.ALPACA_PAPER_SECRET
+)
+ALPACA_BASE_URL = settings.ALPACA_LIVE_URL if ALLOW_LIVE else settings.ALPACA_PAPER_URL
 
 QUIVER_RATE_SEC = settings.QUIVER_RATE_SEC
 
@@ -106,4 +113,3 @@ CRON = {
 }
 
 AUTO_START_SCHED = settings.AUTO_START_SCHED
-ALLOW_LIVE = settings.ALLOW_LIVE
