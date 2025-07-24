@@ -31,10 +31,15 @@ performance monitoring.
    source venv/bin/activate
    pip install -r deploy/requirements.txt
    ```
-2. Edit `service/config.yaml` with your MariaDB URI, Alpaca keys,
-   `FRED_API_KEY` and an `API_TOKEN` that clients will use for
-   authentication.  Optional `API_HOST` and `API_PORT` settings
-   control where the FastAPI server listens.
+2. Edit `service/config.yaml` with your MariaDB URI and separate
+   credentials for both paper and live Alpaca accounts. Set
+   `ALPACA_PAPER_KEY`, `ALPACA_PAPER_SECRET` and `ALPACA_PAPER_URL`
+   for the paper account and `ALPACA_LIVE_KEY`, `ALPACA_LIVE_SECRET`
+   and `ALPACA_LIVE_URL` for the live account. The system selects the
+   live settings when `ALLOW_LIVE` is `true`. Keep this file on the
+   same secured server as `FRED_API_KEY` and the `API_TOKEN` clients
+   use for authentication. Optional `API_HOST` and `API_PORT`
+   settings control where the FastAPI server listens.
 3. Enable remote MariaDB access so other machines can reach the
    database. Edit `/etc/mysql/mariadb.conf.d/50-server.cnf`
    and set `bind-address = 0.0.0.0`. Restart MariaDB and ensure port
@@ -42,9 +47,10 @@ performance monitoring.
    IP address. Connect using any MySQL client with the same credentials
    from `service/config.yaml`.
 4. Run the bootstrap script to install dependencies and register a
-   systemd service. The unit now launches ``service/start.py`` so the
-   checklist, database initialisation and scrapers all complete before
-   FastAPI comes online.
+   systemd service. The unit launches ``service/start.py`` which
+   brings the API and dashboard online immediately while the scrapers
+   continue in the background. You can watch progress at
+   ``/dashboard`` as the tables fill.
    ```bash
    sudo scripts/bootstrap.sh
    ```
@@ -68,6 +74,12 @@ performance monitoring.
    pytest -q
    ```
    See `docs/AGENTS_ROOT.md` for commit conventions and repository tips.
+8. View real-time logs with
+   ```bash
+   journalctl -u portfolio -f
+   ```
+   or tail the file at `observability/logs/app.log` to watch the scrapers
+   populate data.
 
 
 ## Strategy Reference
@@ -209,6 +221,17 @@ Open the dashboard in your browser at
 `http://localhost:8001/dashboard?token=<YOUR_TOKEN>` to view health checks and
 navigate through every table. Select a table to browse pages or export data via
 `format=csv`.
+
+## Troubleshooting
+
+If the service fails to start, check the logs with
+`journalctl -u portfolio -f`. Common issues are invalid Alpaca credentials or a
+missing Redis instance. Confirm you are using the paper versus live
+environment variables in `service/config.yaml` and that `ALLOW_LIVE`
+matches the endpoint. Verify your keys with a curl call to the
+corresponding account URL. Ensure Redis is running locally on port 6379
+or update the ledger connection settings. Once these checks pass the
+service will stay online.
 
 ## Allocation Logic
 

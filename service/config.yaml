@@ -1,6 +1,10 @@
-ALPACA_API_KEY: "your-alpaca-key"
-ALPACA_API_SECRET: "your-secret"
-ALPACA_BASE_URL: "https://paper-api.alpaca.markets"
+ALPACA_PAPER_KEY: "your-paper-key"
+ALPACA_PAPER_SECRET: "your-paper-secret"
+ALPACA_PAPER_URL: "https://paper-api.alpaca.markets"
+ALPACA_LIVE_KEY: "your-live-key"
+ALPACA_LIVE_SECRET: "your-live-secret"
+ALPACA_LIVE_URL: "https://api.alpaca.markets"
+ALLOW_LIVE: false
 PG_URI: "mysql+pymysql://maria:maria@localhost:3306/quant_fund"
 FRED_API_KEY: "your-fred-key"
 API_TOKEN: "changeme"

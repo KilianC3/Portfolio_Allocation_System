@@ -24,7 +24,11 @@ _pipe: Optional["TextClassificationPipeline"]
 
 if pipeline is not None:
     try:  # pragma: no cover - download may fail
-        _pipe = pipeline(task="text-classification")
+        _pipe = pipeline(
+            task="text-classification",
+            model="distilbert/distilbert-base-uncased-finetuned-sst-2-english",
+            revision="714eb0f",
+        )
     except Exception:  # pragma: no cover - fallback
         _pipe = None
 else:  # pragma: no cover - pipeline import failure
