@@ -1,29 +1,11 @@
 # Portfolio Allocation System
 
-The Portfolio Allocation System runs a suite of alternative‑data strategies and exposes a REST API for automated trading.  Scrapers ingest public data into MariaDB, strategies produce target weights and the execution gateway sends orders through Alpaca.  Metrics and logs are stored so performance can be reviewed at any time.
+The Portfolio Allocation System is an end-to-end trading platform that runs entirely on a single server.  It gathers alternative data, builds equity portfolios and sends orders to Alpaca.  A FastAPI service exposes metrics and trading endpoints while scheduled jobs update data automatically.
 
-## Key Features
+## Setup
 
-- **FastAPI service** with token authentication
-- **APScheduler** for scheduled rebalances
-- **Alpaca** gateway with paper/live detection
-- **MariaDB** data store
-- **Prometheus metrics** and structured logging
-- **Correlation endpoint** to compare portfolio relationships
-- **Sector exposure endpoint** for portfolio sector breakdowns
+1. **Install the application**
 
-## System Overview
-
-Scrapers gather alternative datasets from QuiverQuant, Benzinga and
-Wikimedia. All results are written to MariaDB. Strategies read these
-tables to compute composite scores and build target weights. The
-execution layer submits orders via Alpaca and records fills to the
-`trades` table. Metrics and account equity are archived nightly for
-performance monitoring.
-
-## Getting Started
-
-1. Clone the repository and create a virtual environment
    ```bash
    git clone <repo_url>
    cd Portfolio_Allocation_System
@@ -31,79 +13,59 @@ performance monitoring.
    source venv/bin/activate
    pip install -r deploy/requirements.txt
    ```
-2. Edit `service/config.yaml` with your MariaDB URI and separate
-   credentials for both paper and live Alpaca accounts. Set
-   `ALPACA_PAPER_KEY`, `ALPACA_PAPER_SECRET` and `ALPACA_PAPER_URL`
-   for the paper account and `ALPACA_LIVE_KEY`, `ALPACA_LIVE_SECRET`
-   and `ALPACA_LIVE_URL` for the live account. The system selects the
-   live settings when `ALLOW_LIVE` is `true`. Keep this file on the
-   same secured server as `FRED_API_KEY` and the `API_TOKEN` clients
-   use for authentication. Optional `API_HOST` and `API_PORT`
-   settings control where the FastAPI server listens.
-3. Enable remote MariaDB access so other machines can reach the
-   database. Edit `/etc/mysql/mariadb.conf.d/50-server.cnf`
-   and set `bind-address = 0.0.0.0`. Restart MariaDB and ensure port
-   `3306` is open in your firewall. Update `PG_URI` with the server's
-   IP address. Connect using any MySQL client with the same credentials
-   from `service/config.yaml`.
-4. Run the bootstrap script to install dependencies and register a
-   systemd service. The unit launches ``service/start.py`` which
-   brings the API and dashboard online immediately while the scrapers
-   continue in the background. You can watch progress at
-   ``/dashboard`` as the tables fill.
+
+2. **Configure the service**
+
+   Edit `service/config.yaml` and set these values:
+
+   - `API_HOST: "192.168.0.59"`
+   - `PG_URI`: MariaDB URI pointing to `192.168.0.59`
+   - `ALPACA_PAPER_KEY`, `ALPACA_PAPER_SECRET`
+   - `ALPACA_PAPER_URL: "https://paper-api.alpaca.markets"`
+   - `ALPACA_LIVE_URL: "https://api.alpaca.markets"`
+   - `API_TOKEN`: token for authenticating requests
+   - Redis host and port (default `192.168.0.59:6379`)
+
+   The service appends `/v2/account` to the Alpaca URLs automatically, so do **not** include the `/v2` prefix in the configuration.
+
+3. **Enable remote MariaDB access**
+
+   Set `bind-address = 0.0.0.0` in `/etc/mysql/mariadb.conf.d/50-server.cnf` and open port `3306` on the firewall so the API and scrapers can connect.
+
+4. **Start all services**
+
    ```bash
    sudo scripts/bootstrap.sh
    ```
-   This installs ``deploy/portfolio.service`` to ``/etc/systemd/system``
-   and starts it immediately. When the script completes the API is
-   running on ``192.168.0.59:8001`` (customise `API_HOST` or
-   `API_PORT` as needed). Ensure the firewall allows incoming
-   connections on this port.
-5. To expose the API manually with a token, run the helper script
-   ```bash
-   API_TOKEN=<YOUR_TOKEN> ./scripts/expose_db_api.sh
-   ```
-   Pass a host and port to override the defaults of `0.0.0.0:8001`.
-6. Open the dashboard in your browser to verify the service
-   ```
-   http://localhost:8001/dashboard?token=<YOUR_TOKEN>
-   ```
-7. (Optional) install test dependencies and run the unit tests
+
+   This registers a systemd unit that runs `service/start.py` and launches the API at `http://192.168.0.59:8001`.
+
+5. **Run the unit tests** *(optional)*
+
    ```bash
    pip install -r deploy/requirements-test.txt
    pytest -q
    ```
-   See `docs/AGENTS_ROOT.md` for commit conventions and repository tips.
-8. View real-time logs with
-   ```bash
-   journalctl -u portfolio -f
-   ```
-   or tail the file at `observability/logs/app.log` to watch the scrapers
-   populate data.
 
+## Usage
 
-## Strategy Reference
+Send authenticated requests using either the `Authorization` header or a `token` query parameter:
 
-| Strategy | Source | Frequency | Selection Rule |
-|---------|--------|-----------|----------------|
-| Congressional-Trading Aggregate | Quiver congress trades | Weekly | Long 20 tickers with highest net buys last month |
-| "Follow-the-Leader" Politician Sleeves | Individual congress trading pages | Monthly | Mirror buys for Pelosi, Meuser and Capito |
-| DC Insider Score Tilt | Quiver DC Insider scores | Weekly | Long top 30 ranked by score |
-| Government-Contracts Momentum | Quiver gov contracts | Monthly | Own firms with \$50M+ new federal contracts |
-| Corporate Insider Buying Pulse | Quiver insider filings | Weekly | Long 25 tickers with strongest buying |
-| Wikipedia Attention Surge | Wikimedia page views | Monthly | Long top 10 names by page‑view jump |
-| Wall Street Bets Buzz | ApeWisdom API | Monthly | Long 15 tickers with fastest rise in mentions |
-| App Reviews Hype Score | Quiver app ratings | Weekly | Long 20 names with largest hype increase |
-| Google Trends + News Sentiment | Quiver Google Trends + Finviz news | Monthly | Long 30 tickers with rising search interest and good news |
-| Sector Risk-Parity Momentum | Yahoo Finance | Weekly | Rotate sector ETFs using risk‑parity weights |
-| Leveraged Sector Momentum | Yahoo Finance | Weekly | Momentum rotation among leveraged sector ETFs |
-| Volatility-Scaled Momentum | Yahoo Finance | Weekly | Rank stocks by 12‑month return scaled by volatility |
-| Upgrade Momentum | Benzinga upgrades | Weekly | Tilt toward names with improving analyst revisions |
-| Small Cap Momentum | Various filings | Monthly | Trade small caps before catalysts, exit after 50% gain or 3 months |
-| Sector-Neutral Mini-Portfolios | Composite screener | Quarterly | Equal-weight top value names by sector |
-| Micro-Small Composite Leaders | Composite screener | Monthly | Value and momentum leaders in micro/small caps |
-| Lobbying Growth | Quiver lobbying data | Monthly | Long 20 tickers with largest lobbying spend growth |
-| Composite Score Leaders | Monthly composite rankings | Monthly | Equal-weight top 20 names by overall score |
+```bash
+curl "http://192.168.0.59:8001/db/trades?limit=20&token=<YOUR_TOKEN>"
+```
+
+Convenience scripts:
+
+- `scripts/dashboard.py` – browse tables from the terminal
+- `scripts/populate.py` – refresh datasets without starting the API
+- `scripts/expose_db_api.sh` – expose the API on a different host and port
+
+## Troubleshooting
+
+- **Alpaca 404** – verify that `ALPACA_PAPER_URL` and `ALPACA_LIVE_URL` are just the domain.  The service calls `/v2/account` itself, so a trailing `/v2` would lead to `/v2/v2/account` and a 404.
+- **Redis connection refused** – ensure a Redis instance is running on `192.168.0.59:6379` or update the ledger configuration.
+- Watch logs with `journalctl -u portfolio -f` if startup checks fail.
 
 ## Data Sources
 
@@ -135,9 +97,8 @@ performance monitoring.
 - `news_headlines`
 - `analyst_ratings`
 - `insider_buying`
-- `sp500_index` – weekly OHLCV history for the S&P 500
+- `sp500_index` – weekly OHLCV history for the S&P 500
 - `universe` – full list of tradable symbols with `index_name`
-- Ticker constituents from the S&P 500, S&P 400 and Russell 2000 populate this table
 - `portfolios` – stored weights for each strategy
 - `trades` – executed orders
 - `weight_history` – timestamped portfolio weights
@@ -147,105 +108,11 @@ performance monitoring.
 - `account_metrics_live` – equity history for the live account
 - `account_metrics` – point-in-time equity snapshots
 - `schema_version` – schema migration tracking
- - `cache` – key/value store for HTTP responses (`cache_key`, `payload MEDIUMTEXT`, `expire`)
+- `cache` – key/value store for HTTP responses
 - `alloc_log` – allocation diagnostics
 - `system_logs` – structured log records for the front end
 - `top_scores` – top 20 tickers by composite score each month
-Run `database.init_db()` after updating to ensure the `cache` table uses MEDIUMTEXT.
 
-## Workflow
+Run `database.init_db()` whenever the schema changes to ensure the `cache` table uses `MEDIUMTEXT`.
 
-1. The FastAPI server starts only after `service/start.py` (or the
-   `portfolio` service) completes the system checklist and runs every
-   scraper.
-2. Once online, strategies pull data from these tables to build
-   `EquityPortfolio` objects which are persisted to the `portfolios`
-   table.
-3. Risk modules cap exposures before orders are sent to Alpaca through the
-   execution gateway.
-4. The scheduler runs nightly to update metrics, account equity snapshots and
-   ticker scores. Any failed tasks are logged in `alloc_log` for later review.
-   The `full_fundamentals` scraper now runs once an hour after boot.
-
-## Database Dashboard
-
-The helper script `scripts/dashboard.py` shows recent rows from each table
-directly from the database, so it works even if the FastAPI service is not
-running. When the API is available a web dashboard is served at `/dashboard`.
-Each table can be browsed at `/dashboard?table=<name>&page=1&limit=20` with
-pagination controls. Append `format=csv` to the `/db/{table}` endpoint to
-download rows in CSV form.
-
-
-Run the dashboard with:
-
-```bash
-python scripts/dashboard.py
-```
-
-To refresh all datasets manually without starting the API run:
-```bash
-python scripts/populate.py
-```
-
-## API Access
-
-The API starts automatically after running `scripts/bootstrap.sh`, which
-installs `portfolio.service` to launch `service/start.py`. Authenticate each
-request with your API token using the `Authorization` header or a
-`token` query parameter.
-The token is defined in `service/config.yaml`.
-
-Example curl request to read the latest trades:
-
-```bash
-curl "http://localhost:8001/db/trades?limit=20&token=<YOUR_TOKEN>"
-```
-
-Example access using Python:
-
-```python
-import pandas as pd
-import requests
-
-token = "<YOUR_TOKEN>"
-resp = requests.get(
-    "http://localhost:8001/db/trades",
-    params={"limit": 20, "token": token},
-)
-df = pd.DataFrame(resp.json()["records"])
-print(df.head())
-```
-
-Open the dashboard in your browser at
-`http://localhost:8001/dashboard?token=<YOUR_TOKEN>` to view health checks and
-navigate through every table. Select a table to browse pages or export data via
-`format=csv`.
-
-## Troubleshooting
-
-If the service fails to start, check the logs with
-`journalctl -u portfolio -f`. Common issues are invalid Alpaca credentials or a
-missing Redis instance. Confirm you are using the paper versus live
-environment variables in `service/config.yaml` and that `ALLOW_LIVE`
-matches the endpoint. Verify your keys with a curl call to the
-corresponding account URL. Ensure Redis is running locally on port 6379
-or update the ledger connection settings. Once these checks pass the
-service will stay online.
-
-## Allocation Logic
-
-Weekly returns are cleaned with a z-score filter and a rolling window of up to 36 weeks is used. When fewer than four weeks of data exist the allocator simply assigns equal weights. Once at least four weeks are available, all history up to 36 weeks feeds the Ledoit–Wolf covariance and mean-return estimates. The positive part of ``Σ⁻¹μ`` gives the long-only max‑Sharpe mix while ``Σ⁻¹(μ − r_f)`` yields the tangency portfolio. This unit-sum portfolio is scaled to an 11% volatility target (clamped between 10–12%) and clipped to the configured bounds. Tiny changes below 0.5 percentage points are skipped, extreme volatility reuses the previous allocation, and portfolio correlations and sector exposures are provided for the UI.
-
-## Crisis Regime Detection
-
-At each daily rebalance a Crisis Composite Indicator (CCI) is computed from several FRED macroeconomic series. The indicator sums positive z-scores weighted by importance. Position weights are multiplied by a scaling factor `S(CCI)`:
-
-```
-S(CCI) = 1.0                       if CCI < 1.0
-S(CCI) = 1.0 - 0.3 * (CCI - 1.0)   if 1.0 ≤ CCI < 2.0
-S(CCI) = max(0.3, 0.7 - 0.4 * (CCI - 2.0)) otherwise
-```
-
-This reduces exposure during stressed regimes while keeping full allocation in calm markets.
-
+Further documentation is located in the `docs/` directory.
