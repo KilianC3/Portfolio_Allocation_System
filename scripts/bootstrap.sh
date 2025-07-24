@@ -33,7 +33,7 @@ Requires=mariadb.service
 Type=simple
 WorkingDirectory=$APP_DIR
 Environment=PYTHONPATH=$APP_DIR
-ExecStart=$VENV_DIR/bin/python -m service.start --host 192.168.0.59 --port 8001
+ExecStart=$VENV_DIR/bin/python $APP_DIR/service/start.py --host 192.168.0.59 --port 8001
 Restart=on-failure
 StandardOutput=journal
 StandardError=journal
