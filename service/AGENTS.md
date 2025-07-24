@@ -2,8 +2,8 @@
 
 - `api.py` defines FastAPI endpoints and portfolio operations. Startup only logs
   readiness; all heavy initialisation happens elsewhere.
-- `start.py` launches uvicorn immediately, then initialises the database,
-  starts the scheduler and runs `scripts.populate.run_scrapers()`.
+- `start.py` performs the full system checklist, initialises the database,
+  loads portfolios, runs all scrapers and only then launches uvicorn.
 - `scheduler.py` schedules recurring jobs using APScheduler.
 - `logger.py` wraps the structlog helpers for consistent logging.
 - `config.py` and `config.yaml` hold environment configuration.

@@ -91,7 +91,7 @@ class PGDatabase:
         self.client = PGClient(conn)
 
     def __getitem__(self, name: str) -> "PGCollection":
-        return PGCollection(self.conn, name)
+        return PGCollection(self.conn, name, self)
 
 
 def _build_where(q: Dict[str, Any]) -> Tuple[str, List[Any]]:
@@ -126,6 +126,7 @@ class PGQuery:
         self.params = list(params or [])
         self.order = ""
         self.limit_n: Optional[int] = None
+        self.offset_n: Optional[int] = None
 
     def sort(self, field: str, direction: int) -> "PGQuery":
         col = "id" if field == "_id" else field
@@ -134,6 +135,10 @@ class PGQuery:
 
     def limit(self, n: int) -> "PGQuery":
         self.limit_n = n
+        return self
+
+    def offset(self, n: int) -> "PGQuery":
+        self.offset_n = n
         return self
 
     def _sql(self) -> Tuple[str, List[Any]]:
@@ -145,6 +150,8 @@ class PGQuery:
             sql += self.order
         if self.limit_n is not None:
             sql += f" LIMIT {self.limit_n}"
+        if self.offset_n is not None:
+            sql += f" OFFSET {self.offset_n}"
         return sql, params
 
     def __iter__(self):
@@ -164,9 +171,14 @@ class PGQuery:
 
 
 class PGCollection:
-    def __init__(self, conn, table: str):
+    def __init__(self, conn, table: str, database: PGDatabase | None = None):
         self.conn = conn
         self.table = table
+        self._database = database or PGDatabase(conn)
+
+    @property
+    def database(self) -> PGDatabase:
+        return self._database
 
     # no-op for index creation
     def create_index(self, *args, **kwargs) -> None:

@@ -1,0 +1,16 @@
+[Unit]
+Description=Portfolio Service
+After=network.target mariadb.service
+Requires=mariadb.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/portfolio
+Environment=PYTHONPATH=/opt/portfolio
+ExecStart=/opt/portfolio/venv/bin/python /opt/portfolio/service/start.py --host 192.168.0.59 --port 8001
+Restart=on-failure
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

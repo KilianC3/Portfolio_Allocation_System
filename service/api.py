@@ -1,10 +1,10 @@
 import os
 import datetime as dt
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List, Union
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
@@ -17,7 +17,6 @@ from database import pf_coll, trade_coll, metric_coll, init_db, db
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
 from service.config import ALLOW_LIVE
-from fastapi.responses import HTMLResponse
 import scripts.dashboard as scripts_dashboard
 from service.scheduler import StrategyScheduler
 from analytics.utils import (
@@ -310,11 +309,23 @@ def get_logs(lines: int = 100):
     return {"logs": tail}
 
 
-@app.get("/db/{table}")
-def read_table(table: str, limit: int = 50):
-    """Return rows from the requested table."""
+@app.get("/db/{table}", response_model=None)
+def read_table(
+    table: str,
+    limit: int = 50,
+    page: int = 1,
+    format: str = "json",
+) -> Response | Dict[str, List[Dict[str, Any]]]:
+    """Return rows from the requested table with optional pagination."""
     coll = db[table]
-    docs = list(coll.find({}).limit(limit))
+    qry = coll.find({})
+    if page > 1:
+        try:
+            qry.offset((page - 1) * limit)
+        except AttributeError:
+            pass
+    qry.limit(limit)
+    docs = list(qry)
     res = []
     for d in docs:
         if "_id" in d:
@@ -322,28 +333,52 @@ def read_table(table: str, limit: int = 50):
         if "_retrieved" in d:
             d["_retrieved"] = _iso(d["_retrieved"])
         res.append(d)
+    if format == "csv":
+        df = pd.DataFrame(res)
+        csv_data = df.to_csv(index=False)
+        return Response(content=csv_data, media_type="text/csv")
     return {"records": res}
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
-def dashboard(limit: int = 5):
-    """Render a simple dashboard with health, jobs and table samples."""
+def dashboard(table: str | None = None, page: int = 1, limit: int = 20) -> str:
+    """Render health checks and paginated table views."""
     try:
         health_info = asyncio.run(readyz())
     except Exception as exc:
         health_info = {"status": "fail", "error": str(exc)}
-    jobs = list_jobs()["jobs"]
+
     parts = ["<h2>Health</h2>", f"<pre>{health_info}</pre>"]
-    if jobs:
-        df = pd.DataFrame(jobs)
-        parts.append("<h2>Schedule</h2>")
-        parts.append(df.to_html(index=False))
-    for name in scripts_dashboard.TABLES:
-        docs = read_table(name, limit=limit)["records"]
-        parts.append(f"<h3>{name} ({len(docs)})</h3>")
+
+    if table:
+        result = read_table(table, limit=limit, page=page)
+        assert isinstance(result, dict)
+        docs = result["records"]
+        parts.append(f"<h3>{table} (page {page})</h3>")
         if docs:
             df = pd.DataFrame(docs)
             parts.append(df.to_html(index=False))
+        parts.append("<p>")
+        if page > 1:
+            parts.append(
+                f'<a href="/dashboard?table={table}&page={page-1}&limit={limit}">Prev</a> '
+            )
+        parts.append(
+            f'<a href="/dashboard?table={table}&page={page+1}&limit={limit}">Next</a>'
+        )
+        parts.append("</p>")
+        parts.append('<p><a href="/dashboard">Back</a></p>')
+    else:
+        jobs = list_jobs()["jobs"]
+        if jobs:
+            df = pd.DataFrame(jobs)
+            parts.append("<h2>Schedule</h2>")
+            parts.append(df.to_html(index=False))
+        parts.append("<h2>Tables</h2><ul>")
+        for name in scripts_dashboard.TABLES:
+            parts.append(f'<li><a href="/dashboard?table={name}">{name}</a></li>')
+        parts.append("</ul>")
+
     return "\n".join(parts)
 
 

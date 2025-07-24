@@ -42,17 +42,17 @@ performance monitoring.
    IP address. Connect using any MySQL client with the same credentials
    from `service/config.yaml`.
 4. Run the bootstrap script to install dependencies and register a
-   systemd service that launches ``service.start``. The FastAPI server
-   comes online immediately and background tasks then initialise the
-   database and populate all tables
+   systemd service. The unit now launches ``service/start.py`` so the
+   checklist, database initialisation and scrapers all complete before
+   FastAPI comes online.
    ```bash
    sudo scripts/bootstrap.sh
    ```
-   When the script completes the API is running on ``192.168.0.59:8001``
-   (customise `API_HOST` or `API_PORT` as needed). ``service.start``
-   keeps the API responsive while scrapers fill the database in the
-   background. Ensure the firewall allows incoming connections on this
-   port.
+   This installs ``deploy/portfolio.service`` to ``/etc/systemd/system``
+   and starts it immediately. When the script completes the API is
+   running on ``192.168.0.59:8001`` (customise `API_HOST` or
+   `API_PORT` as needed). Ensure the firewall allows incoming
+   connections on this port.
 5. To expose the API manually with a token, run the helper script
    ```bash
    API_TOKEN=<YOUR_TOKEN> ./scripts/expose_db_api.sh
@@ -143,15 +143,15 @@ Run `database.init_db()` after updating to ensure the `cache` table uses MEDIUMT
 
 ## Workflow
 
-1. The FastAPI server starts immediately when `service.start` is
-   launched.
-2. Background tasks then initialise the database and run every scraper
-   to populate MariaDB.
-3. Strategies pull data from these tables to build `EquityPortfolio` objects
-   which are persisted to the `portfolios` table.
-4. Risk modules cap exposures before orders are sent to Alpaca through the
+1. The FastAPI server starts only after `service/start.py` (or the
+   `portfolio` service) completes the system checklist and runs every
+   scraper.
+2. Once online, strategies pull data from these tables to build
+   `EquityPortfolio` objects which are persisted to the `portfolios`
+   table.
+3. Risk modules cap exposures before orders are sent to Alpaca through the
    execution gateway.
-5. The scheduler runs nightly to update metrics, account equity snapshots and
+4. The scheduler runs nightly to update metrics, account equity snapshots and
    ticker scores. Any failed tasks are logged in `alloc_log` for later review.
    The `full_fundamentals` scraper now runs once an hour after boot.
 
@@ -159,8 +159,10 @@ Run `database.init_db()` after updating to ensure the `cache` table uses MEDIUMT
 
 The helper script `scripts/dashboard.py` shows recent rows from each table
 directly from the database, so it works even if the FastAPI service is not
-running. When the API is available a simple web dashboard is served at
-`/dashboard` which exposes the same information behind the `API_TOKEN`.
+running. When the API is available a web dashboard is served at `/dashboard`.
+Each table can be browsed at `/dashboard?table=<name>&page=1&limit=20` with
+pagination controls. Append `format=csv` to the `/db/{table}` endpoint to
+download rows in CSV form.
 
 
 Run the dashboard with:
@@ -176,8 +178,9 @@ python scripts/populate.py
 
 ## API Access
 
-The API starts automatically after running `scripts/bootstrap.py` or
-`bootstrap.sh`. Authenticate each request with your API token using the `Authorization` header or a
+The API starts automatically after running `scripts/bootstrap.sh`, which
+installs `portfolio.service` to launch `service/start.py`. Authenticate each
+request with your API token using the `Authorization` header or a
 `token` query parameter.
 The token is defined in `service/config.yaml`.
 
@@ -203,8 +206,9 @@ print(df.head())
 ```
 
 Open the dashboard in your browser at
-`http://localhost:8001/dashboard?token=<YOUR_TOKEN>` to view health,
-schedule information and sample rows from each table.
+`http://localhost:8001/dashboard?token=<YOUR_TOKEN>` to view health checks and
+navigate through every table. Select a table to browse pages or export data via
+`format=csv`.
 
 ## Allocation Logic
 

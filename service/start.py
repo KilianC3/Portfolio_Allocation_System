@@ -1,6 +1,9 @@
-import uvicorn
 import argparse
 import asyncio
+import time
+
+import pandas as pd
+import uvicorn
 
 from service.config import (
     API_TOKEN,
@@ -9,11 +12,13 @@ from service.config import (
     API_HOST,
     API_PORT,
 )
-import time
 from database import db_ping, init_db
-from scripts.populate import run_scrapers
 from service.logger import get_logger
 from service.api import load_portfolios, sched
+from scripts.populate import run_scrapers
+from execution.gateway import AlpacaGateway
+from ledger.master_ledger import MasterLedger
+from analytics.allocation_engine import compute_weights
 
 log = get_logger("startup")
 
@@ -39,37 +44,73 @@ def validate_config() -> None:
         raise RuntimeError(f"MariaDB connection failed ({PG_URI})")
 
 
+async def system_checklist() -> None:
+    """Verify connectivity to all core components."""
+    errs: list[str] = []
+
+    if db_ping():
+        log.info("mariadb PASS")
+    else:
+        log.warning("mariadb FAIL")
+        errs.append("mariadb")
+
+    try:
+        gw = AlpacaGateway()
+        await gw.account()
+        await gw.close()
+        log.info("alpaca PASS")
+    except Exception as exc:  # pragma: no cover - network optional
+        log.warning(f"alpaca FAIL: {exc}")
+        errs.append(f"alpaca: {exc}")
+
+    try:
+        led = MasterLedger()
+        await led.redis.ping()
+        log.info("ledger PASS")
+    except Exception as exc:  # pragma: no cover - redis optional
+        log.warning(f"ledger FAIL: {exc}")
+        errs.append(f"ledger: {exc}")
+
+    try:
+        df = pd.DataFrame(
+            {"A": [0.1, -0.1], "B": [0.05, 0.02]},
+            index=pd.to_datetime(["2024-01-01", "2024-01-08"]),
+        )
+        compute_weights(df)
+        log.info("allocation PASS")
+    except Exception as exc:  # pragma: no cover - numeric errors
+        log.warning(f"allocation FAIL: {exc}")
+        errs.append(f"allocation: {exc}")
+
+    if errs:
+        log.warning({"checklist": errs})
+        raise RuntimeError("; ".join(errs))
+    log.info("system checklist complete")
+
+
 async def _launch_server(host: str, port: int) -> None:
     config = uvicorn.Config("service.api:app", host=host, port=port)
     server = uvicorn.Server(config)
     await server.serve()
 
 
-async def _startup_tasks() -> None:
+async def main(host: str | None = None, port: int | None = None) -> None:
+    """Run all setup tasks then launch the API."""
+    validate_config()
+    await system_checklist()
     init_db()
     load_portfolios()
     sched.start()
     await run_scrapers()
 
-
-def start_api(host: str | None = None, port: int | None = None) -> None:
-    """Launch the API first, then run setup tasks in the background."""
-    validate_config()
-
-    async def runner() -> None:
-        h = host or API_HOST
-        p = port or API_PORT
-        server_task = asyncio.create_task(_launch_server(h, p))
-        await asyncio.sleep(1)
-        await _startup_tasks()
-        await server_task
-
-    asyncio.run(runner())
+    h = host or API_HOST or "192.168.0.59"
+    p = port or API_PORT or 8001
+    await _launch_server(h, p)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Start the portfolio API")
-    parser.add_argument("--host", default=None, help="Interface to bind")
-    parser.add_argument("--port", type=int, default=None, help="Port number")
+    parser.add_argument("--host", default="192.168.0.59", help="Interface to bind")
+    parser.add_argument("--port", type=int, default=8001, help="Port number")
     args = parser.parse_args()
-    start_api(args.host, args.port)
+    asyncio.run(main(args.host, args.port))
