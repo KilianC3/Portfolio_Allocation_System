@@ -1,7 +1,7 @@
 import os
 import datetime as dt
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List, Union
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse, Response
@@ -315,7 +315,7 @@ def read_table(
     limit: int = 50,
     page: int = 1,
     format: str = "json",
-) -> Response:
+) -> Response | Dict[str, List[Dict[str, Any]]]:
     """Return rows from the requested table with optional pagination."""
     coll = db[table]
     qry = coll.find({})
@@ -337,7 +337,7 @@ def read_table(
         df = pd.DataFrame(res)
         csv_data = df.to_csv(index=False)
         return Response(content=csv_data, media_type="text/csv")
-    return JSONResponse({"records": res})
+    return {"records": res}
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
@@ -351,7 +351,9 @@ def dashboard(table: str | None = None, page: int = 1, limit: int = 20) -> str:
     parts = ["<h2>Health</h2>", f"<pre>{health_info}</pre>"]
 
     if table:
-        docs = read_table(table, limit=limit, page=page)["records"]
+        result = read_table(table, limit=limit, page=page)
+        assert isinstance(result, dict)
+        docs = result["records"]
         parts.append(f"<h3>{table} (page {page})</h3>")
         if docs:
             df = pd.DataFrame(docs)
