@@ -15,6 +15,7 @@ pip install --upgrade pip
 pip install -r "$APP_DIR/deploy/requirements.txt"
 sudo apt-get update
 sudo apt-get install -y mariadb-server
+"$APP_DIR/scripts/setup_redis.sh"
 sudo systemctl enable mariadb
 sudo systemctl start mariadb
 sudo mysql -e "CREATE DATABASE IF NOT EXISTS quant_fund;"
@@ -26,8 +27,8 @@ python -m playwright install chromium || true
 cat <<EOF >/etc/systemd/system/portfolio.service
 [Unit]
 Description=Portfolio Service
-After=network.target mariadb.service
-Requires=mariadb.service
+After=network.target mariadb.service redis-server.service
+Requires=mariadb.service redis-server.service
 
 [Service]
 Type=simple
