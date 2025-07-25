@@ -41,7 +41,7 @@ The Portfolio Allocation System is an end-to-end trading platform that runs enti
 4. **Enable remote MariaDB access**
 
    The `scripts/bootstrap.sh` script configures MariaDB to listen on all
-   interfaces by setting `bind-address = 0.0.0.0` in
+   interfaces by setting `bind-address = 192.168.0.59` in
    `/etc/mysql/mariadb.conf.d/50-server.cnf` and opens port `3306` on the
    firewall.  Grant the database user remote privileges so the API and scrapers
    can connect:
