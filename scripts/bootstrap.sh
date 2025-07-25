@@ -15,6 +15,8 @@ pip install --upgrade pip
 pip install -r "$APP_DIR/deploy/requirements.txt"
 sudo apt-get update
 sudo apt-get install -y mariadb-server
+# Bind MariaDB to all interfaces so remote clients can connect
+sudo sed -i 's/^bind-address.*/bind-address = 0.0.0.0/' /etc/mysql/mariadb.conf.d/50-server.cnf
 "$APP_DIR/scripts/setup_redis.sh"
 sudo systemctl enable mariadb
 sudo systemctl start mariadb
