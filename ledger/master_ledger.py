@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import os
-
 import redis.asyncio as aioredis
 
 from service.logger import get_logger
+from service.config import REDIS_URL
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 _log = get_logger("ledger")
 
 
