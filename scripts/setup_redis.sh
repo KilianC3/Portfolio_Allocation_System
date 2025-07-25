@@ -14,5 +14,6 @@ sudo sed -i "s/^bind .*/bind ${REDIS_IP}/" /etc/redis/redis.conf
 sudo sed -i "s/^# *requirepass .*$/requirepass ${API_TOKEN}/" /etc/redis/redis.conf
 
 sudo systemctl enable --now redis-server.service
+sudo systemctl restart redis-server.service
 
 echo "Redis running on ${REDIS_IP}:6379"

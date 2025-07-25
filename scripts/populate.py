@@ -8,7 +8,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 import pandas as pd
 from service.logger import get_logger
 from infra.data_store import has_recent_rows
-from database import init_db
+from database import init_db, db
 from scrapers.universe import (
     download_sp500,
     download_sp400,
@@ -62,6 +62,8 @@ async def run_scrapers() -> None:
     table_map = {
         "sp500_history": "sp500_index",
         "ticker_scores": "ticker_scores",
+        "wsb_mentions": "reddit_mentions",
+        "stock_news": "news_headlines",
     }
 
     today = pd.Timestamp.utcnow().normalize()
@@ -70,7 +72,11 @@ async def run_scrapers() -> None:
         _log.info(f"{name} start")
         try:
             table = table_map.get(name, name)
-            if has_recent_rows(table, today):
+            if name == "ticker_scores":
+                if db.conn and db[table].count_documents({"date": today.date()}) > 0:
+                    _log.info(f"{name} already current - skipping")
+                    continue
+            elif has_recent_rows(table, today):
                 _log.info(f"{name} already current - skipping")
                 continue
             result = func()
