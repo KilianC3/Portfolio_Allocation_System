@@ -1,5 +1,10 @@
 # Run all scrapers to populate the database.
 import asyncio
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+
 import pandas as pd
 from service.logger import get_logger
 from infra.data_store import has_recent_rows

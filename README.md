@@ -34,6 +34,9 @@ The Portfolio Allocation System is an end-to-end trading platform that runs enti
    sudo scripts/setup_redis.sh
    ```
    (This step is also run automatically by `bootstrap.sh`.)
+   The script binds Redis to `192.168.0.59` and sets
+   `requirepass` in `/etc/redis/redis.conf` to the same
+   `API_TOKEN` value used by the application.
 
 4. **Enable remote MariaDB access**
 
@@ -123,3 +126,4 @@ Convenience scripts:
 Run `database.init_db()` whenever the schema changes to ensure the `cache` table uses `MEDIUMTEXT`.
 
 Further documentation is located in the `docs/` directory.
+
