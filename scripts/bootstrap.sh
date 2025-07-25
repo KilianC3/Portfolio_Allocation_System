@@ -19,7 +19,7 @@ sudo apt-get install -y mariadb-server
 sudo systemctl enable mariadb
 sudo systemctl start mariadb
 sudo mysql -e "CREATE DATABASE IF NOT EXISTS quant_fund;"
-sudo mysql -e "GRANT ALL PRIVILEGES ON quant_fund.* TO 'maria'@'localhost' IDENTIFIED BY 'maria'; FLUSH PRIVILEGES;"
+sudo mysql -e "GRANT ALL PRIVILEGES ON quant_fund.* TO 'maria'@'%' IDENTIFIED BY 'maria'; FLUSH PRIVILEGES;"
 python -m playwright install chromium || true
 
 

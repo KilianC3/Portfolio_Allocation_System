@@ -40,7 +40,12 @@ The Portfolio Allocation System is an end-to-end trading platform that runs enti
 
 4. **Enable remote MariaDB access**
 
-   Set `bind-address = 0.0.0.0` in `/etc/mysql/mariadb.conf.d/50-server.cnf` and open port `3306` on the firewall so the API and scrapers can connect.
+   Set `bind-address = 0.0.0.0` in `/etc/mysql/mariadb.conf.d/50-server.cnf` and open port `3306` on the firewall.
+   Grant the database user remote privileges so the API and scrapers can connect:
+
+   ```bash
+   sudo mysql -e "GRANT ALL PRIVILEGES ON quant_fund.* TO 'maria'@'%' IDENTIFIED BY 'maria'; FLUSH PRIVILEGES;"
+   ```
 
 5. **Start all services**
 
