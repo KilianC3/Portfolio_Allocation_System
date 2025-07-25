@@ -28,11 +28,18 @@ The Portfolio Allocation System is an end-to-end trading platform that runs enti
 
    The service appends `/v2/account` to the Alpaca URLs automatically, so do **not** include the `/v2` prefix in the configuration.
 
-3. **Enable remote MariaDB access**
+3. **Setup Redis**
+
+   ```bash
+   sudo scripts/setup_redis.sh
+   ```
+   (This step is also run automatically by `bootstrap.sh`.)
+
+4. **Enable remote MariaDB access**
 
    Set `bind-address = 0.0.0.0` in `/etc/mysql/mariadb.conf.d/50-server.cnf` and open port `3306` on the firewall so the API and scrapers can connect.
 
-4. **Start all services**
+5. **Start all services**
 
    ```bash
    sudo scripts/bootstrap.sh
@@ -40,7 +47,7 @@ The Portfolio Allocation System is an end-to-end trading platform that runs enti
 
    This registers a systemd unit that runs `service/start.py` and launches the API at `http://192.168.0.59:8001`.
 
-5. **Run the unit tests** *(optional)*
+6. **Run the unit tests** *(optional)*
 
    ```bash
    pip install -r deploy/requirements-test.txt

@@ -4,7 +4,8 @@ Assorted command-line tools.
 - `wsb_cli.py` runs a WallStreetBets sentiment analysis for experimentation. The optional transformers dependency is handled gracefully so tests run without GPU support.
 - `bootstrap.py` now delegates to `service.start.main`; it simply runs the
   system checklist and then launches the full startup sequence.
- - `bootstrap.sh` assumes the repo is already downloaded, installs requirements, runs all scrapers once and registers a systemd service. The MariaDB user and database are created automatically.
+- `bootstrap.sh` assumes the repo is already downloaded, installs requirements, runs all scrapers once and registers a systemd service. The MariaDB user and database are created automatically.
+- `setup_redis.sh` installs Redis, configures the bind address and enables the systemd service.
 - `health_check.py` reports system status including portfolio and metric counts.
 
 - **Reminder:** triple-check modifications and run tests to prevent regressions.
