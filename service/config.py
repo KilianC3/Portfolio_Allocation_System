@@ -61,7 +61,7 @@ class Settings(BaseSettings):
 
     QUIVER_RATE_SEC: float = 1.1
 
-    PG_URI: str = "mysql+pymysql://maria:maria@localhost:3306/quant_fund"
+    PG_URI: str = "mysql+pymysql://maria:maria@192.168.0.59:3306/quant_fund"
 
     FRED_API_KEY: str | None = None
 
@@ -70,8 +70,10 @@ class Settings(BaseSettings):
 
     API_TOKEN: str | None = None
 
-    API_HOST: str = "0.0.0.0"
+    API_HOST: str = "192.168.0.59"
     API_PORT: int = 8001
+
+    REDIS_URL: str = "redis://192.168.0.59:6379/0"
 
     CACHE_TTL: int = Field(900, alias="CACHE_TTL")
 
@@ -113,3 +115,10 @@ CRON = {
 }
 
 AUTO_START_SCHED = settings.AUTO_START_SCHED
+
+REDIS_URL = settings.REDIS_URL
+if not REDIS_URL:
+    token = settings.API_TOKEN or "changeme"
+    REDIS_URL = f"redis://:{token}@192.168.0.59:6379/0"
+else:
+    REDIS_URL = REDIS_URL.replace("localhost", "192.168.0.59")

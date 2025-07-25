@@ -23,8 +23,8 @@ The Portfolio Allocation System is an end-to-end trading platform that runs enti
    - `ALPACA_PAPER_KEY`, `ALPACA_PAPER_SECRET`
    - `ALPACA_PAPER_URL: "https://paper-api.alpaca.markets"`
    - `ALPACA_LIVE_URL: "https://api.alpaca.markets"`
-   - `API_TOKEN`: token for authenticating requests
-   - Redis host and port (default `192.168.0.59:6379`)
+  - `API_TOKEN`: token for authenticating requests
+  - `REDIS_URL`: `redis://:<API_TOKEN>@192.168.0.59:6379/0`
 
    The service appends `/v2/account` to the Alpaca URLs automatically, so do **not** include the `/v2` prefix in the configuration.
 

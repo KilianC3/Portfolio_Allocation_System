@@ -95,19 +95,25 @@ async def _launch_server(host: str, port: int) -> None:
 
 
 async def main(host: str | None = None, port: int | None = None) -> None:
-    """Run all setup tasks then launch the API."""
+    """Run setup tasks, scrapers and then launch the API."""
+    log.info("startup sequence begin")
     try:
+        log.info("validate config")
         validate_config()
+        log.info("connectivity checks")
         await system_checklist()
+        log.info("initialising database")
+        init_db()
+        log.info("loading portfolios")
+        load_portfolios()
+        log.info("starting scheduler")
+        sched.start()
+        log.info("running scrapers")
+        await run_scrapers()
     except Exception as exc:  # pragma: no cover - startup errors
         log.exception(f"fatal startup error: {exc}")
         return
-    init_db()
-    load_portfolios()
-    sched.start()
-
-    log.info("launching API and background scrapers")
-    asyncio.create_task(run_scrapers())
+    log.info("startup complete - launching API")
 
     h = host or API_HOST or "192.168.0.59"
     p = port or API_PORT or 8001
@@ -116,9 +122,7 @@ async def main(host: str | None = None, port: int | None = None) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Start the portfolio API")
-    parser.add_argument(
-        "--host", default="192.168.0.59", help="Interface to bind"
-    )
+    parser.add_argument("--host", default="192.168.0.59", help="Interface to bind")
     parser.add_argument("--port", type=int, default=8001, help="Port number")
     args = parser.parse_args()
     asyncio.run(main(args.host, args.port))
