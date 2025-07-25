@@ -79,9 +79,25 @@ curl "http://192.168.0.59:8001/db/trades?limit=20&token=<YOUR_TOKEN>"
 
 Convenience scripts:
 
-- `scripts/dashboard.py` – browse tables from the terminal
+- `scripts/dashboard.py` – print table samples directly in the terminal
 - `scripts/populate.py` – refresh datasets without starting the API
 - `scripts/expose_db_api.sh` – expose the API on a different host and port
+
+### Dashboard
+
+After the API is running you can explore data in your browser:
+
+```
+http://192.168.0.59:8001/dashboard
+```
+
+This page lists scheduled jobs and links to every database table. The same
+information is available from the command line:
+
+```bash
+source venv/bin/activate
+python scripts/dashboard.py
+```
 
 ## Troubleshooting
 

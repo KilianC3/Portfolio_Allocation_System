@@ -1,5 +1,6 @@
 import datetime as dt
 import asyncio
+import threading
 import pandas as pd
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from importlib import import_module
@@ -21,6 +22,8 @@ class StrategyScheduler:
         self.scheduler = AsyncIOScheduler()
         self.portfolios = {}
         self.last_weights: dict[str, float] = {}
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._thread: threading.Thread | None = None
 
     def add(self, pf_id, name, mod_path, cls_name, cron_key):
         strat_cls = getattr(import_module(mod_path), cls_name)
@@ -37,6 +40,19 @@ class StrategyScheduler:
         )
 
     def start(self):
+        """Start the scheduler, creating an event loop if needed."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            self._loop = loop
+            self.scheduler.configure(event_loop=loop)
+            self._thread = threading.Thread(target=loop.run_forever, daemon=True)
+            self._thread.start()
+        else:
+            self.scheduler.configure(event_loop=loop)
+
         async def realloc_job():
             start = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=90)
             cur = metric_coll.find(
@@ -115,3 +131,9 @@ class StrategyScheduler:
     def stop(self):
         """Stop all scheduled jobs without blocking."""
         self.scheduler.shutdown(wait=False)
+        if self._loop and self._loop.is_running():
+            self._loop.call_soon_threadsafe(self._loop.stop)
+        if self._thread:
+            self._thread.join(timeout=1)
+        self._loop = None
+        self._thread = None
