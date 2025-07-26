@@ -10,6 +10,7 @@ import random
 import requests
 
 from service.config import CACHE_TTL
+from service.logger import get_logger
 
 from infra.rate_limiter import DynamicRateLimiter
 from database import cache
@@ -25,10 +26,14 @@ TTL = CACHE_TTL
 """Cache expiry for fetched pages (seconds)."""
 
 
+log = get_logger(__name__)
+
+
 async def get(url: str, retries: int = 3) -> str:
     """Fetch ``url`` asynchronously with caching and basic retries.
 
     Uses ``requests`` inside a thread so network calls work behind proxies.
+    Adds detailed logging for cache hits and retry attempts.
     """
 
     key = hashlib.md5(url.encode()).hexdigest()
@@ -40,13 +45,16 @@ async def get(url: str, retries: int = 3) -> str:
             if expire.tzinfo is None:
                 expire = expire.replace(tzinfo=dt.timezone.utc)
         if expire is not None and expire > dt.datetime.now(dt.timezone.utc):
+            log.debug("cache hit %s", url)
             return doc["payload"]
+        log.debug("cache expired %s", url)
 
     backoff = 1.0
     async with RATE:
         error: Exception | None = None
         for attempt in range(retries):
             try:
+                log.info("fetch attempt %s/%s %s", attempt + 1, retries, url)
 
                 def _fetch() -> str:
                     r = requests.get(
@@ -58,6 +66,7 @@ async def get(url: str, retries: int = 3) -> str:
                     return r.text
 
                 text = await asyncio.to_thread(_fetch)
+                log.debug("fetched %d chars from %s", len(text), url)
                 cache.replace_one(
                     {"cache_key": key},
                     {
@@ -73,6 +82,7 @@ async def get(url: str, retries: int = 3) -> str:
             except Exception as exc:
                 RATE.backoff()
                 error = exc
+                log.warning("fetch attempt %s failed: %s", attempt + 1, exc)
                 await asyncio.sleep(backoff)
                 backoff *= 2
         raise RuntimeError(f"Failed {url}: {error}")

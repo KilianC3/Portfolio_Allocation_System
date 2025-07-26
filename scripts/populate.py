@@ -99,7 +99,7 @@ async def run_scrapers() -> None:
                         cols = len(val)
             _log.info(f"{name} PASS {rows}x{cols}")
         except Exception as exc:
-            _log.warning(f"{name} FAIL: {exc}")
+            _log.exception(f"{name} FAIL: {exc}")
 
 
 def main() -> None:
