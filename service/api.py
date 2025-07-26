@@ -12,8 +12,15 @@ import pandas as pd
 from service.logger import get_logger
 from observability import metrics_router
 from ws import ws_router
-from observability.logging import LOG_DIR
-from database import pf_coll, trade_coll, metric_coll, init_db, db
+from observability.logging import LOG_DIR, clear_log_files
+from database import (
+    pf_coll,
+    trade_coll,
+    metric_coll,
+    init_db,
+    db,
+    clear_system_logs,
+)
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
 from service.config import ALLOW_LIVE
@@ -307,6 +314,14 @@ def get_logs(lines: int = 100):
     except Exception:
         tail = ""
     return {"logs": tail}
+
+
+@app.delete("/logs")
+def delete_logs(days: int = 30):
+    """Remove old log entries and log files."""
+    removed = clear_system_logs(days)
+    clear_log_files()
+    return {"deleted": removed}
 
 
 @app.get("/db/{table}", response_model=None)

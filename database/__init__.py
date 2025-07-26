@@ -11,6 +11,7 @@ import pymysql
 from pymysql.cursors import DictCursor
 from pymysql.connections import Connection
 from urllib.parse import urlparse
+import datetime as dt
 
 from service.logger import get_logger, register_db_handler
 from service.config import PG_URI, ALLOW_LIVE
@@ -269,13 +270,16 @@ class PGCollection:
         if not self.conn:
             return 0
         where, params = _build_where(q)
-        sql = f"SELECT COUNT(*) FROM {self.table}"
+        sql = f"SELECT COUNT(*) AS cnt FROM {self.table}"
         if where:
             sql += " WHERE " + where
         with self.conn.cursor() as cur:
             cur.execute(sql, params)
             row = cur.fetchone()
-        return int(row[0]) if row else 0
+        if not row:
+            return 0
+        # DictCursor returns a mapping so extract the first value safely
+        return int(next(iter(row.values())))
 
 
 def init_db() -> None:
@@ -331,3 +335,16 @@ top_score_coll = db["top_scores"]
 log_coll = db["system_logs"]
 
 register_db_handler(log_coll)
+
+
+def clear_system_logs(days: int = 30) -> int:
+    """Delete log rows older than ``days`` and return the count removed."""
+    if not _conn:
+        return 0
+    cutoff = dt.datetime.utcnow() - dt.timedelta(days=days)
+    with _conn.cursor() as cur:
+        cur.execute(
+            f"DELETE FROM system_logs WHERE timestamp < {PLACEHOLDER}",
+            (cutoff,),
+        )
+        return cur.rowcount

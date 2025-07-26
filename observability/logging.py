@@ -81,3 +81,13 @@ class DBHandler(logging.Handler):
 def add_db_handler(coll) -> None:
     """Attach a database log handler to the root logger."""
     logging.getLogger().addHandler(DBHandler(coll))
+
+
+def clear_log_files() -> None:
+    """Remove all rotated log files under ``LOG_DIR``."""
+    for name in os.listdir(LOG_DIR):
+        if name.startswith("app.log"):
+            try:
+                os.remove(os.path.join(LOG_DIR, name))
+            except OSError:
+                pass
