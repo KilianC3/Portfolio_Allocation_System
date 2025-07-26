@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import datetime as dt
 from typing import List, cast
 from bs4 import BeautifulSoup, Tag
@@ -28,7 +35,7 @@ async def fetch_stock_news(limit: int = 50) -> List[dict]:
                 html = await scrape_get(url)
         except Exception as exc:
             scrape_errors.labels("news_headlines").inc()
-            log.warning(f"fetch_stock_news failed: {exc}")
+            log.exception(f"fetch_stock_news failed: {exc}")
             raise
     soup = BeautifulSoup(html, "html.parser")
     rows: List[dict] = []

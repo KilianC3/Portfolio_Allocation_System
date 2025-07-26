@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import asyncio
 import datetime as dt
 from typing import List
@@ -47,7 +54,7 @@ def fetch_page(filter_name: str, page: int) -> dict:
         r = requests.get(url, headers=HEADERS, timeout=20)
         r.raise_for_status()
     except Exception as exc:  # pragma: no cover - network optional
-        log.warning(f"fetch_page failed: {exc}")
+        log.exception(f"fetch_page failed: {exc}")
         raise
     return r.json()
 
@@ -136,7 +143,7 @@ async def fetch_wsb_mentions(days: int = 7, top_n: int = 20) -> List[dict]:
             df = await asyncio.to_thread(get_mentions, "wallstreetbets", top_n)
         except Exception as exc:
             scrape_errors.labels("reddit_mentions").inc()
-            log.warning(f"fetch_wsb_mentions failed: {exc}")
+            log.exception(f"fetch_wsb_mentions failed: {exc}")
             raise
     if df.empty:
         return []

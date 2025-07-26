@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import datetime as dt
 from typing import List, Optional, cast
 from bs4 import BeautifulSoup
@@ -25,7 +32,7 @@ async def fetch_politician_trades() -> List[dict]:
                 html = await scrape_get(url)
         except Exception as exc:
             scrape_errors.labels("politician_trades").inc()
-            log.warning(f"fetch_politician_trades failed: {exc}")
+            log.exception(f"fetch_politician_trades failed: {exc}")
             raise
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))

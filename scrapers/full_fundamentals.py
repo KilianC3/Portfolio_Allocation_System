@@ -6,6 +6,13 @@ compute quality, value, growth, momentum and risk metrics for a
 collection of tickers. Results are saved to three CSV files in the
 current directory.
 """
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import math
 import datetime as dt
 import warnings
@@ -13,10 +20,13 @@ from typing import List, Sequence, Dict, Iterable, Tuple
 
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
 from database import init_db, top_score_coll
+from service.logger import get_scraper_logger
 
 import numpy as np
 import pandas as pd
 import yfinance as yf
+
+log = get_scraper_logger(__name__)
 
 PRICE_LOOKBACK_DAYS = 400
 POSITION_DOLLARS = 5_000_000
@@ -365,7 +375,8 @@ def collect_fundamentals(ticker: str):
         bs = last_two(tk.balance_sheet)
         cf = last_two(tk.cashflow)
         info = tk.info
-    except Exception:
+    except Exception as exc:
+        log.exception(f"collect_fundamentals failed for {ticker}: {exc}")
         return {}
     shares_prev = previous_shares_outstanding(ticker)
     row = {}

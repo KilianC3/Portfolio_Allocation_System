@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import io
 import datetime as dt
 from pathlib import Path
@@ -180,11 +187,11 @@ def download_russell2000(path: Path | None = None) -> Path:
         try:
             tickers = _tickers_from_financhle()
         except Exception as exc:
-            log.warning(f"financhle scrape failed: {exc}")
+            log.exception(f"financhle scrape failed: {exc}")
             try:
                 tickers = _tickers_from_marketscreener()
             except Exception as exc2:
-                log.warning(f"marketscreener scrape failed: {exc2}")
+                log.exception(f"marketscreener scrape failed: {exc2}")
                 tickers = []
     tickers = _clean_symbols(list(tickers))
     pd.DataFrame(sorted(tickers), columns=["symbol"]).to_csv(path, index=False)

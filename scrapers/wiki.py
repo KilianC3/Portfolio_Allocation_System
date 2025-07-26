@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import datetime as dt
 import json
 from typing import List
@@ -36,7 +43,7 @@ async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7) -> List[dict]
                 text = await scrape_get(url)
         except Exception as exc:
             scrape_errors.labels("wiki_views").inc()
-            log.warning(f"fetch_wiki_views failed: {exc}")
+            log.exception(f"fetch_wiki_views failed: {exc}")
             raise
     items = json.loads(text).get("items", [])
     now = dt.datetime.now(dt.timezone.utc)
@@ -92,7 +99,7 @@ async def fetch_trending_wiki_views(top_k: int = 10, days: int = 7) -> List[dict
         try:
             out.extend(await fetch_wiki_views(pg, days))
         except Exception as exc:  # pragma: no cover - network optional
-            log.warning(f"fetch_wiki_views failed for {pg}: {exc}")
+            log.exception(f"fetch_wiki_views failed for {pg}: {exc}")
             continue
     log.info(f"fetched {len(out)} trending wiki rows")
     return out

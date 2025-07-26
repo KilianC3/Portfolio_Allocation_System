@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import datetime as dt
 from typing import List
 
@@ -32,7 +39,7 @@ def fetch_sp500_history(days: int = 365) -> List[dict]:
             )
         except Exception as exc:
             scrape_errors.labels("sp500_index").inc()
-            log.warning(f"fetch_sp500_history failed: {exc}")
+            log.exception(f"fetch_sp500_history failed: {exc}")
             raise
     if df.empty:
         return []
