@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import datetime as dt
 from typing import Callable, Any, List, Optional, cast
 
@@ -76,7 +83,7 @@ async def fetch_lobbying_data() -> List[dict]:
                 html = await scrape_get(url)
             rows = parse_lobbying(html)
         except Exception as exc:  # pragma: no cover - network optional
-            log.warning(f"lobbying http failed: {exc}")
+            log.exception(f"lobbying http failed: {exc}")
             scrape_errors.labels("lobbying").inc()
         # Playwright fallback
         if not rows and HAVE_PW:
@@ -90,7 +97,7 @@ async def fetch_lobbying_data() -> List[dict]:
                     await browser.close()
                 rows = parse_lobbying(html)
             except Exception as exc:  # pragma: no cover - network optional
-                log.warning(f"lobbying playwright failed: {exc}")
+                log.exception(f"lobbying playwright failed: {exc}")
 
     now = dt.datetime.now(dt.timezone.utc)
     for item in rows:

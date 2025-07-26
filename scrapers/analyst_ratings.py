@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import asyncio
 import datetime as dt
 import json
@@ -232,7 +239,7 @@ async def fetch_analyst_ratings(limit: int = 15) -> List[dict]:
             raw_df, _ = await asyncio.to_thread(fetch_upgrades, limit)
         except Exception as exc:
             scrape_errors.labels("analyst_ratings").inc()
-            log.warning(f"fetch_analyst_ratings failed: {exc}")
+            log.exception(f"fetch_analyst_ratings failed: {exc}")
             raise
 
     if raw_df.empty:

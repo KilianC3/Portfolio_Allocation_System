@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import datetime as dt
 from typing import Callable, Any, List, Optional, cast
 
@@ -66,7 +73,7 @@ async def fetch_google_trends() -> List[dict]:
                 html = await scrape_get(url)
             rows = parse_google_trends(html)
         except Exception as exc:  # pragma: no cover - network optional
-            log.warning(f"google_trends http failed: {exc}")
+            log.exception(f"google_trends http failed: {exc}")
             scrape_errors.labels("google_trends").inc()
         # Playwright fallback
         if not rows and HAVE_PW:
@@ -80,7 +87,7 @@ async def fetch_google_trends() -> List[dict]:
                     await browser.close()
                 rows = parse_google_trends(html)
             except Exception as exc:  # pragma: no cover - network optional
-                log.warning(f"google_trends playwright failed: {exc}")
+                log.exception(f"google_trends playwright failed: {exc}")
 
     now = dt.datetime.now(dt.timezone.utc)
     for item in rows:

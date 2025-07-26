@@ -117,6 +117,17 @@ async def main(host: str | None = None, port: int | None = None) -> None:
 
     h = host or API_HOST or "192.168.0.59"
     p = port or API_PORT or 8001
+
+    url = f"http://{h}:{p}/dashboard"
+    if API_TOKEN:
+        url += f"?token={API_TOKEN}"
+    try:
+        import webbrowser
+
+        webbrowser.open(url)
+    except Exception as exc:  # pragma: no cover - env dependent
+        log.warning(f"failed to open dashboard: {exc}")
+
     await _launch_server(h, p)
 
 
