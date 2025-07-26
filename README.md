@@ -88,7 +88,7 @@ Convenience scripts:
 After the API is running you can explore data in your browser:
 
 ```
-http://192.168.0.59:8001/dashboard
+http://192.168.0.59:8001/dashboard?token=<YOUR_TOKEN>
 ```
 
 This page lists scheduled jobs and links to every database table. The same
@@ -97,6 +97,12 @@ information is available from the command line:
 ```bash
 source venv/bin/activate
 python scripts/dashboard.py
+```
+
+Access the structured log records directly via:
+
+```
+http://192.168.0.59:8001/dashboard?table=system_logs&token=<YOUR_TOKEN>
 ```
 
 ## Troubleshooting

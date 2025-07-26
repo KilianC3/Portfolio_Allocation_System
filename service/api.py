@@ -348,6 +348,7 @@ def dashboard(table: str | None = None, page: int = 1, limit: int = 20) -> str:
     except Exception as exc:
         health_info = {"status": "fail", "error": str(exc)}
 
+    token_qs = f"&token={API_TOKEN}" if API_TOKEN else ""
     parts = ["<h2>Health</h2>", f"<pre>{health_info}</pre>"]
 
     if table:
@@ -361,13 +362,14 @@ def dashboard(table: str | None = None, page: int = 1, limit: int = 20) -> str:
         parts.append("<p>")
         if page > 1:
             parts.append(
-                f'<a href="/dashboard?table={table}&page={page-1}&limit={limit}">Prev</a> '
+                f'<a href="/dashboard?table={table}&page={page-1}&limit={limit}{token_qs}">Prev</a> '
             )
         parts.append(
-            f'<a href="/dashboard?table={table}&page={page+1}&limit={limit}">Next</a>'
+            f'<a href="/dashboard?table={table}&page={page+1}&limit={limit}{token_qs}">Next</a>'
         )
         parts.append("</p>")
-        parts.append('<p><a href="/dashboard">Back</a></p>')
+        back_link = f"/dashboard?token={API_TOKEN}" if API_TOKEN else "/dashboard"
+        parts.append(f'<p><a href="{back_link}">Back</a></p>')
     else:
         jobs = list_jobs()["jobs"]
         if jobs:
@@ -376,7 +378,9 @@ def dashboard(table: str | None = None, page: int = 1, limit: int = 20) -> str:
             parts.append(df.to_html(index=False))
         parts.append("<h2>Tables</h2><ul>")
         for name in scripts_dashboard.TABLES:
-            parts.append(f'<li><a href="/dashboard?table={name}">{name}</a></li>')
+            parts.append(
+                f'<li><a href="/dashboard?table={name}{token_qs}">{name}</a></li>'
+            )
         parts.append("</ul>")
 
     return "\n".join(parts)
