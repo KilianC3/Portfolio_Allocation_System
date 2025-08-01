@@ -17,6 +17,7 @@ from .insider_buying import CorporateInsiderBuyingPulse
 from .app_reviews_hype import AppReviewsHypeScore
 from .google_trends import GoogleTrendsNewsSentiment
 from .composite_leaders import CompositeScoreLeaders
+from .fundamental_top15 import CompositeTop15
 
 __all__ = [
     "VolatilityScaledMomentum",
@@ -38,4 +39,5 @@ __all__ = [
     "AppReviewsHypeScore",
     "GoogleTrendsNewsSentiment",
     "CompositeScoreLeaders",
+    "CompositeTop15",
 ]

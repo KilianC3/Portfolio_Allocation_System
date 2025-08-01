@@ -106,8 +106,25 @@ def _fetch_history(symbols: Iterable[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
         threads=True,
         progress=False,
     )
-    closes = df["Close"]
-    vols = df["Volume"] if "Volume" in df else None
+    log.debug("download columns: %s", df.columns)
+    if isinstance(df.columns, pd.MultiIndex):
+        lvl0 = df.columns.get_level_values(0)
+        lvl1 = df.columns.get_level_values(1)
+        if "Close" in lvl0:
+            closes = df.xs("Close", level=0, axis=1)
+            vols = df.xs("Volume", level=0, axis=1) if "Volume" in lvl0 else None
+        elif "Close" in lvl1:
+            closes = df.xs("Close", level=1, axis=1)
+            vols = df.xs("Volume", level=1, axis=1) if "Volume" in lvl1 else None
+        elif "Adj Close" in lvl1:
+            closes = df.xs("Adj Close", level=1, axis=1)
+            vols = df.xs("Volume", level=1, axis=1) if "Volume" in lvl1 else None
+        else:
+            closes = pd.DataFrame()
+            vols = None
+    else:
+        closes = df["Close"] if "Close" in df else pd.DataFrame()
+        vols = df["Volume"] if "Volume" in df else None
     if isinstance(closes, pd.Series):
         key = list(yf_map.keys())[0]
         closes = closes.to_frame(key)

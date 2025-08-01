@@ -244,3 +244,43 @@ CREATE TABLE IF NOT EXISTS system_logs (
     logger TEXT,
     message TEXT
 );
+
+CREATE TABLE IF NOT EXISTS volatility_momentum (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    symbol VARCHAR(16),
+    date DATE,
+    _retrieved TIMESTAMP,
+    UNIQUE(symbol, date)
+);
+
+CREATE TABLE IF NOT EXISTS leveraged_sector_momentum (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    symbol VARCHAR(16),
+    date DATE,
+    _retrieved TIMESTAMP,
+    UNIQUE(symbol, date)
+);
+
+CREATE TABLE IF NOT EXISTS sector_momentum_weekly (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    symbol VARCHAR(16),
+    date DATE,
+    _retrieved TIMESTAMP,
+    UNIQUE(symbol, date)
+);
+
+CREATE TABLE IF NOT EXISTS smallcap_momentum_weekly (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    symbol VARCHAR(16),
+    date DATE,
+    _retrieved TIMESTAMP,
+    UNIQUE(symbol, date)
+);
+
+CREATE TABLE IF NOT EXISTS upgrade_momentum_weekly (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    symbol VARCHAR(16),
+    date DATE,
+    _retrieved TIMESTAMP,
+    UNIQUE(symbol, date)
+);

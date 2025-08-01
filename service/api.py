@@ -19,6 +19,7 @@ from database import (
     metric_coll,
     init_db,
     db,
+    db_ping,
     clear_system_logs,
 )
 from core.equity import EquityPortfolio
@@ -332,6 +333,7 @@ def read_table(
     format: str = "json",
 ) -> Response | Dict[str, List[Dict[str, Any]]]:
     """Return rows from the requested table with optional pagination."""
+    db_ping()
     coll = db[table]
     qry = coll.find({})
     if page > 1:

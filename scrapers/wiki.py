@@ -18,7 +18,7 @@ from metrics import scrape_latency, scrape_errors
 from service.logger import get_scraper_logger
 
 log = get_scraper_logger(__name__)
-from strategies.wiki_attention import index_map, wiki_title
+from strategies.wiki_attention import index_map, wiki_title, trending_candidates
 
 wiki_collection = wiki_coll if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
@@ -83,15 +83,17 @@ async def fetch_trending_wiki_views(top_k: int = 10, days: int = 7) -> List[dict
         top_k,
         days,
     )
-    mapping = index_map()
-    universe = load_universe_any()
-    top_df, _ = build_portfolio(universe, top_n=top_k)
+    cand = list(trending_candidates().items())
+    if not cand:
+        mapping = index_map()
+        cand = list(mapping.items())
     pages = []
-    for sym in top_df["ticker"]:
-        name = mapping.get(sym, sym)
+    for _, name in cand:
         page = wiki_title(name)
-        if page:
+        if page and page not in pages:
             pages.append(page)
+        if len(pages) >= top_k:
+            break
 
     top = pages[:top_k]
     out: List[dict] = []

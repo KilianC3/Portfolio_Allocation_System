@@ -29,6 +29,12 @@ from scrapers.analyst_ratings import fetch_analyst_ratings
 from scrapers.insider_buying import fetch_insider_buying
 from scrapers.news import fetch_stock_news
 from scrapers.sp500_index import fetch_sp500_history
+from scrapers import full_fundamentals
+from scrapers.momentum_weekly.volatility import fetch_volatility_momentum_summary
+from scrapers.momentum_weekly.leveraged_sector import fetch_leveraged_sector_summary
+from scrapers.momentum_weekly.sector import fetch_sector_momentum_summary
+from scrapers.momentum_weekly.smallcap import fetch_smallcap_momentum_summary
+from scrapers.momentum_weekly.upgrade import fetch_upgrade_momentum_summary
 from analytics.tracking import update_all_ticker_scores
 
 _log = get_logger("populate")
@@ -52,6 +58,18 @@ async def run_scrapers() -> None:
         ("app_reviews", fetch_app_reviews),
         ("google_trends", fetch_google_trends),
         ("wsb_mentions", fetch_wsb_mentions),
+        ("volatility_momentum", fetch_volatility_momentum_summary),
+        ("leveraged_sector_momentum", fetch_leveraged_sector_summary),
+        ("sector_momentum_weekly", fetch_sector_momentum_summary),
+        (
+            "smallcap_momentum_weekly",
+            lambda: fetch_smallcap_momentum_summary(load_russell2000()),
+        ),
+        (
+            "upgrade_momentum_weekly",
+            lambda: fetch_upgrade_momentum_summary(universe),
+        ),
+        ("full_fundamentals", lambda: full_fundamentals.main(universe)),
         ("analyst_ratings", fetch_analyst_ratings),
         ("insider_buying", fetch_insider_buying),
         ("stock_news", fetch_stock_news),
@@ -64,6 +82,12 @@ async def run_scrapers() -> None:
         "ticker_scores": "ticker_scores",
         "wsb_mentions": "reddit_mentions",
         "stock_news": "news_headlines",
+        "volatility_momentum": "volatility_momentum",
+        "leveraged_sector_momentum": "leveraged_sector_momentum",
+        "sector_momentum_weekly": "sector_momentum_weekly",
+        "smallcap_momentum_weekly": "smallcap_momentum_weekly",
+        "upgrade_momentum_weekly": "upgrade_momentum_weekly",
+        "full_fundamentals": "top_scores",
     }
 
     today = pd.Timestamp.utcnow().normalize()
@@ -72,7 +96,7 @@ async def run_scrapers() -> None:
         _log.info(f"{name} start")
         try:
             table = table_map.get(name, name)
-            if name == "ticker_scores":
+            if name in {"ticker_scores", "full_fundamentals"}:
                 if db.conn and db[table].count_documents({"date": today.date()}) > 0:
                     _log.info(f"{name} already current - skipping")
                     continue
