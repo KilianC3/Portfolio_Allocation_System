@@ -59,6 +59,7 @@ def db_ping() -> bool:
     if not _ensure_conn():
         return False
     try:
+        assert _conn is not None
         with _conn.cursor() as cur:
             cur.execute("SELECT 1")
         return True
