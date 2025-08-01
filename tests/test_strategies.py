@@ -16,6 +16,7 @@ from strategies import (
     GoogleTrendsNewsSentiment,
     RedditBuzzStrategy,
     CompositeScoreLeaders,
+    CompositeTop15,
 )
 
 
@@ -63,6 +64,7 @@ async def run_all():
         trends = GoogleTrendsNewsSentiment()
         reddit = RedditBuzzStrategy(days=1, top_n=2)
         leaders = CompositeScoreLeaders()
+        top15 = CompositeTop15()
 
         trade = Coll(
             [
@@ -154,6 +156,7 @@ async def run_all():
             await trends.build(pf)
             await reddit.build(pf)
             await leaders.build(pf)
+            await top15.build(pf)
 
         assert pf.weights
         print(list(pf.weights.keys()))

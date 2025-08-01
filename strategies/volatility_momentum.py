@@ -23,8 +23,8 @@ class VolatilityScaledMomentum:
 
         df = yf.download(
             self.universe,
-            period="13mo",
-            interval="1d",
+            period="2y",
+            interval="1wk",
             group_by="ticker",
             threads=True,
             progress=False,
@@ -34,8 +34,8 @@ class VolatilityScaledMomentum:
         return df.dropna(how="all")
 
     def _rank(self, prices: pd.DataFrame) -> pd.DataFrame:
-        ret_12m = prices.iloc[-1] / prices.iloc[0] - 1
-        vol_60 = prices.pct_change().tail(60).std() * math.sqrt(252)
+        ret_12m = prices.iloc[-1] / prices.iloc[-52] - 1
+        vol_60 = prices.pct_change().tail(12).std() * math.sqrt(52)
         score = ret_12m / vol_60.replace(0, float("nan"))
         ranks = pd.DataFrame({"ret": ret_12m, "vol": vol_60, "score": score})
         return ranks.sort_values("score", ascending=False)

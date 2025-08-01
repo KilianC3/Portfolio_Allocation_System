@@ -8,13 +8,13 @@ from typing import List, Dict
 import pandas as pd
 
 from database import db
+from infra.github_backup import backup_records
 
 
 def append_snapshot(table: str, records: List[Dict]) -> None:
-    """Insert ``records`` into the MariaDB table if a connection is available."""
-    if not records or not db.conn:
+    """Insert ``records`` into the MariaDB table and GitHub backup."""
+    if not records:
         return
-    coll = db[table]
     data = []
     for row in records:
         item = row.copy()
@@ -22,10 +22,13 @@ def append_snapshot(table: str, records: List[Dict]) -> None:
             if isinstance(val, dt.datetime):
                 item[col] = val.replace(tzinfo=None)
         data.append(item)
-    try:
-        coll.insert_many(data)
-    except Exception:
-        pass
+    if db.conn:
+        coll = db[table]
+        try:
+            coll.insert_many(data)
+        except Exception:
+            pass
+    backup_records(table, data)
 
 
 def has_recent_rows(table: str, since: dt.datetime) -> bool:

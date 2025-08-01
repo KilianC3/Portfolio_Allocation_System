@@ -17,8 +17,8 @@ class LeveragedSectorMomentum:
     def _fetch_prices(self) -> pd.DataFrame:
         df = yf.download(
             self.tickers,
-            period="4mo",
-            interval="1d",
+            period="6mo",
+            interval="1wk",
             group_by="ticker",
             threads=True,
             progress=False,
@@ -28,9 +28,9 @@ class LeveragedSectorMomentum:
         return df.dropna(how="all")
 
     def _rank(self, prices: pd.DataFrame) -> pd.Series:
-        if len(prices) < 63:
+        if len(prices) < 13:
             return pd.Series(dtype=float)
-        ret = prices.iloc[-1] / prices.iloc[-63] - 1
+        ret = prices.iloc[-1] / prices.iloc[-13] - 1
         return ret.sort_values(ascending=False)
 
     async def build(self, pf: EquityPortfolio) -> None:

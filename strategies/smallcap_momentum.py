@@ -32,7 +32,7 @@ class SmallCapMomentum:
         )
 
     def _latest_price(self, sym: str) -> float:
-        df = yf.download(sym, period="1d", interval="1d", progress=False)["Close"]
+        df = yf.download(sym, period="1wk", interval="1wk", progress=False)["Close"]
         if df.empty:
             return float("nan")
         return float(df.iloc[-1])

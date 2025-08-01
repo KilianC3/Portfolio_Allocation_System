@@ -41,9 +41,22 @@ except Exception as e:  # pragma: no cover - db may not exist in tests
     _conn = None
 
 
+def _ensure_conn() -> bool:
+    """Ping the connection and reconnect if needed."""
+    global _conn
+    if not _conn:
+        return False
+    try:
+        _conn.ping(reconnect=True)
+        return True
+    except Exception as exc:
+        _log.error("MariaDB reconnect failed: %s", exc)
+        return False
+
+
 def db_ping() -> bool:
     """Return True if the MariaDB connection is healthy."""
-    if not _conn:
+    if not _ensure_conn():
         return False
     try:
         with _conn.cursor() as cur:
@@ -82,8 +95,7 @@ class PGClient:
 
     def command(self, cmd: str) -> None:
         if cmd == "ping" and self._conn:
-            with self._conn.cursor() as cur:
-                cur.execute("SELECT 1")
+            db_ping()
 
 
 class PGDatabase:
@@ -158,6 +170,7 @@ class PGQuery:
     def __iter__(self):
         if not self.conn:
             return iter([])
+        db_ping()
         sql, params = self._sql()
         with self.conn.cursor() as cur:
             cur.execute(sql, params)
@@ -205,6 +218,7 @@ class PGCollection:
     def delete_many(self, q: Dict[str, Any]):
         if not self.conn:
             return
+        db_ping()
         where, params = _build_where(q)
         sql = f"DELETE FROM {self.table}"
         if where:
@@ -215,6 +229,7 @@ class PGCollection:
     def insert_many(self, docs: List[Dict[str, Any]]):
         if not self.conn or not docs:
             return
+        db_ping()
         cols = ["id" if c == "_id" else c for c in docs[0].keys()]
         values = [
             [json.dumps(d[c]) if isinstance(d[c], (dict, list)) else d[c] for c in d]
@@ -236,6 +251,7 @@ class PGCollection:
     ):
         if not self.conn:
             return
+        db_ping()
         item = update.get("$set", {}).copy()
         item.update(match)
         cols = ["id" if c == "_id" else c for c in item.keys()]
@@ -269,6 +285,7 @@ class PGCollection:
         """Return the number of documents matching ``q``."""
         if not self.conn:
             return 0
+        db_ping()
         where, params = _build_where(q)
         sql = f"SELECT COUNT(*) AS cnt FROM {self.table}"
         if where:
@@ -333,6 +350,11 @@ universe_coll = db["universe"]
 ticker_score_coll = db["ticker_scores"]
 top_score_coll = db["top_scores"]
 log_coll = db["system_logs"]
+vol_mom_coll = db["volatility_momentum"]
+lev_sector_coll = db["leveraged_sector_momentum"]
+sector_mom_coll = db["sector_momentum_weekly"]
+smallcap_mom_coll = db["smallcap_momentum_weekly"]
+upgrade_mom_coll = db["upgrade_momentum_weekly"]
 
 register_db_handler(log_coll)
 

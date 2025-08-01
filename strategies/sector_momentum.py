@@ -36,8 +36,8 @@ class SectorRiskParityMomentum:
     def _fetch_prices(self) -> pd.DataFrame:
         df = yf.download(
             self.tickers,
-            period="7mo",
-            interval="1d",
+            period="1y",
+            interval="1wk",
             group_by="ticker",
             threads=True,
             progress=False,
@@ -47,9 +47,9 @@ class SectorRiskParityMomentum:
         return df.dropna(how="all")
 
     def _rank(self, prices: pd.DataFrame) -> pd.Series:
-        if len(prices) < 126:
+        if len(prices) < 26:
             return pd.Series(dtype=float)
-        ret = prices.iloc[-1] / prices.iloc[-126] - 1
+        ret = prices.iloc[-1] / prices.iloc[-26] - 1
         return ret.sort_values(ascending=False)
 
     @staticmethod
@@ -61,7 +61,7 @@ class SectorRiskParityMomentum:
         return w, cov
 
     def _vol_target(self, w: pd.Series, cov: pd.DataFrame) -> pd.Series:
-        port_vol = math.sqrt(float(w @ (cov * 252) @ w))
+        port_vol = math.sqrt(float(w @ (cov * 52) @ w))
         if port_vol == 0:
             return w
         k = min(1.5, self.target_vol / port_vol)
@@ -73,7 +73,7 @@ class SectorRiskParityMomentum:
         top = ranks.head(3).index.tolist()
         if not top:
             return
-        rets = prices[top].pct_change().dropna().tail(20)
+        rets = prices[top].pct_change().dropna().tail(4)
         if rets.empty:
             return
         w, cov = self._risk_parity(rets)
