@@ -22,6 +22,7 @@ from analytics.fundamentals import compute_fundamental_metrics, yf_symbol
 import numpy as np
 from metrics import scrape_latency, scrape_errors
 from service.logger import get_logger
+from infra.github_backup import backup_records
 
 log = get_logger(__name__)
 
@@ -278,6 +279,7 @@ def update_all_ticker_scores() -> None:
     all_rows = pd.concat(frames, ignore_index=True)
     scored = _compute_scores(all_rows)
     today = dt.date.today()
+    docs: list[dict] = []
     for _, row in scored.iterrows():
         doc = {
             "symbol": row["symbol"],
@@ -290,6 +292,8 @@ def update_all_ticker_scores() -> None:
             {"$set": doc},
             upsert=True,
         )
+        docs.append(doc)
+    backup_records("ticker_scores", docs)
     log.info("update_all_ticker_scores done")
     record_top_scores()
 
@@ -306,6 +310,7 @@ def record_top_scores(top_n: int = 20) -> None:
         return
     df = df.sort_values("score", ascending=False).head(top_n)
     top_score_coll.delete_many({"date": latest_date})
+    docs: list[dict] = []
     for rank, row in enumerate(df.itertuples(index=False), 1):
         doc = {
             "date": latest_date,
@@ -319,4 +324,6 @@ def record_top_scores(top_n: int = 20) -> None:
             {"$set": doc},
             upsert=True,
         )
+        docs.append(doc)
+    backup_records("top_scores", docs)
     log.info("top scores recorded")

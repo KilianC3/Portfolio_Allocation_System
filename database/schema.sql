@@ -155,9 +155,6 @@ CREATE TABLE IF NOT EXISTS reddit_mentions (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
     ticker TEXT,
     mentions INTEGER,
-    pos INTEGER,
-    neu INTEGER,
-    neg INTEGER,
     date TEXT,
     _retrieved TIMESTAMP,
     UNIQUE(ticker, date)

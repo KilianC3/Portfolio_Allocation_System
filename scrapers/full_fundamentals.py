@@ -20,6 +20,7 @@ from typing import List, Sequence, Dict, Iterable, Tuple
 
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
 from database import init_db, top_score_coll
+from infra.github_backup import backup_records
 from service.logger import get_scraper_logger
 
 import numpy as np
@@ -807,6 +808,7 @@ def store_top_scores(df: pd.DataFrame, top_n: int = 20) -> None:
     today = dt.date.today()
     top_score_coll.delete_many({"date": today})
     ranked = df.sort_values("overall_score", ascending=False).head(top_n).reset_index()
+    docs: list[dict] = []
     for rank, row in enumerate(ranked.itertuples(index=False), 1):
         doc = {
             "date": today,
@@ -820,6 +822,8 @@ def store_top_scores(df: pd.DataFrame, top_n: int = 20) -> None:
             {"$set": doc},
             upsert=True,
         )
+        docs.append(doc)
+    backup_records("top_scores", docs)
 
 
 def main(universe: Iterable[str] | None = None):

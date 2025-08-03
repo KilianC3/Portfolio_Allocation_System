@@ -15,7 +15,7 @@ analysis can reproduce past views of the data.
 | `gov_contracts` | `ticker`, `value`, `date`, `_retrieved` |
 | `app_reviews` | `ticker`, `hype`, `date`, `_retrieved` |
 | `google_trends` | `ticker`, `score`, `date`, `_retrieved` |
-| `reddit_mentions` | `ticker`, `mentions`, `pos`, `neu`, `neg`, `date`, `_retrieved` |
+| `reddit_mentions` | `ticker`, `mentions`, `date`, `_retrieved` |
 | `analyst_ratings` | `ticker`, `rating`, `date`, `_retrieved` |
 | `news_headlines` | `ticker`, `headline`, `link`, `source`, `time`, `_retrieved` |
 | `insider_buying` | `ticker`, `exec`, `shares`, `date`, `_retrieved` |

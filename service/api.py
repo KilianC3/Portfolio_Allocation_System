@@ -4,7 +4,7 @@ import asyncio
 from typing import Any, Dict, Optional, List, Union
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse, Response
+from fastapi.responses import JSONResponse, StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
@@ -25,7 +25,6 @@ from database import (
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
 from service.config import ALLOW_LIVE
-import scripts.dashboard as scripts_dashboard
 from service.scheduler import StrategyScheduler
 from analytics.utils import (
     portfolio_metrics,
@@ -355,52 +354,6 @@ def read_table(
         csv_data = df.to_csv(index=False)
         return Response(content=csv_data, media_type="text/csv")
     return {"records": res}
-
-
-@app.get("/dashboard", response_class=HTMLResponse)
-def dashboard(table: str | None = None, page: int = 1, limit: int = 20) -> str:
-    """Render health checks and paginated table views."""
-    try:
-        health_info = asyncio.run(readyz())
-    except Exception as exc:
-        health_info = {"status": "fail", "error": str(exc)}
-
-    token_qs = f"&token={API_TOKEN}" if API_TOKEN else ""
-    parts = ["<h2>Health</h2>", f"<pre>{health_info}</pre>"]
-
-    if table:
-        result = read_table(table, limit=limit, page=page)
-        assert isinstance(result, dict)
-        docs = result["records"]
-        parts.append(f"<h3>{table} (page {page})</h3>")
-        if docs:
-            df = pd.DataFrame(docs)
-            parts.append(df.to_html(index=False))
-        parts.append("<p>")
-        if page > 1:
-            parts.append(
-                f'<a href="/dashboard?table={table}&page={page-1}&limit={limit}{token_qs}">Prev</a> '
-            )
-        parts.append(
-            f'<a href="/dashboard?table={table}&page={page+1}&limit={limit}{token_qs}">Next</a>'
-        )
-        parts.append("</p>")
-        back_link = f"/dashboard?token={API_TOKEN}" if API_TOKEN else "/dashboard"
-        parts.append(f'<p><a href="{back_link}">Back</a></p>')
-    else:
-        jobs = list_jobs()["jobs"]
-        if jobs:
-            df = pd.DataFrame(jobs)
-            parts.append("<h2>Schedule</h2>")
-            parts.append(df.to_html(index=False))
-        parts.append("<h2>Tables</h2><ul>")
-        for name in scripts_dashboard.TABLES:
-            parts.append(
-                f'<li><a href="/dashboard?table={name}{token_qs}">{name}</a></li>'
-            )
-        parts.append("</ul>")
-
-    return "\n".join(parts)
 
 
 # Scheduler management endpoints
