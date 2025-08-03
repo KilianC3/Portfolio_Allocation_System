@@ -17,6 +17,7 @@ import math
 import datetime as dt
 import warnings
 from typing import List, Sequence, Dict, Iterable, Tuple
+import time
 
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
 from database import init_db, top_score_coll
@@ -33,6 +34,9 @@ PRICE_LOOKBACK_DAYS = 400
 POSITION_DOLLARS = 5_000_000
 BATCH_SIZE_PRICES = 350
 BATCH_SLEEP_SEC = 1.0
+TICKER_SLEEP_SEC = 0.5
+INFO_RETRIES = 3
+INFO_BACKOFF_SEC = 1.0
 
 WEIGHTS = {
     "value_score": 0.18,
@@ -370,15 +374,28 @@ def strength_metrics(fin, bs, cf, info):
 
 
 def collect_fundamentals(ticker: str):
-    tk = yf.Ticker(ticker)
-    try:
-        fin = last_two(tk.financials)
-        bs = last_two(tk.balance_sheet)
-        cf = last_two(tk.cashflow)
-        info = tk.info
-    except Exception as exc:
-        log.exception(f"collect_fundamentals failed for {ticker}: {exc}")
-        return {}
+    backoff = INFO_BACKOFF_SEC
+    for attempt in range(1, INFO_RETRIES + 1):
+        try:
+            tk = yf.Ticker(ticker)
+            fin = last_two(tk.financials)
+            bs = last_two(tk.balance_sheet)
+            cf = last_two(tk.cashflow)
+            info = tk.info
+            break
+        except Exception as exc:
+            if attempt == INFO_RETRIES:
+                log.exception(f"collect_fundamentals failed for {ticker}: {exc}")
+                return {}
+            log.warning(
+                "collect_fundamentals attempt %s/%s failed for %s: %s",
+                attempt,
+                INFO_RETRIES,
+                ticker,
+                exc,
+            )
+            time.sleep(backoff)
+            backoff *= 2
     shares_prev = previous_shares_outstanding(ticker)
     row = {}
     row["piotroski"] = compute_piotroski(fin, bs, cf)
@@ -750,14 +767,17 @@ def score_absolute(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_fundamentals(universe: Iterable[str]) -> pd.DataFrame:
+    tickers = list(universe)
     rows = []
-    for t in universe:
+    for i, t in enumerate(tickers):
         t = t.upper().strip()
         if not t:
             continue
         data = collect_fundamentals(t)
         data["ticker"] = t
         rows.append(data)
+        if TICKER_SLEEP_SEC and i + 1 < len(tickers):
+            time.sleep(TICKER_SLEEP_SEC)
     return pd.DataFrame(rows).set_index("ticker")
 
 
