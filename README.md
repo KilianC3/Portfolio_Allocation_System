@@ -1,164 +1,189 @@
-# Portfolio Allocation System
+# Portfolio Allocation System (PAS): Automated strategy allocation, execution, and analytics.
 
-The Portfolio Allocation System is an end-to-end trading platform that runs entirely on a single server.  It gathers alternative data, builds equity portfolios and sends orders to Alpaca.  A FastAPI service exposes metrics and trading endpoints while scheduled jobs update data automatically.
+## 1. Project Overview
+### Name & Tagline
+**Portfolio Allocation System (PAS):** Automated strategy allocation, execution, and analytics.
 
-## Setup
+### Purpose & Scope
+Real-time weight calculation, rebalancing via Alpaca, historical analytics, and live data streams.
 
-1. **Install the application**
+### Key Features
+- Automated scheduling (APScheduler)
+- Generic `/db/{table}` REST proxy
+- Correlation & sector-exposure analytics endpoints
+- On-demand execution endpoints & WebSocket feeds
+- Built-in Prometheus metrics & dashboard UI
 
-   ```bash
-   git clone <repo_url>
-   cd Portfolio_Allocation_System
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r deploy/requirements.txt
-   ```
+## 2. Architecture Diagram & Components
+### High-Level Diagram
+```mermaid
+flowchart LR
+    Scrapers --> DB[(PostgreSQL/PostGIS)]
+    Scheduler(APScheduler) --> API
+    Analytics(ML/Analytics) --> API
+    API(FastAPI) --> WS(WebSocket Server)
+    API --> Alpaca[(Alpaca Connector)]
+    API --> Redis[(Redis Cache)]
+    API --> Clients[(Front-end / Clients)]
+```
 
-2. **Configure the service**
+### Data Flow
+- Data Ingestion → Postgres/PostGIS
+- APScheduler Jobs → Allocation & Execution
+- REST & WS → Front-end/Clients
 
-   Edit `service/config.yaml` and set these values:
+### Technology Stack
+- FastAPI, SQLAlchemy, APScheduler
+- PostgreSQL (+ PostGIS), Redis cache
+- Python 3.10+, Docker, Kubernetes
+- Prometheus + Grafana for monitoring
 
-   - `API_HOST: "192.168.0.59"`
-   - `PG_URI`: MariaDB URI pointing to `192.168.0.59`
-   - `ALPACA_PAPER_KEY`, `ALPACA_PAPER_SECRET`
-   - `ALPACA_PAPER_URL: "https://paper-api.alpaca.markets"`
-   - `ALPACA_LIVE_URL: "https://api.alpaca.markets"`
-  - `API_TOKEN`: token for authenticating requests
-  - `REDIS_URL`: `redis://:<API_TOKEN>@192.168.0.59:6379/0`
+## 3. Prerequisites & System Requirements
+### Languages & Tools
+- Python ≥ 3.10
+- Docker ≥ 20.10
+- Kubernetes (optional)
 
-   The service appends `/v2/account` to the Alpaca URLs automatically, so do **not** include the `/v2` prefix in the configuration.
+### Services
+- PostgreSQL 14+
+- Redis ≥ 6.x
+- Alpaca account (paper/live)
 
-3. **Setup Redis**
+### External APIs
+- Alpaca trading API
+- optional CSO/Daft/MyHome data sources
 
-   ```bash
-   sudo scripts/setup_redis.sh
-   ```
-   (This step is also run automatically by `bootstrap.sh`.)
-   The script binds Redis to `192.168.0.59` and sets
-   `requirepass` in `/etc/redis/redis.conf` to the same
-   `API_TOKEN` value used by the application.
-
-4. **Enable remote MariaDB access**
-
-   The `scripts/bootstrap.sh` script configures MariaDB to listen on all
-   interfaces by setting `bind-address = 192.168.0.59` in
-   `/etc/mysql/mariadb.conf.d/50-server.cnf` and opens port `3306` on the
-   firewall.  Grant the database user remote privileges so the API and scrapers
-   can connect:
-
-   ```bash
-   sudo mysql -e "GRANT ALL PRIVILEGES ON quant_fund.* TO 'maria'@'%' IDENTIFIED BY 'maria'; FLUSH PRIVILEGES;"
-   mysql -e 'SELECT User, Host FROM mysql.user;'
-   ```
-
-   Ensure that the output lists `maria` with host `%` to confirm remote access
-   is enabled.
-
-5. **Start all services**
-
-   ```bash
-   sudo scripts/bootstrap.sh
-   ```
-
-   This registers a systemd unit that runs `service/start.py` and launches the API at `http://192.168.0.59:8001`.
-
-6. **Run the unit tests** *(optional)*
-
-   ```bash
-   pip install -r deploy/requirements-test.txt
-   pytest -q
-   ```
-
-## Usage
-
-Send authenticated requests using either the `Authorization` header or a `token` query parameter:
-
+## 4. Getting Started / Local Development
+### 4.1 Clone & Checkout
 ```bash
-curl "http://192.168.0.59:8001/db/trades?limit=20&token=<YOUR_TOKEN>"
+git clone git@github.com:KilianC3/Portfolio_Allocation_System.git
+cd Portfolio_Allocation_System
 ```
 
-Convenience scripts:
+### 4.2 Environment Variables
+Configure `.env` or `config.yaml` with:
 
-- `scripts/dashboard.py` – print table samples directly in the terminal
-- `scripts/populate.py` – refresh datasets without starting the API
-- `scripts/expose_db_api.sh` – expose the API on a different host and port
+- `API_TOKEN` – your secret bearer token
+- `DATABASE_URL` – Postgres connection string
+- `REDIS_URL` – Redis connection string
+- `ALPACA_API_KEY` / `ALPACA_SECRET_KEY`
+- `CORS_ALLOW_ORIGINS` – front-end host(s)
+- Optional: `SUPABASE_URL` / `SUPABASE_KEY`
 
-### Dashboard
-
-After the API is running you can explore data in your browser:
-
-```
-http://192.168.0.59:8001/dashboard?token=<YOUR_TOKEN>
-```
-
-This page lists scheduled jobs and links to every database table. The dashboard
-opens automatically when `service.start` launches. The same information is
-available from the command line:
-
+### 4.3 Build & Run with Docker
 ```bash
-source venv/bin/activate
-python scripts/dashboard.py
+docker-compose up --build
+```
+Services spun up: api, db, redis, scheduler, prometheus.
+
+Browser auto-opens <http://localhost:8000/dashboard>
+
+## 5. Configuration & Customization
+### Scheduler Settings (`apscheduler.yaml`)
+- Job intervals
+- Retry policies
+
+### Database Migrations
+- Alembic commands for schema changes
+
+### Logging & Verbosity
+- ENV flags: `LOG_LEVEL`, log format
+
+### Feature Flags
+- Toggle analytics endpoints or sandbox/live execution
+
+## 6. API Reference
+### 6.1 Authentication
+Use the `Authorization: Bearer <API_TOKEN>` header or a `?token=` query parameter.
+
+Error codes: 401 Unauthorized, 403 Forbidden
+
+### 6.2 Core Endpoints
+**Generic DB Proxy**
+- `GET /db/{table}`
+- Parameters: `limit`, `offset`, column filtering
+- Example:
+```bash
+curl -H "Authorization: Bearer $API_TOKEN" \
+     "http://localhost:8000/db/portfolio?limit=10"
+```
+Response:
+```json
+[{"symbol": "AAPL", "weight": 0.1, "as_of": "2024-01-05"}]
 ```
 
-Access the structured log records directly via:
-
+**Analytics**
+- `GET /correlation?strategy1=&strategy2=&window=`
+```bash
+curl "http://localhost:8000/correlation?strategy1=beta&strategy2=gamma&window=60&token=$API_TOKEN"
 ```
-http://192.168.0.59:8001/dashboard?table=system_logs&token=<YOUR_TOKEN>
+Response:
+```json
+{"correlation": 0.42}
+```
+- `GET /sector-exposure?strategy=`
+```bash
+curl "http://localhost:8000/sector-exposure?strategy=beta&token=$API_TOKEN"
+```
+Response:
+```json
+{"technology": 0.35, "healthcare": 0.1}
 ```
 
-## Troubleshooting
+**Execution**
+- `POST /execute/rebalance`
+```bash
+curl -X POST -H "Authorization: Bearer $API_TOKEN" \
+     http://localhost:8000/execute/rebalance
+```
+Response:
+```json
+{"orders_submitted": true}
+```
+- `GET /execute/trades?limit=&offset=`
+- `GET /execute/account`
 
-- **Alpaca 404** – verify that `ALPACA_PAPER_URL` and `ALPACA_LIVE_URL` are just the domain.  The service calls `/v2/account` itself, so a trailing `/v2` would lead to `/v2/v2/account` and a 404.
-- **Redis connection refused** – ensure a Redis instance is running on `192.168.0.59:6379` or update the ledger configuration.
-- Watch logs with `journalctl -u portfolio -f` if startup checks fail.
+**Dashboard & Docs**
+- `GET /dashboard`
+- `GET /docs`, `/redoc`, `/openapi.json`
 
-## Data Sources
+**Metrics**
+- `GET /metrics` (Prometheus format)
 
-| Dataset | URL |
-|---------|-----|
-| DC Insider Scores | https://www.quiverquant.com/scores/dcinsider |
-| Corporate Lobbying | https://www.quiverquant.com/lobbying/ |
-| Government Contracts | https://www.quiverquant.com/sources/govcontracts |
-| Politician Trading | https://www.quiverquant.com/congresstrading/ |
-| App Reviews | https://www.quiverquant.com/sources/appratings |
-| Google Trends | https://www.quiverquant.com/googletrends/ |
-| Insider Buying | https://www.quiverquant.com/insiders/ |
-| Wikipedia Views | https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/all-agents/{Page_Title}/daily/{start}/{end} |
-| Analyst Ratings | https://www.benzinga.com/analyst-ratings/upgrades |
-| Finviz Stock News | https://finviz.com/news.ashx?v=3 |
-| Fundamental Scores | computed internally |
-| S&P 500 Index | https://finance.yahoo.com/quote/%5EGSPC |
+## 7. WebSocket Streams
+- URL: `ws://<host>/ws/{channel}`
+- Channels & Message Schemas
+  - `price-ticks`: `{ "symbol": string, "price": number, "timestamp": ISO }`
+  - `fills`: `{ "order_id": string, "symbol": string, "qty": number, "side": string, "price": number, "timestamp": ISO }`
+  - `equity`: `{ "strategy": string, "equity": number, "timestamp": ISO }`
 
-## Database Tables
+## 8. Monitoring & Health Checks
+- **Prometheus Metrics**: scrape interval, sample metrics (API request rate, scheduler job duration)
+- **Alerting**: Grafana dashboards and alert rules on job failures or latencies
+- **Self-Check Endpoint**: `GET /health` → `"OK"`
 
-- `politician_trades`
-- `lobbying`
-- `wiki_views`
-- `dc_insider_scores`
-- `gov_contracts`
-- `app_reviews`
-- `google_trends`
-- `reddit_mentions`
-- `news_headlines`
-- `analyst_ratings`
-- `insider_buying`
-- `sp500_index` – weekly OHLCV history for the S&P 500
-- `universe` – full list of tradable symbols with `index_name`
-- `portfolios` – stored weights for each strategy
-- `trades` – executed orders
-- `weight_history` – timestamped portfolio weights
-- `metrics` – daily performance statistics
-- `ticker_scores` – monthly composite fundamentals and momentum ranks
-- `account_metrics_paper` – equity history for the paper account
-- `account_metrics_live` – equity history for the live account
-- `account_metrics` – point-in-time equity snapshots
-- `schema_version` – schema migration tracking
-- `cache` – key/value store for HTTP responses
-- `alloc_log` – allocation diagnostics
-- `system_logs` – structured log records for the front end
-- `top_scores` – top 20 tickers by composite score each month
+## 9. Testing & Quality Assurance
+- **Unit Tests**: `pytest -q` target structure and coverage
+- **Integration Tests**: `docker-compose -f docker-compose.test.yml up`
+- **Linting & Formatting**: `flake8`, `black`, `isort`
 
-Run `database.init_db()` whenever the schema changes to ensure the `cache` table uses `MEDIUMTEXT`.
+## 10. Deployment
+- **CI/CD Pipeline**: GitHub Actions builds, lints, tests and publishes Docker image
+- **Staging vs Production**: environment overrides, secret management (Vault / GitHub Secrets)
+- **Kubernetes Manifests**: `deployment.yaml`, `service.yaml`, HPA settings
+- **Rollback Strategy**: image tagging, database migration rollbacks
 
-Further documentation is located in the `docs/` directory.
+## 11. Security & Best Practices
+- Secret Management: don’t commit tokens; use vaults or secrets manager
+- Rate-Limiting & Throttling (if needed)
+- Dependency Updates: Dependabot configuration
+- GDPR / Data Privacy: how you store or purge sensitive logs
 
+## 12. Contributing & Roadmap
+- **How to Propose Changes**: branching, PR conventions, code review checklist
+- **Feature Requests & Issues**: GitHub Issues template
+- **Future Enhancements**: planned analytics (e.g. ML-driven alpha signals), multi-broker support, plugin hooks
+
+## 13. License & Acknowledgments
+- **License**: MIT
+- **Third-Party Libraries**: attribution for FastAPI, APScheduler, SQLAlchemy, Prometheus, etc.

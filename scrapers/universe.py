@@ -28,6 +28,7 @@ except Exception:  # noqa: S110 - optional dependency
 from database import init_db, universe_coll
 from io import StringIO
 from service.logger import get_scraper_logger
+from infra.github_backup import backup_records
 
 DATA_DIR = Path("cache") / "universes"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -131,21 +132,23 @@ def _tickers_from_marketscreener() -> List[str]:
 
 
 def _store_universe(tickers: List[str], index_name: str) -> None:
-    """Persist ticker list to the unified universe table."""
+    """Persist ticker list to the unified universe table and backup."""
     init_db()
     now = dt.datetime.now(dt.timezone.utc)
+    docs: list[dict] = []
     for sym in tickers:
+        doc = {
+            "symbol": sym,
+            "index_name": index_name,
+            "_retrieved": now,
+        }
         universe_coll.update_one(
             {"symbol": sym},
-            {
-                "$set": {
-                    "symbol": sym,
-                    "index_name": index_name,
-                    "_retrieved": now,
-                }
-            },
+            {"$set": doc},
             upsert=True,
         )
+        docs.append(doc)
+    backup_records("universe", docs)
 
 
 def download_sp500(path: Path | None = None) -> Path:

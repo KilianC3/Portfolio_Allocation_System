@@ -153,9 +153,6 @@ async def fetch_wsb_mentions(days: int = 7, top_n: int = 20) -> List[dict]:
         item = {
             "ticker": row.get("ticker") or row.get("symbol"),
             "mentions": int(row.get("mentions", 0)),
-            "pos": None,
-            "neu": None,
-            "neg": None,
             "date": str(dt.date.today()),
             "_retrieved": now,
         }

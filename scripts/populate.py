@@ -40,8 +40,14 @@ from analytics.tracking import update_all_ticker_scores
 _log = get_logger("populate")
 
 
-async def run_scrapers() -> None:
-    """Run all scrapers sequentially and log row counts."""
+async def run_scrapers(force: bool = False) -> None:
+    """Run all scrapers sequentially and log row counts.
+
+    Parameters
+    ----------
+    force: bool
+        If True, bypass staleness checks and run every scraper.
+    """
     await asyncio.to_thread(download_sp500)
     await asyncio.to_thread(download_sp400)
     await asyncio.to_thread(download_russell2000)
@@ -96,13 +102,17 @@ async def run_scrapers() -> None:
         _log.info(f"{name} start")
         try:
             table = table_map.get(name, name)
-            if name in {"ticker_scores", "full_fundamentals"}:
-                if db.conn and db[table].count_documents({"date": today.date()}) > 0:
+            if not force:
+                if name in {"ticker_scores", "full_fundamentals"}:
+                    if (
+                        db.conn
+                        and db[table].count_documents({"date": today.date()}) > 0
+                    ):
+                        _log.info(f"{name} already current - skipping")
+                        continue
+                elif name != "analyst_ratings" and has_recent_rows(table, today):
                     _log.info(f"{name} already current - skipping")
                     continue
-            elif has_recent_rows(table, today):
-                _log.info(f"{name} already current - skipping")
-                continue
             result = func()
             if asyncio.iscoroutine(result):
                 data = await result
@@ -130,7 +140,7 @@ def main() -> None:
     """Initialise the database and run all scrapers."""
     _log.info("initialising database and running scrapers")
     init_db()
-    asyncio.run(run_scrapers())
+    asyncio.run(run_scrapers(force=True))
     _log.info("populate complete")
 
 

@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from typing import Any, Dict
 
 from database import trade_coll, pf_coll, weight_coll
+from infra.github_backup import backup_records
 from execution.gateway import ExecutionGateway
 from ledger import MasterLedger
 from risk import PositionRisk
@@ -41,11 +42,13 @@ class EquityPortfolio(Portfolio):
             {"_id": self.id}, {"$set": {"weights": weights}}, upsert=True
         )
         try:
+            doc = {"portfolio_id": self.id, "date": dt.date.today(), "weights": weights}
             weight_coll.update_one(
                 {"portfolio_id": self.id, "date": dt.date.today()},
                 {"$set": {"weights": weights}},
                 upsert=True,
             )
+            backup_records("weight_history", [doc])
         except Exception:
             pass
         _log.info({"set": weights, "pf": self.name})

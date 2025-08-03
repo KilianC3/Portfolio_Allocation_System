@@ -84,9 +84,10 @@ async def fetch_trending_wiki_views(top_k: int = 10, days: int = 7) -> List[dict
         days,
     )
     cand = list(trending_candidates().items())
-    if not cand:
-        mapping = index_map()
-        cand = list(mapping.items())
+    mapping = index_map()
+    if len(cand) < top_k:
+        extra = [(sym, name) for sym, name in mapping.items() if sym not in dict(cand)]
+        cand.extend(extra)
     pages = []
     for _, name in cand:
         page = wiki_title(name)
