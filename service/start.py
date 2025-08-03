@@ -123,7 +123,7 @@ async def main(host: str | None = None, port: int | None = None) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Start the portfolio API")
-    parser.add_argument("--host", default="192.168.0.59", help="Interface to bind")
-    parser.add_argument("--port", type=int, default=8001, help="Port number")
+    parser.add_argument("--host", help="Interface to bind")
+    parser.add_argument("--port", type=int, help="Port number")
     args = parser.parse_args()
     asyncio.run(main(args.host, args.port))

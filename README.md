@@ -1,189 +1,54 @@
-# Portfolio Allocation System (PAS): Automated strategy allocation, execution, and analytics.
+# Portfolio Allocation System (PAS)
 
-## 1. Project Overview
-### Name & Tagline
-**Portfolio Allocation System (PAS):** Automated strategy allocation, execution, and analytics.
+PAS automates strategy allocation, execution and analytics in a single
+service. Scrapers gather market data, analytics modules compute momentum and
+fundamental signals and strategies rebalance portfolios through a FastAPI
+interface. State lives in MariaDB with Redis providing a lightweight cache.
 
-### Purpose & Scope
-Real-time weight calculation, rebalancing via Alpaca, historical analytics, and live data streams.
+## Overview
 
-### Key Features
-- Automated scheduling (APScheduler)
-- Generic `/db/{table}` REST proxy
-- Correlation & sector-exposure analytics endpoints
-- On-demand execution endpoints & WebSocket feeds
-- Built-in Prometheus metrics & dashboard UI
+The API exposes endpoints for analytics, generic database access and trade
+execution. APScheduler handles recurring jobs while Prometheus metrics and a
+dashboard endpoint offer observability. The system can be deployed with Docker
+or orchestrated in Kubernetes and supports both paper and live trading through
+Alpaca.
 
-## 2. Architecture Diagram & Components
-### High-Level Diagram
-```mermaid
-flowchart LR
-    Scrapers --> DB[(PostgreSQL/PostGIS)]
-    Scheduler(APScheduler) --> API
-    Analytics(ML/Analytics) --> API
-    API(FastAPI) --> WS(WebSocket Server)
-    API --> Alpaca[(Alpaca Connector)]
-    API --> Redis[(Redis Cache)]
-    API --> Clients[(Front-end / Clients)]
-```
+## Requirements
 
-### Data Flow
-- Data Ingestion → Postgres/PostGIS
-- APScheduler Jobs → Allocation & Execution
-- REST & WS → Front-end/Clients
+The project targets Python 3.10 or newer. Running the full stack requires
+MariaDB 10+, Redis 6+ and an Alpaca API key. Docker Compose is the simplest way
+to launch all services, though each component can run locally if the required
+services are available.
 
-### Technology Stack
-- FastAPI, SQLAlchemy, APScheduler
-- PostgreSQL (+ PostGIS), Redis cache
-- Python 3.10+, Docker, Kubernetes
-- Prometheus + Grafana for monitoring
+## Quick Start
 
-## 3. Prerequisites & System Requirements
-### Languages & Tools
-- Python ≥ 3.10
-- Docker ≥ 20.10
-- Kubernetes (optional)
+Clone the repository and populate `config.yaml` or a `.env` file with your
+credentials and connection strings. From the project root, start the stack:
 
-### Services
-- PostgreSQL 14+
-- Redis ≥ 6.x
-- Alpaca account (paper/live)
-
-### External APIs
-- Alpaca trading API
-- optional CSO/Daft/MyHome data sources
-
-## 4. Getting Started / Local Development
-### 4.1 Clone & Checkout
-```bash
-git clone git@github.com:KilianC3/Portfolio_Allocation_System.git
-cd Portfolio_Allocation_System
-```
-
-### 4.2 Environment Variables
-Configure `.env` or `config.yaml` with:
-
-- `API_TOKEN` – your secret bearer token
-- `DATABASE_URL` – Postgres connection string
-- `REDIS_URL` – Redis connection string
-- `ALPACA_API_KEY` / `ALPACA_SECRET_KEY`
-- `CORS_ALLOW_ORIGINS` – front-end host(s)
-- Optional: `SUPABASE_URL` / `SUPABASE_KEY`
-
-### 4.3 Build & Run with Docker
 ```bash
 docker-compose up --build
 ```
-Services spun up: api, db, redis, scheduler, prometheus.
 
-Browser auto-opens <http://localhost:8000/dashboard>
+The API listens on `http://192.168.0.59:8001` by default and provides a
+dashboard at `/dashboard` and interactive docs at `/docs`.
 
-## 5. Configuration & Customization
-### Scheduler Settings (`apscheduler.yaml`)
-- Job intervals
-- Retry policies
+## API Highlights
 
-### Database Migrations
-- Alembic commands for schema changes
+Authentication uses a bearer token supplied via the `Authorization` header.
+Endpoints include a generic `/db/{table}` proxy, portfolio analytics such as
+correlation and sector exposure, and execution helpers for submitting rebalance
+orders. WebSocket feeds publish price ticks, fills and equity updates. Metrics
+are available at `/metrics` and a simple health probe lives at `/health`.
 
-### Logging & Verbosity
-- ENV flags: `LOG_LEVEL`, log format
+## Monitoring, Testing and Deployment
 
-### Feature Flags
-- Toggle analytics endpoints or sandbox/live execution
+Prometheus scrapes runtime metrics and Grafana can be layered on top for
+dashboards and alerting. Run `pytest -q` to execute the unit test suite. GitHub
+Actions builds, lints and tests the project and publishes container images for
+deployment to a staging or production environment.
 
-## 6. API Reference
-### 6.1 Authentication
-Use the `Authorization: Bearer <API_TOKEN>` header or a `?token=` query parameter.
+## Contributing and License
 
-Error codes: 401 Unauthorized, 403 Forbidden
+Pull requests are welcome; please discuss major changes via an issue first.
+The codebase is released under the MIT license.
 
-### 6.2 Core Endpoints
-**Generic DB Proxy**
-- `GET /db/{table}`
-- Parameters: `limit`, `offset`, column filtering
-- Example:
-```bash
-curl -H "Authorization: Bearer $API_TOKEN" \
-     "http://localhost:8000/db/portfolio?limit=10"
-```
-Response:
-```json
-[{"symbol": "AAPL", "weight": 0.1, "as_of": "2024-01-05"}]
-```
-
-**Analytics**
-- `GET /correlation?strategy1=&strategy2=&window=`
-```bash
-curl "http://localhost:8000/correlation?strategy1=beta&strategy2=gamma&window=60&token=$API_TOKEN"
-```
-Response:
-```json
-{"correlation": 0.42}
-```
-- `GET /sector-exposure?strategy=`
-```bash
-curl "http://localhost:8000/sector-exposure?strategy=beta&token=$API_TOKEN"
-```
-Response:
-```json
-{"technology": 0.35, "healthcare": 0.1}
-```
-
-**Execution**
-- `POST /execute/rebalance`
-```bash
-curl -X POST -H "Authorization: Bearer $API_TOKEN" \
-     http://localhost:8000/execute/rebalance
-```
-Response:
-```json
-{"orders_submitted": true}
-```
-- `GET /execute/trades?limit=&offset=`
-- `GET /execute/account`
-
-**Dashboard & Docs**
-- `GET /dashboard`
-- `GET /docs`, `/redoc`, `/openapi.json`
-
-**Metrics**
-- `GET /metrics` (Prometheus format)
-
-## 7. WebSocket Streams
-- URL: `ws://<host>/ws/{channel}`
-- Channels & Message Schemas
-  - `price-ticks`: `{ "symbol": string, "price": number, "timestamp": ISO }`
-  - `fills`: `{ "order_id": string, "symbol": string, "qty": number, "side": string, "price": number, "timestamp": ISO }`
-  - `equity`: `{ "strategy": string, "equity": number, "timestamp": ISO }`
-
-## 8. Monitoring & Health Checks
-- **Prometheus Metrics**: scrape interval, sample metrics (API request rate, scheduler job duration)
-- **Alerting**: Grafana dashboards and alert rules on job failures or latencies
-- **Self-Check Endpoint**: `GET /health` → `"OK"`
-
-## 9. Testing & Quality Assurance
-- **Unit Tests**: `pytest -q` target structure and coverage
-- **Integration Tests**: `docker-compose -f docker-compose.test.yml up`
-- **Linting & Formatting**: `flake8`, `black`, `isort`
-
-## 10. Deployment
-- **CI/CD Pipeline**: GitHub Actions builds, lints, tests and publishes Docker image
-- **Staging vs Production**: environment overrides, secret management (Vault / GitHub Secrets)
-- **Kubernetes Manifests**: `deployment.yaml`, `service.yaml`, HPA settings
-- **Rollback Strategy**: image tagging, database migration rollbacks
-
-## 11. Security & Best Practices
-- Secret Management: don’t commit tokens; use vaults or secrets manager
-- Rate-Limiting & Throttling (if needed)
-- Dependency Updates: Dependabot configuration
-- GDPR / Data Privacy: how you store or purge sensitive logs
-
-## 12. Contributing & Roadmap
-- **How to Propose Changes**: branching, PR conventions, code review checklist
-- **Feature Requests & Issues**: GitHub Issues template
-- **Future Enhancements**: planned analytics (e.g. ML-driven alpha signals), multi-broker support, plugin hooks
-
-## 13. License & Acknowledgments
-- **License**: MIT
-- **Third-Party Libraries**: attribution for FastAPI, APScheduler, SQLAlchemy, Prometheus, etc.
