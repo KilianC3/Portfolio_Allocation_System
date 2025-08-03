@@ -628,5 +628,6 @@ async def stream_account() -> StreamingResponse:
 
 if __name__ == "__main__":
     import uvicorn
+    from service.config import API_HOST, API_PORT
 
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host=API_HOST or "0.0.0.0", port=API_PORT or 8001)
