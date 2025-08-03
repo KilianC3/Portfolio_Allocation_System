@@ -8,14 +8,13 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
 from service.logger import get_logger
-from service.start import main as start_main, system_checklist
+from service.start import main as start_main
 
 _log = get_logger("bootstrap")
 
 
 def main() -> None:
-    asyncio.run(system_checklist())
-    _log.info("bootstrap complete")
+    _log.info("bootstrap begin")
     asyncio.run(start_main())
 
 

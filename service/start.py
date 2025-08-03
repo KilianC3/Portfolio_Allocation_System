@@ -88,15 +88,25 @@ async def system_checklist() -> None:
     log.info("system checklist complete")
 
 
-async def _launch_server(host: str, port: int) -> None:
+async def _launch_server(host: str, port: int) -> tuple[uvicorn.Server, asyncio.Task]:
+    """Start the FastAPI server and return the server and its task."""
     config = uvicorn.Config("service.api:app", host=host, port=port)
     server = uvicorn.Server(config)
-    await server.serve()
+    task = asyncio.create_task(server.serve())
+    while not server.started:
+        await asyncio.sleep(0.1)
+    log.info(f"api server running on http://{host}:{port}")
+    return server, task
 
 
 async def main(host: str | None = None, port: int | None = None) -> None:
-    """Run setup tasks, scrapers and then launch the API."""
+    """Launch the API first, then run setup tasks and scrapers."""
     log.info("startup sequence begin")
+
+    h = host or API_HOST or "192.168.0.59"
+    p = port or API_PORT or 8001
+    server, task = await _launch_server(h, p)
+
     try:
         log.info("validate config")
         validate_config()
@@ -112,13 +122,12 @@ async def main(host: str | None = None, port: int | None = None) -> None:
         await run_scrapers(force=True)
     except Exception as exc:  # pragma: no cover - startup errors
         log.exception(f"fatal startup error: {exc}")
-        return
-    log.info("startup complete - launching API")
+        server.should_exit = True
+        await task
+        raise
 
-    h = host or API_HOST or "192.168.0.59"
-    p = port or API_PORT or 8001
-
-    await _launch_server(h, p)
+    log.info("system up and running")
+    await task
 
 
 if __name__ == "__main__":

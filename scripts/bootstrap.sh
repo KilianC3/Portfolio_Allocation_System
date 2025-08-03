@@ -14,7 +14,13 @@ source "$VENV_DIR/bin/activate"
 pip install --upgrade pip
 pip install -r "$APP_DIR/deploy/requirements.txt"
 sudo apt-get update
-sudo apt-get install -y mariadb-server
+echo "Installing git, git-lfs and MariaDB"
+sudo apt-get install -y git git-lfs mariadb-server
+git lfs install --system
+if ! git -C "$APP_DIR" remote | grep -q backup; then
+  git -C "$APP_DIR" remote add backup https://github.com/KilianC3/Backup
+fi
+git -C "$APP_DIR" lfs install --local
 # Bind MariaDB to 192.168.0.59 so remote clients can connect
 sudo sed -i 's/^bind-address.*/bind-address = 192.168.0.59/' /etc/mysql/mariadb.conf.d/50-server.cnf
 "$APP_DIR/scripts/setup_redis.sh"
@@ -22,7 +28,7 @@ sudo systemctl enable mariadb
 sudo systemctl start mariadb
 sudo mysql -e "CREATE DATABASE IF NOT EXISTS quant_fund;"
 sudo mysql -e "GRANT ALL PRIVILEGES ON quant_fund.* TO 'maria'@'%' IDENTIFIED BY 'maria'; FLUSH PRIVILEGES;"
-python -m playwright install chromium || true
+python -m playwright install chromium
 
 
 # Register the service
