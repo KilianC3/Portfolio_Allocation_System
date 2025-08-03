@@ -81,20 +81,16 @@ async def test_system_checklist(monkeypatch):
 
     monkeypatch.setattr(start_mod, "AlpacaGateway", lambda: DummyGW())
     monkeypatch.setattr(start_mod, "MasterLedger", DummyLedger)
-    await boot.system_checklist()
+    await start_mod.system_checklist()
 
 
-def test_bootstrap_main_order(monkeypatch):
+def test_bootstrap_main(monkeypatch):
     calls = []
-
-    async def fake_checklist():
-        calls.append("checklist")
 
     async def fake_main():
         calls.append("api")
 
-    monkeypatch.setattr(boot, "system_checklist", fake_checklist)
     monkeypatch.setattr(boot, "start_main", fake_main)
 
     boot.main()
-    assert calls == ["checklist", "api"]
+    assert calls == ["api"]
