@@ -42,7 +42,7 @@ from analytics.utils import (
     portfolio_metrics,
     portfolio_correlations,
     sector_exposures,
-    ten_year_treasury_rate,
+    get_treasury_rate,
 )
 from metrics import rebalance_latency
 from analytics import update_all_metrics, update_all_ticker_scores
@@ -279,7 +279,7 @@ def add_metric(pf_id: str, metric: MetricEntry):
             [d.get("benchmark", 0.0) for d in docs],
             index=[d["date"] for d in docs],
         )
-    rf = ten_year_treasury_rate()
+    rf = get_treasury_rate()
     metrics = portfolio_metrics(r, bench, rf)
     metric_coll.update_one(
         {"portfolio_id": pf_id, "date": metric.date},

@@ -38,7 +38,7 @@ def alpha_beta(r: pd.Series, benchmark: pd.Series) -> tuple[float, float]:
     return float(alpha), float(beta)
 
 
-def ten_year_treasury_rate() -> float:
+def get_treasury_rate() -> float:
     """Fetch the latest 10 Year Treasury yield as a decimal."""
     try:
         data = yf.Ticker("^TNX").history(period="1d")
@@ -213,5 +213,5 @@ __all__ = [
     "ticker_sector",
     "sector_exposures",
     "lambda_from_half_life",
-    "ten_year_treasury_rate",
+    "get_treasury_rate",
 ]
