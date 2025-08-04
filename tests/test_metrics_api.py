@@ -15,7 +15,13 @@ def _get(path: str):
 
 def test_metrics_include_win_rate_and_vol(monkeypatch):
     docs = [
-        {"date": dt.date(2024, 1, 1), "ret": 0.01, "win_rate": 0.6, "annual_vol": 0.2}
+        {
+            "date": dt.date(2024, 1, 1),
+            "ret": 0.01,
+            "win_rate": 0.6,
+            "annual_vol": 0.2,
+            "capm_expected_return": 0.05,
+        }
     ]
 
     class DummyQuery:
@@ -35,3 +41,4 @@ def test_metrics_include_win_rate_and_vol(monkeypatch):
     data = resp.json()["metrics"]
     assert data[0]["win_rate"] == 0.6
     assert data[0]["volatility"] == 0.2
+    assert data[0]["capm_expected_return"] == 0.05

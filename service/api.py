@@ -21,6 +21,7 @@ from database import (
     db,
     db_ping,
     clear_system_logs,
+    log_coll,
     vol_mom_coll,
     lev_sector_coll,
     sector_mom_coll,
@@ -41,6 +42,7 @@ from analytics.utils import (
     portfolio_metrics,
     portfolio_correlations,
     sector_exposures,
+    ten_year_treasury_rate,
 )
 from metrics import rebalance_latency
 from analytics import update_all_metrics, update_all_ticker_scores
@@ -277,7 +279,8 @@ def add_metric(pf_id: str, metric: MetricEntry):
             [d.get("benchmark", 0.0) for d in docs],
             index=[d["date"] for d in docs],
         )
-    metrics = portfolio_metrics(r, bench)
+    rf = ten_year_treasury_rate()
+    metrics = portfolio_metrics(r, bench, rf)
     metric_coll.update_one(
         {"portfolio_id": pf_id, "date": metric.date},
         {"$set": metrics},
@@ -303,6 +306,7 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
             "sharpe",
             "alpha",
             "beta",
+            "capm_expected_return",
             "max_drawdown",
             "benchmark",
             "win_rate",
@@ -347,6 +351,32 @@ def delete_logs(days: int = 30):
     return {"deleted": removed}
 
 
+@app.get("/system_logs")
+def show_system_logs(limit: int = 100, format: str = "json"):
+    docs = list(log_coll.find().sort("timestamp", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["timestamp"] = _iso(d.get("timestamp"))
+    df = pd.DataFrame(docs)
+    if format == "csv":
+        csv_data = df.to_csv(index=False)
+        return Response(content=csv_data, media_type="text/csv")
+    return {"records": df.to_dict(orient="records")}
+
+
+@app.get("/db")
+def list_tables() -> Dict[str, List[str]]:
+    """Return the list of available database tables."""
+    db_ping()
+    if not db.conn:
+        return {"tables": []}
+    with db.conn.cursor() as cur:  # type: ignore[attr-defined]
+        cur.execute("SHOW TABLES")
+        rows = cur.fetchall()
+    tables = [next(iter(r.values())) for r in rows]
+    return {"tables": tables}
+
+
 @app.get("/db/{table}", response_model=None)
 def read_table(
     table: str,
@@ -365,18 +395,16 @@ def read_table(
             pass
     qry.limit(limit)
     docs = list(qry)
-    res = []
     for d in docs:
         if "_id" in d:
             d["id"] = str(d.pop("_id"))
         if "_retrieved" in d:
             d["_retrieved"] = _iso(d["_retrieved"])
-        res.append(d)
+    df = pd.DataFrame(docs)
     if format == "csv":
-        df = pd.DataFrame(res)
         csv_data = df.to_csv(index=False)
         return Response(content=csv_data, media_type="text/csv")
-    return {"records": res}
+    return {"records": df.to_dict(orient="records")}
 
 
 # Scheduler management endpoints
@@ -423,13 +451,11 @@ from scrapers.analyst_ratings import fetch_analyst_ratings, analyst_coll
 from scrapers.insider_buying import fetch_insider_buying, insider_buy_coll
 from scrapers.sp500_index import fetch_sp500_history, sp500_coll
 from scrapers.news import fetch_stock_news, news_coll
-from scrapers.momentum_weekly import (
-    fetch_volatility_momentum_summary,
-    fetch_leveraged_sector_summary,
-    fetch_sector_momentum_summary,
-    fetch_smallcap_momentum_summary,
-    fetch_upgrade_momentum_summary,
-)
+from scrapers.volatility_momentum import fetch_volatility_momentum_summary
+from scrapers.leveraged_sector_momentum import fetch_leveraged_sector_summary
+from scrapers.sector_momentum import fetch_sector_momentum_summary
+from scrapers.smallcap_momentum import fetch_smallcap_momentum_summary
+from scrapers.upgrade_momentum import fetch_upgrade_momentum_summary
 from scrapers.full_fundamentals import main as run_full_fundamentals
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
 
@@ -764,9 +790,7 @@ def risk_overview(strategy: str) -> Dict[str, Any]:
     stat = risk_stats_coll.find_one({"strategy": strategy}, sort=[("date", -1)])
     series = list(risk_stats_coll.find({"strategy": strategy}).sort("date", 1))
     alerts = list(
-        risk_alerts_coll.find({"strategy": strategy})
-        .sort("triggered_at", -1)
-        .limit(20)
+        risk_alerts_coll.find({"strategy": strategy}).sort("triggered_at", -1).limit(20)
     )
     for a in alerts:
         a["triggered_at"] = _iso(a.get("triggered_at"))
@@ -774,15 +798,13 @@ def risk_overview(strategy: str) -> Dict[str, Any]:
         "var95": {
             "current": stat.get("var95") if stat else None,
             "series": [
-                {"date": _iso(r["date"]), "value": r.get("var95")}
-                for r in series
+                {"date": _iso(r["date"]), "value": r.get("var95")} for r in series
             ],
         },
         "vol30d": {
             "current": stat.get("vol30d") if stat else None,
             "series": [
-                {"date": _iso(r["date"]), "value": r.get("vol30d")}
-                for r in series
+                {"date": _iso(r["date"]), "value": r.get("vol30d")} for r in series
             ],
         },
         "maxDrawdown": stat.get("max_drawdown") if stat else None,
@@ -801,12 +823,10 @@ def risk_var(strategy: str, window: int = 30, conf: str = "95,99") -> Dict[str, 
     out: Dict[str, Dict[str, List[Dict[str, Any]]]] = {"var": {}, "es": {}}
     for level in levels:
         out["var"][level] = [
-            {"date": _iso(r["date"]), "value": r.get(f"var{level}")}
-            for r in rows
+            {"date": _iso(r["date"]), "value": r.get(f"var{level}")} for r in rows
         ]
         out["es"][level] = [
-            {"date": _iso(r["date"]), "value": r.get(f"es{level}")}
-            for r in rows
+            {"date": _iso(r["date"]), "value": r.get(f"es{level}")} for r in rows
         ]
     return out
 
@@ -866,10 +886,7 @@ def risk_volatility(strategy: str, window: int = 30) -> Dict[str, Any]:
     )
     rows.reverse()
     return {
-        "series": [
-            {"date": _iso(r["date"]), "value": r.get("vol30d")}
-            for r in rows
-        ]
+        "series": [{"date": _iso(r["date"]), "value": r.get("vol30d")} for r in rows]
     }
 
 
@@ -882,10 +899,7 @@ def risk_beta(
     )
     rows.reverse()
     return {
-        "series": [
-            {"date": _iso(r["date"]), "value": r.get("beta30d")}
-            for r in rows
-        ]
+        "series": [{"date": _iso(r["date"]), "value": r.get("beta30d")} for r in rows]
     }
 
 
@@ -901,9 +915,7 @@ def risk_correlations(items: str, window: int = 30) -> Dict[str, Any]:
         return {"correlations": {}}
     data: Dict[str, List[float]] = {}
     for s in syms:
-        rows = list(
-            returns_coll.find({"strategy": s}).sort("date", -1).limit(window)
-        )
+        rows = list(returns_coll.find({"strategy": s}).sort("date", -1).limit(window))
         rows.reverse()
         data[s] = [r["return_pct"] for r in rows]
     df = pd.DataFrame(data)
@@ -980,9 +992,7 @@ async def ws_risk_alerts(ws: WebSocket) -> None:
     await ws.accept()
     last_id = 0
     while True:
-        rows = list(
-            risk_alerts_coll.find({"_id": {"$gt": last_id}}).sort("_id", 1)
-        )
+        rows = list(risk_alerts_coll.find({"_id": {"$gt": last_id}}).sort("_id", 1))
         for r in rows:
             last_id = max(last_id, r.get("_id", 0))
             if "triggered_at" in r:

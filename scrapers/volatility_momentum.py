@@ -8,7 +8,7 @@ import pandas as pd
 
 from service.logger import get_scraper_logger
 from database import init_db, vol_mom_coll
-from .common import _CHUNK, _weekly_closes
+from .momentum_common import _CHUNK, _weekly_closes
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 from scrapers.wiki import load_universe_any
