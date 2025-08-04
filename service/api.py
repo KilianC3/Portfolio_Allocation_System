@@ -1,6 +1,7 @@
-import os
-import datetime as dt
 import asyncio
+import datetime as dt
+import json
+import os
 from typing import Any, Dict, Optional, List, Union
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket
@@ -11,7 +12,7 @@ import pandas as pd
 
 from service.logger import get_logger
 from observability import metrics_router
-from ws import ws_router
+from ws import broadcast_message, ws_router
 from observability.logging import LOG_DIR, clear_log_files
 from database import (
     pf_coll,
@@ -21,6 +22,7 @@ from database import (
     db,
     db_ping,
     clear_system_logs,
+    log_coll,
     vol_mom_coll,
     lev_sector_coll,
     sector_mom_coll,
@@ -139,6 +141,10 @@ class MetricEntry(BaseModel):
     date: dt.date
     ret: float
     benchmark: Optional[float] = None
+
+
+class SystemLog(BaseModel):
+    message: str
 
 
 class RiskRuleIn(BaseModel):
@@ -283,6 +289,17 @@ def add_metric(pf_id: str, metric: MetricEntry):
         {"$set": metrics},
         upsert=True,
     )
+    asyncio.create_task(
+        broadcast_message(
+            json.dumps(
+                {
+                    "type": "metric",
+                    "portfolio_id": pf_id,
+                    "metrics": metrics,
+                }
+            )
+        )
+    )
     return {"status": "ok", "metrics": metrics}
 
 
@@ -323,6 +340,24 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
 @app.post("/collect/metrics")
 def collect_all_metrics(days: int = 90):
     update_all_metrics(days)
+    return {"status": "ok"}
+
+
+@app.post("/logs")
+def show_system_logs(entry: SystemLog) -> Dict[str, Any]:
+    doc = {"message": entry.message, "timestamp": dt.datetime.utcnow()}
+    log_coll.insert_one(doc)
+    asyncio.create_task(
+        broadcast_message(
+            json.dumps(
+                {
+                    "type": "system_log",
+                    "message": entry.message,
+                    "timestamp": _iso(doc["timestamp"]),
+                }
+            )
+        )
+    )
     return {"status": "ok"}
 
 
@@ -764,9 +799,7 @@ def risk_overview(strategy: str) -> Dict[str, Any]:
     stat = risk_stats_coll.find_one({"strategy": strategy}, sort=[("date", -1)])
     series = list(risk_stats_coll.find({"strategy": strategy}).sort("date", 1))
     alerts = list(
-        risk_alerts_coll.find({"strategy": strategy})
-        .sort("triggered_at", -1)
-        .limit(20)
+        risk_alerts_coll.find({"strategy": strategy}).sort("triggered_at", -1).limit(20)
     )
     for a in alerts:
         a["triggered_at"] = _iso(a.get("triggered_at"))
@@ -774,15 +807,13 @@ def risk_overview(strategy: str) -> Dict[str, Any]:
         "var95": {
             "current": stat.get("var95") if stat else None,
             "series": [
-                {"date": _iso(r["date"]), "value": r.get("var95")}
-                for r in series
+                {"date": _iso(r["date"]), "value": r.get("var95")} for r in series
             ],
         },
         "vol30d": {
             "current": stat.get("vol30d") if stat else None,
             "series": [
-                {"date": _iso(r["date"]), "value": r.get("vol30d")}
-                for r in series
+                {"date": _iso(r["date"]), "value": r.get("vol30d")} for r in series
             ],
         },
         "maxDrawdown": stat.get("max_drawdown") if stat else None,
@@ -801,12 +832,10 @@ def risk_var(strategy: str, window: int = 30, conf: str = "95,99") -> Dict[str, 
     out: Dict[str, Dict[str, List[Dict[str, Any]]]] = {"var": {}, "es": {}}
     for level in levels:
         out["var"][level] = [
-            {"date": _iso(r["date"]), "value": r.get(f"var{level}")}
-            for r in rows
+            {"date": _iso(r["date"]), "value": r.get(f"var{level}")} for r in rows
         ]
         out["es"][level] = [
-            {"date": _iso(r["date"]), "value": r.get(f"es{level}")}
-            for r in rows
+            {"date": _iso(r["date"]), "value": r.get(f"es{level}")} for r in rows
         ]
     return out
 
@@ -866,10 +895,7 @@ def risk_volatility(strategy: str, window: int = 30) -> Dict[str, Any]:
     )
     rows.reverse()
     return {
-        "series": [
-            {"date": _iso(r["date"]), "value": r.get("vol30d")}
-            for r in rows
-        ]
+        "series": [{"date": _iso(r["date"]), "value": r.get("vol30d")} for r in rows]
     }
 
 
@@ -882,10 +908,7 @@ def risk_beta(
     )
     rows.reverse()
     return {
-        "series": [
-            {"date": _iso(r["date"]), "value": r.get("beta30d")}
-            for r in rows
-        ]
+        "series": [{"date": _iso(r["date"]), "value": r.get("beta30d")} for r in rows]
     }
 
 
@@ -901,9 +924,7 @@ def risk_correlations(items: str, window: int = 30) -> Dict[str, Any]:
         return {"correlations": {}}
     data: Dict[str, List[float]] = {}
     for s in syms:
-        rows = list(
-            returns_coll.find({"strategy": s}).sort("date", -1).limit(window)
-        )
+        rows = list(returns_coll.find({"strategy": s}).sort("date", -1).limit(window))
         rows.reverse()
         data[s] = [r["return_pct"] for r in rows]
     df = pd.DataFrame(data)
@@ -980,9 +1001,7 @@ async def ws_risk_alerts(ws: WebSocket) -> None:
     await ws.accept()
     last_id = 0
     while True:
-        rows = list(
-            risk_alerts_coll.find({"_id": {"$gt": last_id}}).sort("_id", 1)
-        )
+        rows = list(risk_alerts_coll.find({"_id": {"$gt": last_id}}).sort("_id", 1))
         for r in rows:
             last_id = max(last_id, r.get("_id", 0))
             if "triggered_at" in r:

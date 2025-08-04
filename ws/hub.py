@@ -1,9 +1,29 @@
-from fastapi import WebSocket, WebSocketDisconnect
-from fastapi import APIRouter
+import asyncio
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from typing import Set
 
 router = APIRouter()
 
-clients = set()
+clients: Set[WebSocket] = set()
+
+
+async def broadcast_message(text: str) -> None:
+    """Send ``text`` to all connected WebSocket clients."""
+    if not clients:
+        return
+
+    disconnected: Set[WebSocket] = set()
+
+    async def _send(client: WebSocket) -> None:
+        try:
+            await client.send_text(text)
+        except WebSocketDisconnect:
+            disconnected.add(client)
+
+    await asyncio.gather(*(_send(c) for c in list(clients)))
+
+    for client in disconnected:
+        clients.discard(client)
 
 
 @router.websocket("/ws")
