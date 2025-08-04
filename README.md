@@ -39,6 +39,12 @@ Endpoints include a generic `/db/{table}` proxy, portfolio analytics such as
 correlation and sector exposure, and execution helpers for submitting rebalance
 orders. WebSocket feeds publish price ticks, fills and equity updates. Metrics
 are available at `/metrics` and a simple health probe lives at `/health`.
+Momentum and fundamental datasets are exposed through collection routes like
+`/collect/volatility_momentum` and `/collect/fundamentals` with matching `GET`
+endpoints to read the stored records.
+
+Cross-origin requests are allowed for `GET` endpoints, so a front-end can fetch
+protected resources by appending `?token=` with the API key.
 
 ## Monitoring, Testing and Deployment
 

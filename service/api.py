@@ -21,6 +21,13 @@ from database import (
     db,
     db_ping,
     clear_system_logs,
+    vol_mom_coll,
+    lev_sector_coll,
+    sector_mom_coll,
+    smallcap_mom_coll,
+    upgrade_mom_coll,
+    top_score_coll,
+    ticker_score_coll,
 )
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
@@ -54,8 +61,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET"],
     allow_headers=["*"],
 )
 
@@ -400,6 +406,15 @@ from scrapers.analyst_ratings import fetch_analyst_ratings, analyst_coll
 from scrapers.insider_buying import fetch_insider_buying, insider_buy_coll
 from scrapers.sp500_index import fetch_sp500_history, sp500_coll
 from scrapers.news import fetch_stock_news, news_coll
+from scrapers.momentum_weekly import (
+    fetch_volatility_momentum_summary,
+    fetch_leveraged_sector_summary,
+    fetch_sector_momentum_summary,
+    fetch_smallcap_momentum_summary,
+    fetch_upgrade_momentum_summary,
+)
+from scrapers.full_fundamentals import main as run_full_fundamentals
+from scrapers.universe import load_sp500, load_sp400, load_russell2000
 
 
 @app.post("/collect/politician_trades")
@@ -539,6 +554,115 @@ def show_contracts(limit: int = 50):
         d["_retrieved"] = _iso(d.get("_retrieved"))
         res.append(d)
     return {"records": res}
+
+
+@app.post("/collect/volatility_momentum")
+async def collect_vol_mom():
+    data = await asyncio.to_thread(fetch_volatility_momentum_summary)
+    return {"records": len(data)}
+
+
+@app.get("/volatility_momentum")
+def show_vol_mom(limit: int = 50):
+    docs = list(vol_mom_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.post("/collect/leveraged_sector_momentum")
+async def collect_lev_sector():
+    data = await asyncio.to_thread(fetch_leveraged_sector_summary)
+    return {"records": len(data)}
+
+
+@app.get("/leveraged_sector_momentum")
+def show_lev_sector(limit: int = 50):
+    docs = list(lev_sector_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.post("/collect/sector_momentum_weekly")
+async def collect_sector_mom():
+    data = await asyncio.to_thread(fetch_sector_momentum_summary)
+    return {"records": len(data)}
+
+
+@app.get("/sector_momentum_weekly")
+def show_sector_mom(limit: int = 50):
+    docs = list(sector_mom_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.post("/collect/smallcap_momentum_weekly")
+async def collect_smallcap_mom():
+    tickers = load_russell2000()
+    data = await asyncio.to_thread(fetch_smallcap_momentum_summary, tickers)
+    return {"records": len(data)}
+
+
+@app.get("/smallcap_momentum_weekly")
+def show_smallcap_mom(limit: int = 50):
+    docs = list(smallcap_mom_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.post("/collect/upgrade_momentum_weekly")
+async def collect_upgrade_mom():
+    universe = set(load_sp500()) | set(load_sp400()) | set(load_russell2000())
+    data = await fetch_upgrade_momentum_summary(universe)
+    return {"records": len(data)}
+
+
+@app.get("/upgrade_momentum_weekly")
+def show_upgrade_mom(limit: int = 50):
+    docs = list(upgrade_mom_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.post("/collect/fundamentals")
+async def collect_fundamentals():
+    universe = set(load_sp500()) | set(load_sp400()) | set(load_russell2000())
+    await asyncio.to_thread(run_full_fundamentals, universe)
+    return {"status": "ok"}
+
+
+@app.get("/top_scores")
+def show_top_scores(limit: int = 20):
+    docs = list(top_score_coll.find().sort([("date", -1), ("rank", 1)]).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+    return {"records": docs}
+
+
+@app.post("/collect/ticker_scores")
+async def collect_ticker_scores():
+    await asyncio.to_thread(update_all_ticker_scores)
+    return {"status": "ok"}
+
+
+@app.get("/ticker_scores")
+def show_ticker_scores(symbol: Optional[str] = None, limit: int = 50):
+    q: Dict[str, Any] = {}
+    if symbol:
+        q["symbol"] = symbol.upper()
+    docs = list(ticker_score_coll.find(q).sort("date", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+    return {"records": docs}
 
 
 @app.get("/var")

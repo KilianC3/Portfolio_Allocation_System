@@ -20,6 +20,11 @@ analysis can reproduce past views of the data.
 | `news_headlines` | `ticker`, `headline`, `link`, `source`, `time`, `_retrieved` |
 | `insider_buying` | `ticker`, `exec`, `shares`, `date`, `_retrieved` |
 | `sp500_index` | `date`, `open`, `high`, `low`, `close`, `volume`, `_retrieved` |
+| `volatility_momentum` | `symbol`, `date`, `_retrieved` |
+| `leveraged_sector_momentum` | `symbol`, `date`, `_retrieved` |
+| `sector_momentum_weekly` | `symbol`, `date`, `_retrieved` |
+| `smallcap_momentum_weekly` | `symbol`, `date`, `_retrieved` |
+| `upgrade_momentum_weekly` | `symbol`, `date`, `_retrieved` |
 | `ticker_scores` | `symbol`, `index_name`, `date`, `fundamentals`, `momentum`, `liquidity_sentiment`, `risk_adjusted`, `overall` |
 | `top_scores` | `date`, `symbol`, `index_name`, `score`, `rank` |
 | `portfolios` | `id`, `name`, `weights` |
