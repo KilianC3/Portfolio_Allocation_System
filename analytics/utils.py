@@ -2,11 +2,14 @@
 
 import math
 import functools
+import datetime as dt
 from typing import Mapping, Optional
 
 import numpy as np
 import pandas as pd
 import yfinance as yf
+
+from database import returns_coll, metric_coll
 
 
 def lambda_from_half_life(h: int) -> float:
@@ -183,6 +186,41 @@ def sector_exposures(weights: Mapping[str, float]) -> dict[str, float]:
     return totals
 
 
+def record_daily_metrics(
+    pf_id: str, returns: pd.Series, weights: Mapping[str, float]
+) -> None:
+    """Persist per-day returns and sector exposures for a portfolio.
+
+    Parameters
+    ----------
+    pf_id:
+        Portfolio identifier used as the strategy key in collections.
+    returns:
+        Series of daily portfolio returns indexed by date.
+    weights:
+        Mapping of symbols to portfolio weights for exposure aggregation.
+    """
+
+    exposures = sector_exposures(weights)
+
+    if returns_coll.conn:
+        for date, ret in returns.dropna().items():
+            returns_coll.update_one(
+                {"strategy": pf_id, "date": date.date()},
+                {"$set": {"return_pct": float(ret)}},
+                upsert=True,
+            )
+
+    end_date = (
+        returns.index[-1].date() if not returns.empty else dt.date.today()
+    )
+    metric_coll.update_one(
+        {"portfolio_id": pf_id, "date": end_date},
+        {"$set": {"exposures": exposures}},
+        upsert=True,
+    )
+
+
 __all__ = [
     "sharpe",
     "var_cvar",
@@ -201,5 +239,6 @@ __all__ = [
     "portfolio_correlations",
     "ticker_sector",
     "sector_exposures",
+    "record_daily_metrics",
     "lambda_from_half_life",
 ]

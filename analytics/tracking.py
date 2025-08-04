@@ -16,7 +16,7 @@ from database import (
     top_score_coll,
     weight_coll,
 )
-from analytics.utils import portfolio_metrics
+from analytics.utils import portfolio_metrics, record_daily_metrics
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
 from analytics.fundamentals import compute_fundamental_metrics, yf_symbol
 import numpy as np
@@ -79,6 +79,7 @@ def update_all_metrics(days: int = 90) -> None:
             {"$set": metrics},
             upsert=True,
         )
+        record_daily_metrics(pf_id, series, weights)
         csv_dir = Path("cache") / "metrics"
         csv_dir.mkdir(parents=True, exist_ok=True)
         csv_path = csv_dir / f"{pf_id}.csv"

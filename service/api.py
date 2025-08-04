@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional, List, Union
 from fastapi import FastAPI, HTTPException, Request, WebSocket
 from fastapi.responses import JSONResponse, StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import pandas as pd
 
@@ -68,6 +69,7 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+app.mount("/static", StaticFiles(directory="service/static"), name="static")
 
 
 @app.middleware("http")
@@ -324,6 +326,22 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
 def collect_all_metrics(days: int = 90):
     update_all_metrics(days)
     return {"status": "ok"}
+
+
+@app.get("/dashboard/{pf_id}")
+def dashboard(pf_id: str, window: int = 90) -> Dict[str, Any]:
+    rows = list(
+        returns_coll.find({"strategy": pf_id}).sort("date", 1).limit(window)
+    )
+    returns = [
+        {"date": _iso(r["date"]), "value": r.get("return_pct", 0.0)}
+        for r in rows
+    ]
+    latest = metric_coll.find_one({"portfolio_id": pf_id}, sort=[("date", -1)])
+    exposures = latest.get("exposures", {}) if latest else {}
+    alpha = latest.get("alpha") if latest else None
+    beta = latest.get("beta") if latest else None
+    return {"returns": returns, "exposures": exposures, "alpha": alpha, "beta": beta}
 
 
 @app.get("/logs")
