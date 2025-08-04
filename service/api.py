@@ -642,7 +642,12 @@ async def collect_fundamentals():
 
 @app.get("/top_scores")
 def show_top_scores(limit: int = 20):
-    docs = list(top_score_coll.find().sort([("date", -1), ("rank", 1)]).limit(limit))
+    latest = top_score_coll.find_one(sort=[("date", -1)])
+    if not latest:
+        return {"records": []}
+    docs = list(
+        top_score_coll.find({"date": latest["date"]}).sort("rank", 1).limit(limit)
+    )
     for d in docs:
         d["id"] = str(d.pop("_id"))
     return {"records": docs}
