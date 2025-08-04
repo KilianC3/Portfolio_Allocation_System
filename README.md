@@ -46,8 +46,33 @@ endpoints to read the stored records. Risk analytics are surfaced under
 rule management and alert streaming expose nightly computed metrics for each
 strategy.
 
+Portfolio performance queries via `/metrics/{pf_id}` now include win rate and
+annualized volatility for each strategy.
+
 Cross-origin requests are allowed for `GET` endpoints, so a front-end can fetch
 protected resources by appending `?token=` with the API key.
+
+## Alpaca Trading API Endpoints
+
+Front-end components can also interact directly with Alpaca's REST and
+streaming interfaces. Useful routes include:
+
+- `GET /v2/account` – real-time balances
+- `GET /v2/positions` – open positions
+- `GET /v2/orders` and `POST /v2/orders` – recent orders and order entry
+- `GET /v2/account/portfolio/history` – equity curve data
+- `GET /v2/watchlists` and `/v2/watchlists/{id}/assets` – manage watchlists
+- `GET /v2/account/activities` – account activity feed
+- `GET /v2/stocks/{symbol}/bars` – intraday & historical bars
+- `GET /v2/stocks/{symbol}/trades` and `/quotes` – latest trade and quote data
+- `GET /v2/stocks/{symbol}/snapshots` – consolidated symbol snapshot
+- `GET /v2/news` – market news headlines
+- `GET /v2/corporate_actions` – upcoming corporate actions
+- `GET /v2/calendar` – market calendar
+- WebSocket `wss://stream.data.alpaca.markets/v2/iex` – real-time market data
+- WebSocket `wss://stream.alpaca.markets/v2/account` – order and position updates
+- `GET /v2/crypto/{symbol}/bars` and `/snapshots` – crypto price data
+- `GET /v2/forex/{pair}/quotes` – FX rates
 
 ## Monitoring, Testing and Deployment
 

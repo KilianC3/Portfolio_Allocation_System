@@ -305,12 +305,17 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
             "beta",
             "max_drawdown",
             "benchmark",
+            "win_rate",
+            "annual_vol",
             "ret_7d",
             "ret_30d",
             "ret_1y",
         ):
             if k in d:
-                entry[k] = d[k]
+                if k == "annual_vol":
+                    entry["volatility"] = d[k]
+                else:
+                    entry[k] = d[k]
         res.append(entry)
     return {"metrics": res}
 
