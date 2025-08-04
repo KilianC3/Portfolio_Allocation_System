@@ -1,7 +1,6 @@
 """Utility functions for portfolio analytics."""
 
 import math
-import functools
 import os
 import json
 import datetime as dt
