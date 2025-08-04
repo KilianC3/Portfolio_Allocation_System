@@ -30,11 +30,11 @@ from scrapers.insider_buying import fetch_insider_buying
 from scrapers.news import fetch_stock_news
 from scrapers.sp500_index import fetch_sp500_history
 from scrapers import full_fundamentals
-from scrapers.momentum_weekly.volatility import fetch_volatility_momentum_summary
-from scrapers.momentum_weekly.leveraged_sector import fetch_leveraged_sector_summary
-from scrapers.momentum_weekly.sector import fetch_sector_momentum_summary
-from scrapers.momentum_weekly.smallcap import fetch_smallcap_momentum_summary
-from scrapers.momentum_weekly.upgrade import fetch_upgrade_momentum_summary
+from scrapers.volatility_momentum import fetch_volatility_momentum_summary
+from scrapers.leveraged_sector_momentum import fetch_leveraged_sector_summary
+from scrapers.sector_momentum import fetch_sector_momentum_summary
+from scrapers.smallcap_momentum import fetch_smallcap_momentum_summary
+from scrapers.upgrade_momentum import fetch_upgrade_momentum_summary
 from analytics.tracking import update_all_ticker_scores
 
 _log = get_logger("populate")

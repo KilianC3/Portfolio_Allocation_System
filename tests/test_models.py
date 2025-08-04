@@ -22,6 +22,14 @@ def test_all_models():
     print(mm.iloc[0], list(metrics.values())[0])
 
 
+def test_capm_expected_return():
+    r = pd.Series([0.001, 0.002, 0.003])
+    bench = pd.Series([0.001, 0.002, 0.003])
+    metrics = portfolio_metrics(r, bench, rf=0.03)
+    assert "capm_expected_return" in metrics
+    assert abs(metrics["capm_expected_return"] - (bench.mean() * 252)) < 1e-6
+
+
 from strategies.smallcap_momentum import SmallCapMomentum
 
 

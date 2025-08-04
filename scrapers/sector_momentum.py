@@ -6,7 +6,7 @@ from typing import List
 from service.logger import get_scraper_logger
 from database import init_db, sector_mom_coll
 from strategies.sector_momentum import SECTOR_ETFS
-from .common import _weekly_closes
+from .momentum_common import _weekly_closes
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 

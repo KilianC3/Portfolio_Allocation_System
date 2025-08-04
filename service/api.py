@@ -21,6 +21,7 @@ from database import (
     db,
     db_ping,
     clear_system_logs,
+    log_coll,
     vol_mom_coll,
     lev_sector_coll,
     sector_mom_coll,
@@ -321,7 +322,8 @@ def add_metric(pf_id: str, metric: MetricEntry):
             [d.get("benchmark", 0.0) for d in docs],
             index=[d["date"] for d in docs],
         )
-    metrics = portfolio_metrics(r, bench)
+    rf = get_treasury_rate()
+    metrics = portfolio_metrics(r, bench, rf)
     metric_coll.update_one(
         {"portfolio_id": pf_id, "date": metric.date},
         {"$set": metrics},
@@ -347,6 +349,7 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
             "sharpe",
             "alpha",
             "beta",
+            "capm_expected_return",
             "max_drawdown",
             "benchmark",
             "win_rate",
@@ -391,6 +394,32 @@ def delete_logs(days: int = 30):
     return {"deleted": removed}
 
 
+@app.get("/system_logs")
+def show_system_logs(limit: int = 100, format: str = "json"):
+    docs = list(log_coll.find().sort("timestamp", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["timestamp"] = _iso(d.get("timestamp"))
+    df = pd.DataFrame(docs)
+    if format == "csv":
+        csv_data = df.to_csv(index=False)
+        return Response(content=csv_data, media_type="text/csv")
+    return {"records": df.to_dict(orient="records")}
+
+
+@app.get("/db")
+def list_tables() -> Dict[str, List[str]]:
+    """Return the list of available database tables."""
+    db_ping()
+    if not db.conn:
+        return {"tables": []}
+    with db.conn.cursor() as cur:  # type: ignore[attr-defined]
+        cur.execute("SHOW TABLES")
+        rows = cur.fetchall()
+    tables = [next(iter(r.values())) for r in rows]
+    return {"tables": tables}
+
+
 @app.get("/db/{table}", response_model=None)
 def read_table(
     table: str,
@@ -425,18 +454,16 @@ def read_table(
             pass
     qry.limit(limit)
     docs = list(qry)
-    res = []
     for d in docs:
         if "_id" in d:
             d["id"] = str(d.pop("_id"))
         if "_retrieved" in d:
             d["_retrieved"] = _iso(d["_retrieved"])
-        res.append(d)
+    df = pd.DataFrame(docs)
     if format == "csv":
-        df = pd.DataFrame(res)
         csv_data = df.to_csv(index=False)
         return Response(content=csv_data, media_type="text/csv")
-    return {"records": res}
+    return {"records": df.to_dict(orient="records")}
 
 
 # Scheduler management endpoints
@@ -483,13 +510,11 @@ from scrapers.analyst_ratings import fetch_analyst_ratings, analyst_coll
 from scrapers.insider_buying import fetch_insider_buying, insider_buy_coll
 from scrapers.sp500_index import fetch_sp500_history, sp500_coll
 from scrapers.news import fetch_stock_news, news_coll
-from scrapers.momentum_weekly import (
-    fetch_volatility_momentum_summary,
-    fetch_leveraged_sector_summary,
-    fetch_sector_momentum_summary,
-    fetch_smallcap_momentum_summary,
-    fetch_upgrade_momentum_summary,
-)
+from scrapers.volatility_momentum import fetch_volatility_momentum_summary
+from scrapers.leveraged_sector_momentum import fetch_leveraged_sector_summary
+from scrapers.sector_momentum import fetch_sector_momentum_summary
+from scrapers.smallcap_momentum import fetch_smallcap_momentum_summary
+from scrapers.upgrade_momentum import fetch_upgrade_momentum_summary
 from scrapers.full_fundamentals import main as run_full_fundamentals
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
 

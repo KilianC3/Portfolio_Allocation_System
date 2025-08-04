@@ -66,6 +66,15 @@ def alpha_beta(r: pd.Series, benchmark: pd.Series) -> tuple[float, float]:
     return float(alpha), float(beta)
 
 
+def get_treasury_rate() -> float:
+    """Fetch the latest 10 Year Treasury yield as a decimal."""
+    try:
+        data = yf.Ticker("^TNX").history(period="1d")
+        return float(data["Close"].iloc[-1] / 100)
+    except Exception:
+        return 0.0
+
+
 def max_drawdown(r: pd.Series) -> float:
     """Maximum drawdown of a returns series."""
     curve = (1 + r).cumprod()
@@ -180,6 +189,8 @@ def portfolio_metrics(
         metrics["tracking_error"] = tracking_error(r, benchmark)
         metrics["information_ratio"] = information_ratio(r, benchmark)
         metrics["treynor_ratio"] = 0.0 if b == 0 else (r.mean() - rf) / b
+        market_ret = benchmark.mean() * 252
+        metrics["capm_expected_return"] = rf + b * (market_ret - rf)
 
     metrics["atr_14d"] = average_true_range(r)
     metrics["rsi_14d"] = rsi(r)
