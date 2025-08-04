@@ -1,3 +1,3 @@
-from .hub import router as ws_router
+from .hub import broadcast_message, router as ws_router
 
-__all__ = ["ws_router"]
+__all__ = ["ws_router", "broadcast_message"]
