@@ -3,7 +3,7 @@ import datetime as dt
 import asyncio
 from typing import Any, Dict, Optional, List, Union
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket
 from fastapi.responses import JSONResponse, StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -21,6 +21,17 @@ from database import (
     db,
     db_ping,
     clear_system_logs,
+    vol_mom_coll,
+    lev_sector_coll,
+    sector_mom_coll,
+    smallcap_mom_coll,
+    upgrade_mom_coll,
+    top_score_coll,
+    ticker_score_coll,
+    returns_coll,
+    risk_stats_coll,
+    risk_rules_coll,
+    risk_alerts_coll,
 )
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
@@ -54,8 +65,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET"],
     allow_headers=["*"],
 )
 
@@ -129,6 +139,14 @@ class MetricEntry(BaseModel):
     date: dt.date
     ret: float
     benchmark: Optional[float] = None
+
+
+class RiskRuleIn(BaseModel):
+    name: str
+    strategy: str
+    metric: str
+    operator: str
+    threshold: float
 
 
 def _iso(o):
@@ -287,12 +305,17 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
             "beta",
             "max_drawdown",
             "benchmark",
+            "win_rate",
+            "annual_vol",
             "ret_7d",
             "ret_30d",
             "ret_1y",
         ):
             if k in d:
-                entry[k] = d[k]
+                if k == "annual_vol":
+                    entry["volatility"] = d[k]
+                else:
+                    entry[k] = d[k]
         res.append(entry)
     return {"metrics": res}
 
@@ -400,6 +423,15 @@ from scrapers.analyst_ratings import fetch_analyst_ratings, analyst_coll
 from scrapers.insider_buying import fetch_insider_buying, insider_buy_coll
 from scrapers.sp500_index import fetch_sp500_history, sp500_coll
 from scrapers.news import fetch_stock_news, news_coll
+from scrapers.momentum_weekly import (
+    fetch_volatility_momentum_summary,
+    fetch_leveraged_sector_summary,
+    fetch_sector_momentum_summary,
+    fetch_smallcap_momentum_summary,
+    fetch_upgrade_momentum_summary,
+)
+from scrapers.full_fundamentals import main as run_full_fundamentals
+from scrapers.universe import load_sp500, load_sp400, load_russell2000
 
 
 @app.post("/collect/politician_trades")
@@ -541,6 +573,120 @@ def show_contracts(limit: int = 50):
     return {"records": res}
 
 
+@app.post("/collect/volatility_momentum")
+async def collect_vol_mom():
+    data = await asyncio.to_thread(fetch_volatility_momentum_summary)
+    return {"records": len(data)}
+
+
+@app.get("/volatility_momentum")
+def show_vol_mom(limit: int = 50):
+    docs = list(vol_mom_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.post("/collect/leveraged_sector_momentum")
+async def collect_lev_sector():
+    data = await asyncio.to_thread(fetch_leveraged_sector_summary)
+    return {"records": len(data)}
+
+
+@app.get("/leveraged_sector_momentum")
+def show_lev_sector(limit: int = 50):
+    docs = list(lev_sector_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.post("/collect/sector_momentum_weekly")
+async def collect_sector_mom():
+    data = await asyncio.to_thread(fetch_sector_momentum_summary)
+    return {"records": len(data)}
+
+
+@app.get("/sector_momentum_weekly")
+def show_sector_mom(limit: int = 50):
+    docs = list(sector_mom_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.post("/collect/smallcap_momentum_weekly")
+async def collect_smallcap_mom():
+    tickers = load_russell2000()
+    data = await asyncio.to_thread(fetch_smallcap_momentum_summary, tickers)
+    return {"records": len(data)}
+
+
+@app.get("/smallcap_momentum_weekly")
+def show_smallcap_mom(limit: int = 50):
+    docs = list(smallcap_mom_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.post("/collect/upgrade_momentum_weekly")
+async def collect_upgrade_mom():
+    universe = set(load_sp500()) | set(load_sp400()) | set(load_russell2000())
+    data = await fetch_upgrade_momentum_summary(universe)
+    return {"records": len(data)}
+
+
+@app.get("/upgrade_momentum_weekly")
+def show_upgrade_mom(limit: int = 50):
+    docs = list(upgrade_mom_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.post("/collect/fundamentals")
+async def collect_fundamentals():
+    universe = set(load_sp500()) | set(load_sp400()) | set(load_russell2000())
+    await asyncio.to_thread(run_full_fundamentals, universe)
+    return {"status": "ok"}
+
+
+@app.get("/top_scores")
+def show_top_scores(limit: int = 20):
+    latest = top_score_coll.find_one(sort=[("date", -1)])
+    if not latest:
+        return {"records": []}
+    docs = list(
+        top_score_coll.find({"date": latest["date"]}).sort("rank", 1).limit(limit)
+    )
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+    return {"records": docs}
+
+
+@app.post("/collect/ticker_scores")
+async def collect_ticker_scores():
+    await asyncio.to_thread(update_all_ticker_scores)
+    return {"status": "ok"}
+
+
+@app.get("/ticker_scores")
+def show_ticker_scores(symbol: Optional[str] = None, limit: int = 50):
+    q: Dict[str, Any] = {}
+    if symbol:
+        q["symbol"] = symbol.upper()
+    docs = list(ticker_score_coll.find(q).sort("date", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+    return {"records": docs}
+
+
 @app.get("/var")
 def var_history(
     pf_id: Optional[str] = None, start: Optional[str] = None, end: Optional[str] = None
@@ -611,6 +757,258 @@ def get_analytics(
     df["rolling_30"] = df["ret"].rolling(30).mean()
     df["rolling_90"] = df["ret"].rolling(90).mean()
     return {"analytics": df.to_dict(orient="records")}
+
+
+@app.get("/risk/overview")
+def risk_overview(strategy: str) -> Dict[str, Any]:
+    stat = risk_stats_coll.find_one({"strategy": strategy}, sort=[("date", -1)])
+    series = list(risk_stats_coll.find({"strategy": strategy}).sort("date", 1))
+    alerts = list(
+        risk_alerts_coll.find({"strategy": strategy})
+        .sort("triggered_at", -1)
+        .limit(20)
+    )
+    for a in alerts:
+        a["triggered_at"] = _iso(a.get("triggered_at"))
+    return {
+        "var95": {
+            "current": stat.get("var95") if stat else None,
+            "series": [
+                {"date": _iso(r["date"]), "value": r.get("var95")}
+                for r in series
+            ],
+        },
+        "vol30d": {
+            "current": stat.get("vol30d") if stat else None,
+            "series": [
+                {"date": _iso(r["date"]), "value": r.get("vol30d")}
+                for r in series
+            ],
+        },
+        "maxDrawdown": stat.get("max_drawdown") if stat else None,
+        "beta30d": stat.get("beta30d") if stat else None,
+        "alerts": alerts,
+    }
+
+
+@app.get("/risk/var")
+def risk_var(strategy: str, window: int = 30, conf: str = "95,99") -> Dict[str, Any]:
+    levels = [c.strip() for c in conf.split(",") if c.strip()]
+    rows = list(
+        risk_stats_coll.find({"strategy": strategy}).sort("date", -1).limit(window)
+    )
+    rows.reverse()
+    out: Dict[str, Dict[str, List[Dict[str, Any]]]] = {"var": {}, "es": {}}
+    for level in levels:
+        out["var"][level] = [
+            {"date": _iso(r["date"]), "value": r.get(f"var{level}")}
+            for r in rows
+        ]
+        out["es"][level] = [
+            {"date": _iso(r["date"]), "value": r.get(f"es{level}")}
+            for r in rows
+        ]
+    return out
+
+
+@app.get("/risk/drawdowns")
+def risk_drawdowns(strategy: str) -> Dict[str, List[Dict[str, Any]]]:
+    rows = list(returns_coll.find({"strategy": strategy}).sort("date", 1))
+    if not rows:
+        return {"drawdowns": []}
+    df = pd.DataFrame(rows)
+    df["date"] = pd.to_datetime(df["date"])
+    df.set_index("date", inplace=True)
+    cum = (1 + df["return_pct"]).cumprod()
+    peak = cum.cummax()
+    dd = cum / peak - 1
+    drawdowns: List[Dict[str, Any]] = []
+    in_dd = False
+    peak_date = dd.index[0]
+    trough_date = dd.index[0]
+    trough_val = 0.0
+    for date, val in dd.items():
+        if val < 0 and not in_dd:
+            in_dd = True
+            peak_date = date
+            trough_date = date
+            trough_val = val
+        elif in_dd:
+            if val < trough_val:
+                trough_val = val
+                trough_date = date
+            if val >= 0:
+                drawdowns.append(
+                    {
+                        "peak_date": _iso(peak_date),
+                        "trough_date": _iso(trough_date),
+                        "depth": float(trough_val),
+                        "duration": int((date - peak_date).days),
+                    }
+                )
+                in_dd = False
+    if in_dd:
+        drawdowns.append(
+            {
+                "peak_date": _iso(peak_date),
+                "trough_date": _iso(trough_date),
+                "depth": float(trough_val),
+                "duration": int((dd.index[-1] - peak_date).days),
+            }
+        )
+    return {"drawdowns": drawdowns}
+
+
+@app.get("/risk/volatility")
+def risk_volatility(strategy: str, window: int = 30) -> Dict[str, Any]:
+    rows = list(
+        risk_stats_coll.find({"strategy": strategy}).sort("date", -1).limit(window)
+    )
+    rows.reverse()
+    return {
+        "series": [
+            {"date": _iso(r["date"]), "value": r.get("vol30d")}
+            for r in rows
+        ]
+    }
+
+
+@app.get("/risk/beta")
+def risk_beta(
+    strategy: str, benchmark: str = "SP500", window: int = 30
+) -> Dict[str, Any]:
+    rows = list(
+        risk_stats_coll.find({"strategy": strategy}).sort("date", -1).limit(window)
+    )
+    rows.reverse()
+    return {
+        "series": [
+            {"date": _iso(r["date"]), "value": r.get("beta30d")}
+            for r in rows
+        ]
+    }
+
+
+@app.get("/risk/contribution")
+def risk_contribution(strategy: str) -> Dict[str, Any]:
+    return {}
+
+
+@app.get("/risk/correlations")
+def risk_correlations(items: str, window: int = 30) -> Dict[str, Any]:
+    syms = [i for i in items.split(",") if i]
+    if not syms:
+        return {"correlations": {}}
+    data: Dict[str, List[float]] = {}
+    for s in syms:
+        rows = list(
+            returns_coll.find({"strategy": s}).sort("date", -1).limit(window)
+        )
+        rows.reverse()
+        data[s] = [r["return_pct"] for r in rows]
+    df = pd.DataFrame(data)
+    corr = df.corr().to_dict() if not df.empty else {}
+    return {"correlations": corr}
+
+
+@app.post("/risk/rules")
+def create_rule(rule: RiskRuleIn) -> Dict[str, Any]:
+    if not risk_rules_coll.conn:
+        return {"id": 0}
+    with risk_rules_coll.conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO risk_rules (name,strategy,metric,operator,threshold) VALUES (%s,%s,%s,%s,%s)",
+            (
+                rule.name,
+                rule.strategy,
+                rule.metric,
+                rule.operator,
+                rule.threshold,
+            ),
+        )
+        rid = cur.lastrowid
+    return {"id": rid}
+
+
+@app.get("/risk/rules")
+def list_rules() -> Dict[str, Any]:
+    rows = list(risk_rules_coll.find())
+    for r in rows:
+        if "created_at" in r:
+            r["created_at"] = _iso(r["created_at"])
+    return {"rules": rows}
+
+
+@app.put("/risk/rules/{rule_id}")
+def update_rule(rule_id: int, rule: RiskRuleIn) -> Dict[str, Any]:
+    risk_rules_coll.update_one(
+        {"_id": rule_id},
+        {
+            "$set": {
+                "name": rule.name,
+                "strategy": rule.strategy,
+                "metric": rule.metric,
+                "operator": rule.operator,
+                "threshold": rule.threshold,
+            }
+        },
+        upsert=False,
+    )
+    return {"updated": True}
+
+
+@app.delete("/risk/rules/{rule_id}")
+def delete_rule(rule_id: int) -> Dict[str, Any]:
+    risk_rules_coll.delete_many({"_id": rule_id})
+    return {"deleted": True}
+
+
+@app.get("/risk/alerts")
+def list_alerts(strategy: Optional[str] = None) -> Dict[str, Any]:
+    q: Dict[str, Any] = {}
+    if strategy:
+        q["strategy"] = strategy
+    rows = list(risk_alerts_coll.find(q).sort("triggered_at", -1).limit(50))
+    for r in rows:
+        if "triggered_at" in r:
+            r["triggered_at"] = _iso(r["triggered_at"])
+    return {"alerts": rows}
+
+
+@app.websocket("/ws/risk-alerts")
+async def ws_risk_alerts(ws: WebSocket) -> None:
+    await ws.accept()
+    last_id = 0
+    while True:
+        rows = list(
+            risk_alerts_coll.find({"_id": {"$gt": last_id}}).sort("_id", 1)
+        )
+        for r in rows:
+            last_id = max(last_id, r.get("_id", 0))
+            if "triggered_at" in r:
+                r["triggered_at"] = _iso(r["triggered_at"])
+            await ws.send_json(r)
+        await asyncio.sleep(5)
+
+
+@app.get("/risk/summary")
+def risk_summary(strategies: str) -> Dict[str, Any]:
+    syms = [s for s in strategies.split(",") if s]
+    out: List[Dict[str, Any]] = []
+    for s in syms:
+        stat = risk_stats_coll.find_one({"strategy": s}, sort=[("date", -1)])
+        if not stat:
+            continue
+        out.append(
+            {
+                "strategy": s,
+                "var95": stat.get("var95"),
+                "vol30d": stat.get("vol30d"),
+                "beta30d": stat.get("beta30d"),
+                "max_drawdown": stat.get("max_drawdown"),
+            }
+        )
+    return {"summary": out}
 
 
 @app.get("/stream/account")

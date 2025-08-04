@@ -20,12 +20,21 @@ analysis can reproduce past views of the data.
 | `news_headlines` | `ticker`, `headline`, `link`, `source`, `time`, `_retrieved` |
 | `insider_buying` | `ticker`, `exec`, `shares`, `date`, `_retrieved` |
 | `sp500_index` | `date`, `open`, `high`, `low`, `close`, `volume`, `_retrieved` |
+| `volatility_momentum` | `symbol`, `date`, `_retrieved` |
+| `leveraged_sector_momentum` | `symbol`, `date`, `_retrieved` |
+| `sector_momentum_weekly` | `symbol`, `date`, `_retrieved` |
+| `smallcap_momentum_weekly` | `symbol`, `date`, `_retrieved` |
+| `upgrade_momentum_weekly` | `symbol`, `date`, `_retrieved` |
+| `returns` | `date`, `strategy`, `return_pct` |
+| `risk_stats` | `date`, `strategy`, `var95`, `var99`, `es95`, `es99`, `vol30d`, `beta30d`, `max_drawdown` |
+| `risk_rules` | `id`, `name`, `strategy`, `metric`, `operator`, `threshold`, `created_at` |
+| `risk_alerts` | `id`, `rule_id`, `strategy`, `metric_value`, `triggered_at`, `is_acknowledged` |
 | `ticker_scores` | `symbol`, `index_name`, `date`, `fundamentals`, `momentum`, `liquidity_sentiment`, `risk_adjusted`, `overall` |
 | `top_scores` | `date`, `symbol`, `index_name`, `score`, `rank` |
 | `portfolios` | `id`, `name`, `weights` |
 | `trades` | `portfolio_id`, `symbol`, `qty`, `side`, `price`, `timestamp` |
 | `weight_history` | `portfolio_id`, `date`, `weights` |
-| `metrics` | `portfolio_id`, `date`, `ret_1d`, `ret_7d`, `ret_30d`, `ret_3m`, `ret_6m`, `ret_1y`, `ret_2y`, `sharpe`, `sortino`, `weekly_vol`, `weekly_sortino`, `alpha`, `beta`, `max_drawdown`, `cagr`, `win_rate`, `information_ratio`, `treynor_ratio`, `var`, `cvar`, `atr_14d`, `rsi_14d` |
+| `metrics` | `portfolio_id`, `date`, `ret_1d`, `ret_7d`, `ret_30d`, `ret_3m`, `ret_6m`, `ret_1y`, `ret_2y`, `sharpe`, `sortino`, `weekly_vol`, `weekly_sortino`, `alpha`, `beta`, `max_drawdown`, `cagr`, `win_rate`, `annual_vol`, `information_ratio`, `treynor_ratio`, `var`, `cvar`, `atr_14d`, `rsi_14d` |
 | `account_metrics_paper` | `id`, `timestamp`, `equity`, `last_equity` |
 | `account_metrics_live` | `id`, `timestamp`, `equity`, `last_equity` |
 | `universe` | `symbol`, `index_name`, `_retrieved` |

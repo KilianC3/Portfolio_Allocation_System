@@ -281,3 +281,44 @@ CREATE TABLE IF NOT EXISTS upgrade_momentum_weekly (
     _retrieved TIMESTAMP,
     UNIQUE(symbol, date)
 );
+
+CREATE TABLE IF NOT EXISTS returns (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    date DATE,
+    strategy VARCHAR(64),
+    return_pct DOUBLE,
+    UNIQUE(date, strategy)
+);
+
+CREATE TABLE IF NOT EXISTS risk_stats (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    date DATE,
+    strategy VARCHAR(64),
+    var95 DOUBLE,
+    var99 DOUBLE,
+    es95 DOUBLE,
+    es99 DOUBLE,
+    vol30d DOUBLE,
+    beta30d DOUBLE,
+    max_drawdown DOUBLE,
+    UNIQUE(date, strategy)
+);
+
+CREATE TABLE IF NOT EXISTS risk_rules (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    name TEXT,
+    strategy VARCHAR(64),
+    metric VARCHAR(32),
+    operator VARCHAR(4),
+    threshold DOUBLE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS risk_alerts (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    rule_id INTEGER REFERENCES risk_rules(id),
+    strategy VARCHAR(64),
+    metric_value DOUBLE,
+    triggered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_acknowledged BOOLEAN DEFAULT FALSE
+);

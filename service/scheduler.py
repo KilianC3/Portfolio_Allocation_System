@@ -13,6 +13,7 @@ from database import metric_coll
 from analytics import update_all_metrics, record_account, update_all_ticker_scores
 from scrapers.wallstreetbets import fetch_wsb_mentions
 from scrapers import full_fundamentals
+from risk.tasks import compute_risk_stats, evaluate_risk_rules
 
 _log = get_logger("sched")
 
@@ -126,6 +127,12 @@ class StrategyScheduler:
             **CRON["monthly"],
         )
         self.scheduler.add_job(account_job, "cron", hour=0, minute=0, id="account")
+        self.scheduler.add_job(
+            compute_risk_stats, "cron", hour=0, minute=30, id="risk_stats"
+        )
+        self.scheduler.add_job(
+            evaluate_risk_rules, "cron", minute="*/5", id="risk_rules"
+        )
         self.scheduler.start()
 
     def stop(self):
