@@ -10,6 +10,7 @@ from .utils import (
     portfolio_correlations,
     sector_exposures,
     ticker_sector,
+    get_treasury_rate,
 )
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "portfolio_correlations",
     "sector_exposures",
     "ticker_sector",
+    "get_treasury_rate",
     "compute_fundamental_metrics",
     "yf_symbol",
 ]

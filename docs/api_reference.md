@@ -1,13 +1,5 @@
 # API Reference
 
-## Read-only endpoints
-
-The portfolio service exposes the following read-only JSON endpoints:
-
-- `GET /metrics/{pf_id}` – Latest performance metrics for a given strategy.
-- `GET /risk/overview` – Portfolio risk summary including VaR and volatility.
-- `GET /strategies/summary` – Combined weights, metrics, and risk statistics for each strategy.
-
 ## `GET /db/{table}`
 
 Return records from a database collection. Supports pagination, optional field
