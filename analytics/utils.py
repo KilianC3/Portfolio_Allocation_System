@@ -2,8 +2,11 @@
 
 import math
 import functools
+import os
+import json
 import datetime as dt
-from typing import Mapping, Optional
+from threading import Lock
+from typing import Mapping, Optional, Any
 
 import numpy as np
 import pandas as pd
@@ -166,15 +169,52 @@ def portfolio_correlations(ret_df: pd.DataFrame) -> pd.DataFrame:
     return ret_df.corr().fillna(0)
 
 
-@functools.lru_cache(maxsize=1024)
+_SECTOR_CACHE_PATH = os.path.join("cache", "sectors.json")
+_sector_cache: dict[str, str] = {}
+_sector_lock = Lock()
+
+
+def _load_sector_cache() -> None:
+    """Load cached sector mappings from disk once."""
+    if _sector_cache:
+        return
+    try:
+        with open(_SECTOR_CACHE_PATH, "r") as fh:
+            data: Any = json.load(fh)
+        if isinstance(data, dict):
+            _sector_cache.update({k: str(v) for k, v in data.items()})
+    except OSError:
+        # Cache file missing or unreadable – proceed with empty cache.
+        pass
+
+
+def _persist_sector_cache() -> None:
+    """Write the sector cache to disk, ignoring errors."""
+    try:
+        os.makedirs(os.path.dirname(_SECTOR_CACHE_PATH), exist_ok=True)
+        with open(_SECTOR_CACHE_PATH, "w") as fh:
+            json.dump(_sector_cache, fh)
+    except OSError:
+        pass
+
+
 def ticker_sector(sym: str) -> str:
-    """Return the sector for a ticker via yfinance; "Other" on failure."""
+    """Return the sector for ``sym`` using on-disk and in-memory caches."""
+    with _sector_lock:
+        _load_sector_cache()
+        if sym in _sector_cache:
+            return _sector_cache[sym]
+
     try:
         info = yf.Ticker(sym).info
+        sector = info.get("sector") or info.get("industry") or "Other"
     except Exception:
-        return "Other"
-    sector = info.get("sector") or info.get("industry") or "Other"
-    return str(sector)
+        sector = "Other"
+
+    with _sector_lock:
+        _sector_cache[sym] = str(sector)
+        _persist_sector_cache()
+        return _sector_cache[sym]
 
 
 def sector_exposures(weights: Mapping[str, float]) -> dict[str, float]:
