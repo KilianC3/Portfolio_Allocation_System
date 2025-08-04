@@ -25,6 +25,10 @@ analysis can reproduce past views of the data.
 | `sector_momentum_weekly` | `symbol`, `date`, `_retrieved` |
 | `smallcap_momentum_weekly` | `symbol`, `date`, `_retrieved` |
 | `upgrade_momentum_weekly` | `symbol`, `date`, `_retrieved` |
+| `returns` | `date`, `strategy`, `return_pct` |
+| `risk_stats` | `date`, `strategy`, `var95`, `var99`, `es95`, `es99`, `vol30d`, `beta30d`, `max_drawdown` |
+| `risk_rules` | `id`, `name`, `strategy`, `metric`, `operator`, `threshold`, `created_at` |
+| `risk_alerts` | `id`, `rule_id`, `strategy`, `metric_value`, `triggered_at`, `is_acknowledged` |
 | `ticker_scores` | `symbol`, `index_name`, `date`, `fundamentals`, `momentum`, `liquidity_sentiment`, `risk_adjusted`, `overall` |
 | `top_scores` | `date`, `symbol`, `index_name`, `score`, `rank` |
 | `portfolios` | `id`, `name`, `weights` |

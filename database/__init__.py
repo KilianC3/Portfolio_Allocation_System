@@ -356,6 +356,10 @@ lev_sector_coll = db["leveraged_sector_momentum"]
 sector_mom_coll = db["sector_momentum_weekly"]
 smallcap_mom_coll = db["smallcap_momentum_weekly"]
 upgrade_mom_coll = db["upgrade_momentum_weekly"]
+returns_coll = db["returns"]
+risk_stats_coll = db["risk_stats"]
+risk_rules_coll = db["risk_rules"]
+risk_alerts_coll = db["risk_alerts"]
 
 register_db_handler(log_coll)
 
