@@ -2,11 +2,39 @@
 
 import math
 import functools
-from typing import Mapping, Optional
+import os
+import datetime as dt
+from threading import Lock
+from typing import Mapping, Optional, Any
 
 import numpy as np
 import pandas as pd
 import yfinance as yf
+
+
+_TREASURY_CACHE: dict[str, Any] = {"rate": 0.0, "timestamp": dt.datetime.fromtimestamp(0)}
+_CACHE_LOCK = Lock()
+
+
+def get_treasury_rate(force: bool = False) -> float:
+    """Return the 3M treasury rate with simple caching.
+
+    The rate is fetched via yfinance's ``^IRX`` ticker and cached alongside
+    a timestamp. Subsequent calls reuse the cached value until ``TREASURY_RATE_TTL``
+    seconds have elapsed unless ``force`` is ``True``.
+    """
+    ttl = int(os.getenv("TREASURY_RATE_TTL", 86400))
+    now = dt.datetime.utcnow()
+    with _CACHE_LOCK:
+        age = (now - _TREASURY_CACHE["timestamp"]).total_seconds()
+        if not force and age < ttl and _TREASURY_CACHE["rate"]:
+            return float(_TREASURY_CACHE["rate"])
+        try:
+            rate = float(yf.Ticker("^IRX").history(period="1d")["Close"].iloc[-1]) / 100.0
+        except Exception:
+            rate = float(_TREASURY_CACHE["rate"])
+        _TREASURY_CACHE.update({"rate": rate, "timestamp": now})
+        return float(rate)
 
 
 def lambda_from_half_life(h: int) -> float:
@@ -202,4 +230,5 @@ __all__ = [
     "ticker_sector",
     "sector_exposures",
     "lambda_from_half_life",
+    "get_treasury_rate",
 ]

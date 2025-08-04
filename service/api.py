@@ -37,10 +37,12 @@ from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
 from service.config import ALLOW_LIVE
 from service.scheduler import StrategyScheduler
+import analytics.utils as analytics_utils
 from analytics.utils import (
     portfolio_metrics,
     portfolio_correlations,
     sector_exposures,
+    get_treasury_rate,
 )
 from metrics import rebalance_latency
 from analytics import update_all_metrics, update_all_ticker_scores
@@ -110,6 +112,14 @@ async def readyz():
     except Exception as exc:
         return {"status": "fail", "error": str(exc)}
     return {"status": "ready"}
+
+
+@app.get("/refresh/treasury_rate")
+def refresh_treasury_rate() -> Dict[str, Any]:
+    """Force refresh of the cached treasury rate."""
+    rate = get_treasury_rate(force=True)
+    ts = analytics_utils._TREASURY_CACHE["timestamp"].isoformat()
+    return {"rate": rate, "timestamp": ts}
 
 
 # In-memory portfolio objects
