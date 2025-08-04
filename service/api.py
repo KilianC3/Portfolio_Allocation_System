@@ -363,11 +363,27 @@ def read_table(
     limit: int = 50,
     page: int = 1,
     format: str = "json",
+    sort_by: Optional[str] = None,
+    order: str = "asc",
+    fields: Optional[str] = None,
 ) -> Response | Dict[str, List[Dict[str, Any]]]:
     """Return rows from the requested table with optional pagination."""
     db_ping()
     coll = db[table]
-    qry = coll.find({})
+    projection = None
+    if fields:
+        projection = {
+            f: 1 for f in [fld.strip() for fld in fields.split(",") if fld.strip()]
+        }
+        projection["_id"] = 1
+    qry = coll.find({}, projection)
+    if sort_by:
+        direction = order.lower()
+        if direction not in {"asc", "desc"}:
+            raise HTTPException(400, "invalid order")
+        qry = qry.sort(sort_by, 1 if direction == "asc" else -1)
+    elif order.lower() not in {"asc", "desc"}:
+        raise HTTPException(400, "invalid order")
     if page > 1:
         try:
             qry.offset((page - 1) * limit)
@@ -774,9 +790,7 @@ def risk_overview(strategy: str) -> Dict[str, Any]:
     stat = risk_stats_coll.find_one({"strategy": strategy}, sort=[("date", -1)])
     series = list(risk_stats_coll.find({"strategy": strategy}).sort("date", 1))
     alerts = list(
-        risk_alerts_coll.find({"strategy": strategy})
-        .sort("triggered_at", -1)
-        .limit(20)
+        risk_alerts_coll.find({"strategy": strategy}).sort("triggered_at", -1).limit(20)
     )
     for a in alerts:
         a["triggered_at"] = _iso(a.get("triggered_at"))
@@ -784,15 +798,13 @@ def risk_overview(strategy: str) -> Dict[str, Any]:
         "var95": {
             "current": stat.get("var95") if stat else None,
             "series": [
-                {"date": _iso(r["date"]), "value": r.get("var95")}
-                for r in series
+                {"date": _iso(r["date"]), "value": r.get("var95")} for r in series
             ],
         },
         "vol30d": {
             "current": stat.get("vol30d") if stat else None,
             "series": [
-                {"date": _iso(r["date"]), "value": r.get("vol30d")}
-                for r in series
+                {"date": _iso(r["date"]), "value": r.get("vol30d")} for r in series
             ],
         },
         "maxDrawdown": stat.get("max_drawdown") if stat else None,
@@ -811,12 +823,10 @@ def risk_var(strategy: str, window: int = 30, conf: str = "95,99") -> Dict[str, 
     out: Dict[str, Dict[str, List[Dict[str, Any]]]] = {"var": {}, "es": {}}
     for level in levels:
         out["var"][level] = [
-            {"date": _iso(r["date"]), "value": r.get(f"var{level}")}
-            for r in rows
+            {"date": _iso(r["date"]), "value": r.get(f"var{level}")} for r in rows
         ]
         out["es"][level] = [
-            {"date": _iso(r["date"]), "value": r.get(f"es{level}")}
-            for r in rows
+            {"date": _iso(r["date"]), "value": r.get(f"es{level}")} for r in rows
         ]
     return out
 
@@ -876,10 +886,7 @@ def risk_volatility(strategy: str, window: int = 30) -> Dict[str, Any]:
     )
     rows.reverse()
     return {
-        "series": [
-            {"date": _iso(r["date"]), "value": r.get("vol30d")}
-            for r in rows
-        ]
+        "series": [{"date": _iso(r["date"]), "value": r.get("vol30d")} for r in rows]
     }
 
 
@@ -892,10 +899,7 @@ def risk_beta(
     )
     rows.reverse()
     return {
-        "series": [
-            {"date": _iso(r["date"]), "value": r.get("beta30d")}
-            for r in rows
-        ]
+        "series": [{"date": _iso(r["date"]), "value": r.get("beta30d")} for r in rows]
     }
 
 
@@ -911,9 +915,7 @@ def risk_correlations(items: str, window: int = 30) -> Dict[str, Any]:
         return {"correlations": {}}
     data: Dict[str, List[float]] = {}
     for s in syms:
-        rows = list(
-            returns_coll.find({"strategy": s}).sort("date", -1).limit(window)
-        )
+        rows = list(returns_coll.find({"strategy": s}).sort("date", -1).limit(window))
         rows.reverse()
         data[s] = [r["return_pct"] for r in rows]
     df = pd.DataFrame(data)
@@ -990,9 +992,7 @@ async def ws_risk_alerts(ws: WebSocket) -> None:
     await ws.accept()
     last_id = 0
     while True:
-        rows = list(
-            risk_alerts_coll.find({"_id": {"$gt": last_id}}).sort("_id", 1)
-        )
+        rows = list(risk_alerts_coll.find({"_id": {"$gt": last_id}}).sort("_id", 1))
         for r in rows:
             last_id = max(last_id, r.get("_id", 0))
             if "triggered_at" in r:
