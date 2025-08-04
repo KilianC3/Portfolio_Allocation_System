@@ -194,6 +194,34 @@ def list_portfolios():
     return {"portfolios": res}
 
 
+@app.get("/strategies/summary")
+def strategies_summary() -> Dict[str, Any]:
+    docs = list(pf_coll.find({}, {"name": 1, "weights": 1}))
+    res: List[Dict[str, Any]] = []
+    for d in docs:
+        pf_id = str(d.get("_id"))
+        metrics = metric_coll.find_one({"portfolio_id": pf_id}, sort=[("date", -1)]) or {}
+        risk = risk_stats_coll.find_one({"strategy": pf_id}, sort=[("date", -1)]) or {}
+        res.append(
+            {
+                "id": pf_id,
+                "name": d.get("name"),
+                "weights": d.get("weights", {}),
+                "metrics": {
+                    k: _iso(v) if k == "date" else v
+                    for k, v in metrics.items()
+                    if k not in {"_id", "portfolio_id"}
+                },
+                "risk": {
+                    k: _iso(v) if k == "date" else v
+                    for k, v in risk.items()
+                    if k not in {"_id", "strategy"}
+                },
+            }
+        )
+    return {"strategies": res}
+
+
 @app.post("/portfolios")
 def create_portfolio(data: PortfolioCreate):
     pf = EquityPortfolio(data.name, gateway=AlpacaGateway(allow_live=ALLOW_LIVE))
