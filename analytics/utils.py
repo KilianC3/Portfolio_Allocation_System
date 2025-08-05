@@ -12,7 +12,10 @@ import pandas as pd
 import yfinance as yf
 
 
-_TREASURY_CACHE: dict[str, Any] = {"rate": 0.0, "timestamp": dt.datetime.fromtimestamp(0)}
+_TREASURY_CACHE: dict[str, Any] = {
+    "rate": 0.0,
+    "timestamp": dt.datetime.fromtimestamp(0),
+}
 _CACHE_LOCK = Lock()
 
 
@@ -30,7 +33,9 @@ def get_treasury_rate(force: bool = False) -> float:
         if not force and age < ttl and _TREASURY_CACHE["rate"]:
             return float(_TREASURY_CACHE["rate"])
         try:
-            rate = float(yf.Ticker("^IRX").history(period="1d")["Close"].iloc[-1]) / 100.0
+            rate = (
+                float(yf.Ticker("^IRX").history(period="1d")["Close"].iloc[-1]) / 100.0
+            )
         except Exception:
             rate = float(_TREASURY_CACHE["rate"])
         _TREASURY_CACHE.update({"rate": rate, "timestamp": now})
@@ -50,11 +55,18 @@ def sharpe(r: pd.Series, rf: float = 0.0) -> float:
     return (r.mean() - rf) / std * math.sqrt(252)
 
 
-def var_cvar(r: pd.Series, level: float = 0.95) -> tuple[float, float]:
-    """Return VaR and CVaR for a return series."""
-    var = np.quantile(r, 1 - level)
-    cvar = r[r <= var].mean()
-    return float(var), float(cvar)
+def value_at_risk(r: pd.Series, level: float = 0.95) -> float:
+    """Return the value at risk (VaR) of a return series."""
+    return float(np.quantile(r.dropna(), 1 - level))
+
+
+def conditional_value_at_risk(r: pd.Series, level: float = 0.95) -> float:
+    """Return the conditional value at risk (CVaR) of a return series."""
+    var = value_at_risk(r, level)
+    tail = r[r <= var]
+    if tail.empty:
+        return float(var)
+    return float(tail.mean())
 
 
 def alpha_beta(r: pd.Series, benchmark: pd.Series) -> tuple[float, float]:
@@ -66,10 +78,15 @@ def alpha_beta(r: pd.Series, benchmark: pd.Series) -> tuple[float, float]:
     return float(alpha), float(beta)
 
 
+def drawdown(r: pd.Series) -> pd.Series:
+    """Return the drawdown series for a returns series."""
+    curve = (1 + r).cumprod()
+    return curve / curve.cummax() - 1
+
+
 def max_drawdown(r: pd.Series) -> float:
     """Maximum drawdown of a returns series."""
-    curve = (1 + r).cumprod()
-    dd = curve / curve.cummax() - 1
+    dd = drawdown(r)
     return float(dd.min())
 
 
@@ -157,7 +174,6 @@ def portfolio_metrics(
         "sortino": sortino(r, rf),
         "weekly_vol": weekly_volatility(r),
         "weekly_sortino": weekly_sortino(r, rf),
-        "max_drawdown": max_drawdown(r),
         "annual_vol": r.std(ddof=0) * math.sqrt(252),
         "annual_std": r.std(ddof=0) * math.sqrt(252),
         "win_rate": float((r > 0).mean()),
@@ -169,9 +185,11 @@ def portfolio_metrics(
         metrics["cagr"] = (1 + cumulative_return(r)) ** (252 / days) - 1
     else:
         metrics["cagr"] = 0.0
-    var, cvar = var_cvar(r)
-    metrics["var"] = var
-    metrics["cvar"] = cvar
+    dd = drawdown(r)
+    metrics["drawdown"] = float(dd.iloc[-1]) if not dd.empty else 0.0
+    metrics["max_drawdown"] = float(dd.min()) if not dd.empty else 0.0
+    metrics["var"] = value_at_risk(r)
+    metrics["cvar"] = conditional_value_at_risk(r)
 
     if benchmark is not None and not benchmark.empty:
         a, b = alpha_beta(r, benchmark)
@@ -213,7 +231,9 @@ def sector_exposures(weights: Mapping[str, float]) -> dict[str, float]:
 
 __all__ = [
     "sharpe",
-    "var_cvar",
+    "value_at_risk",
+    "conditional_value_at_risk",
+    "drawdown",
     "alpha_beta",
     "max_drawdown",
     "sortino",

@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS metrics (
     alpha DOUBLE,
     beta DOUBLE,
     max_drawdown DOUBLE,
+    drawdown DOUBLE,
     ret_1d DOUBLE,
     ret_7d DOUBLE,
     ret_30d DOUBLE,
