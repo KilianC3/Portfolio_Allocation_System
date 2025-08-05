@@ -1,10 +1,11 @@
 import os
 import datetime as dt
 import asyncio
+import json
 from typing import Any, Dict, Optional, List, Union
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, StreamingResponse, Response, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -13,6 +14,7 @@ import pandas as pd
 from service.logger import get_logger
 from observability import metrics_router
 from ws import ws_router
+from ws.hub import broadcast_message, register as ws_register, unregister as ws_unregister
 from observability.logging import LOG_DIR, clear_log_files
 from database import (
     pf_coll,
@@ -90,6 +92,17 @@ async def auth(request: Request, call_next):
 
 app.include_router(metrics_router)
 app.include_router(ws_router)
+
+
+@app.websocket("/ws/metrics")
+async def ws_metrics(ws: WebSocket) -> None:
+    """WebSocket endpoint streaming portfolio metric updates."""
+    await ws_register(ws)
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        ws_unregister(ws)
 
 
 @app.get("/health")
@@ -334,6 +347,10 @@ def add_metric(pf_id: str, metric: MetricEntry):
         {"$set": metrics},
         upsert=True,
     )
+    message = json.dumps(
+        {"type": "metrics", "portfolio_id": pf_id, "date": metric.date.isoformat(), "metrics": metrics}
+    )
+    asyncio.create_task(broadcast_message(message))
     return {"status": "ok", "metrics": metrics}
 
 
@@ -356,6 +373,8 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
             "beta",
             "capm_expected_return",
             "max_drawdown",
+            "var",
+            "cvar",
             "benchmark",
             "win_rate",
             "annual_vol",
@@ -370,6 +389,27 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
                     entry[k] = d[k]
         res.append(entry)
     return {"metrics": res}
+
+
+@app.get("/dashboard/{pf_id}", response_model=None)
+def dashboard_timeseries(pf_id: str, format: str = "json") -> Any:
+    """Return time-series data for plotting portfolio performance.
+
+    Supports CSV export when ``format=csv``.
+    """
+    docs = list(metric_coll.find({"portfolio_id": pf_id}).sort("date", 1))
+    data = {
+        "dates": [d["date"].isoformat() for d in docs],
+        "returns": [d.get("ret", 0.0) for d in docs],
+        "benchmark": [d.get("benchmark") for d in docs],
+        "var": [d.get("var") for d in docs],
+        "cvar": [d.get("cvar") for d in docs],
+        "drawdown": [d.get("max_drawdown") for d in docs],
+    }
+    if format == "csv":
+        df = pd.DataFrame(data)
+        return Response(content=df.to_csv(index=False), media_type="text/csv")
+    return data
 
 
 @app.post("/collect/metrics")
@@ -406,10 +446,13 @@ def show_system_logs(limit: int = 100, format: str = "json"):
         d["id"] = str(d.pop("_id"))
         d["timestamp"] = _iso(d.get("timestamp"))
     df = pd.DataFrame(docs)
+    records = df.to_dict(orient="records")
+    message = json.dumps({"type": "logs", "records": records})
+    asyncio.create_task(broadcast_message(message))
     if format == "csv":
         csv_data = df.to_csv(index=False)
         return Response(content=csv_data, media_type="text/csv")
-    return {"records": df.to_dict(orient="records")}
+    return {"records": records}
 
 
 @app.get("/db")

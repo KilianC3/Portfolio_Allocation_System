@@ -57,6 +57,23 @@ def var_cvar(r: pd.Series, level: float = 0.95) -> tuple[float, float]:
     return float(var), float(cvar)
 
 
+def value_at_risk(r: pd.Series, level: float = 0.95) -> float:
+    """Wrapper returning only the Value at Risk for convenience."""
+    return float(np.quantile(r, 1 - level))
+
+
+def conditional_value_at_risk(r: pd.Series, level: float = 0.95) -> float:
+    """Return the Conditional VaR (expected shortfall) of ``r``."""
+    var = value_at_risk(r, level)
+    return float(r[r <= var].mean())
+
+
+def drawdown_series(r: pd.Series) -> pd.Series:
+    """Return the drawdown series derived from ``r``."""
+    curve = (1 + r).cumprod()
+    return curve / curve.cummax() - 1
+
+
 def alpha_beta(r: pd.Series, benchmark: pd.Series) -> tuple[float, float]:
     """Annualised alpha and beta relative to a benchmark."""
     bench = benchmark.reindex(r.index).fillna(0)
@@ -66,7 +83,7 @@ def alpha_beta(r: pd.Series, benchmark: pd.Series) -> tuple[float, float]:
     return float(alpha), float(beta)
 
 
-def get_treasury_rate() -> float:
+def get_ten_year_treasury_rate() -> float:
     """Fetch the latest 10 Year Treasury yield as a decimal."""
     try:
         data = yf.Ticker("^TNX").history(period="1d")
@@ -195,6 +212,40 @@ def portfolio_metrics(
     metrics["atr_14d"] = average_true_range(r)
     metrics["rsi_14d"] = rsi(r)
     return metrics
+
+
+def aggregate_daily_returns_exposure(
+    pf_id: str,
+    returns: pd.Series,
+    exposure: Optional[pd.Series],
+    coll,
+) -> None:
+    """Aggregate daily returns and exposure and persist to ``coll``.
+
+    Parameters
+    ----------
+    pf_id: str
+        Portfolio identifier used as ``portfolio_id`` in the collection.
+    returns: pd.Series
+        Daily return series indexed by date.
+    exposure: Optional[pd.Series]
+        Optional exposure series aligned with ``returns``.
+    coll: Collection
+        MongoDB collection-like object with ``update_one`` method.
+    """
+
+    df = pd.DataFrame({"ret": returns}).dropna()
+    if exposure is not None:
+        df["exposure"] = exposure.reindex(df.index).fillna(0)
+    for date, row in df.iterrows():
+        update: dict[str, Any] = {"ret": float(row["ret"])}
+        if "exposure" in row:
+            update["exposure"] = float(row["exposure"])
+        coll.update_one(
+            {"portfolio_id": pf_id, "date": date},
+            {"$set": update},
+            upsert=True,
+        )
 
 
 def portfolio_correlations(ret_df: pd.DataFrame) -> pd.DataFrame:
