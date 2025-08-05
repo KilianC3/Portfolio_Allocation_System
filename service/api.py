@@ -3,7 +3,7 @@ import datetime as dt
 import asyncio
 from typing import Any, Dict, Optional, List, Union
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -11,7 +11,7 @@ import pandas as pd
 
 from service.logger import get_logger
 from observability import metrics_router
-from ws import ws_router
+from ws import ws_router, metrics_clients
 from observability.logging import LOG_DIR, clear_log_files
 from database import (
     pf_coll,
@@ -1019,6 +1019,18 @@ def risk_summary(strategies: str) -> Dict[str, Any]:
             }
         )
     return {"summary": out}
+
+
+@app.websocket("/ws/metrics")
+async def ws_metrics(ws: WebSocket) -> None:
+    """Stream metrics updates to connected clients."""
+    await ws.accept()
+    metrics_clients.add(ws)
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        metrics_clients.discard(ws)
 
 
 @app.get("/stream/account")
