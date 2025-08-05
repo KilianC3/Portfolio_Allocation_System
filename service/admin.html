@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Job Admin</title>
+</head>
+<body>
+  <h1>Job Status</h1>
+  <table id="jobs" border="1">
+    <thead><tr><th>ID</th><th>Last Run</th><th>Next Run</th><th>Action</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <script>
+    async function loadJobs() {
+      const res = await fetch('/jobs');
+      const data = await res.json();
+      const tbody = document.querySelector('#jobs tbody');
+      tbody.innerHTML='';
+      data.jobs.forEach(j => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${j.id}</td><td>${j.last_run||''}</td><td>${j.next_run||''}</td>`+
+                       `<td><button onclick="runJob('${j.id}')">Run</button></td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    async function runJob(id) {
+      await fetch(`/jobs/${id}/run`, {method:'POST'});
+      loadJobs();
+    }
+    loadJobs();
+  </script>
+</body>
+</html>

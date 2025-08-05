@@ -2,9 +2,10 @@ import os
 import datetime as dt
 import asyncio
 from typing import Any, Dict, Optional, List, Union
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket
-from fastapi.responses import JSONResponse, StreamingResponse, Response
+from fastapi.responses import JSONResponse, StreamingResponse, Response, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
@@ -32,6 +33,7 @@ from database import (
     risk_stats_coll,
     risk_rules_coll,
     risk_alerts_coll,
+    jobs_coll,
 )
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
@@ -176,6 +178,9 @@ def load_portfolios():
 async def startup_event():
     """Log when the API begins accepting requests."""
     log.info("api ready")
+    sched.register_jobs()
+    if AUTO_START_SCHED:
+        sched.start()
 
 
 @app.get("/")
@@ -409,6 +414,45 @@ def stop_scheduler():
     sched.stop()
     return {"status": "stopped"}
 
+
+# Job status endpoints
+@app.get("/jobs")
+def list_job_status():
+    docs = list(jobs_coll.find({}))
+    res = []
+    for d in docs:
+        d["id"] = d.get("id", str(d.get("_id")))
+        d["last_run"] = _iso(d.get("last_run"))
+        d["next_run"] = _iso(d.get("next_run"))
+        res.append(d)
+    return {"jobs": res}
+
+
+@app.get("/jobs/{job_id}")
+def get_job(job_id: str):
+    doc = jobs_coll.find_one({"id": job_id})
+    if not doc:
+        raise HTTPException(404, "job not found")
+    doc["id"] = job_id
+    doc["last_run"] = _iso(doc.get("last_run"))
+    doc["next_run"] = _iso(doc.get("next_run"))
+    return doc
+
+
+@app.post("/jobs/{job_id}/run")
+def run_job(job_id: str):
+    try:
+        sched.scheduler.modify_job(job_id, next_run_time=dt.datetime.now(dt.timezone.utc))
+    except Exception as e:
+        raise HTTPException(404, str(e))
+    return {"status": "triggered"}
+
+
+@app.get("/admin/jobs", response_class=HTMLResponse)
+def jobs_admin():
+    """Simple admin view showing job health."""
+    html_path = Path(__file__).with_name("admin.html")
+    return HTMLResponse(html_path.read_text())
 
 # Data collection using dedicated scraping module
 from scrapers.politician import fetch_politician_trades, politician_coll

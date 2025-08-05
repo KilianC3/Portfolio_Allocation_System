@@ -122,3 +122,6 @@ if not REDIS_URL:
     REDIS_URL = f"redis://:{token}@192.168.0.59:6379/0"
 else:
     REDIS_URL = REDIS_URL.replace("localhost", "192.168.0.59")
+
+# Load cron-style schedules from environment variables prefixed with SCHED_
+SCHEDULES = {k[6:].lower(): v for k, v in os.environ.items() if k.startswith("SCHED_")}

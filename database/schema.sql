@@ -322,3 +322,10 @@ CREATE TABLE IF NOT EXISTS risk_alerts (
     triggered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_acknowledged BOOLEAN DEFAULT FALSE
 );
+
+-- Track scheduler job runtimes
+CREATE TABLE IF NOT EXISTS jobs (
+    id VARCHAR(64) PRIMARY KEY,
+    last_run DATETIME NULL,
+    next_run DATETIME NULL
+);

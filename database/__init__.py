@@ -360,6 +360,7 @@ returns_coll = db["returns"]
 risk_stats_coll = db["risk_stats"]
 risk_rules_coll = db["risk_rules"]
 risk_alerts_coll = db["risk_alerts"]
+jobs_coll = db["jobs"]
 
 register_db_handler(log_coll)
 
