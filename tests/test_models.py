@@ -22,12 +22,20 @@ def test_all_models():
     print(mm.iloc[0], list(metrics.values())[0])
 
 
-def test_capm_expected_return():
+def test_fama_french_expected_return():
     r = pd.Series([0.001, 0.002, 0.003])
-    bench = pd.Series([0.001, 0.002, 0.003])
-    metrics = portfolio_metrics(r, bench, rf=0.03)
-    assert "capm_expected_return" in metrics
-    assert abs(metrics["capm_expected_return"] - (bench.mean() * 252)) < 1e-6
+    mkt = pd.Series([0.001, 0.002, 0.003])
+    smb = pd.Series([0.0005, 0.0005, 0.0005])
+    hml = pd.Series([-0.0002, -0.0002, -0.0002])
+    factors = pd.DataFrame({"mkt": mkt, "smb": smb, "hml": hml})
+    metrics = portfolio_metrics(r, factors, rf=0.0)
+    assert "ff_expected_return" in metrics
+    expected = (
+        metrics["beta"] * (mkt.mean() * 252)
+        + metrics["beta_smb"] * (smb.mean() * 252)
+        + metrics["beta_hml"] * (hml.mean() * 252)
+    )
+    assert abs(metrics["ff_expected_return"] - expected) < 1e-6
 
 
 from strategies.smallcap_momentum import SmallCapMomentum

@@ -170,6 +170,8 @@ class MetricEntry(BaseModel):
     date: dt.date
     ret: float
     benchmark: Optional[float] = None
+    smb: Optional[float] = None
+    hml: Optional[float] = None
 
 
 class RiskRuleIn(BaseModel):
@@ -328,6 +330,10 @@ def add_metric(pf_id: str, metric: MetricEntry):
     update = {"ret": metric.ret}
     if metric.benchmark is not None:
         update["benchmark"] = metric.benchmark
+    if metric.smb is not None:
+        update["smb"] = metric.smb
+    if metric.hml is not None:
+        update["hml"] = metric.hml
 
     metric_coll.update_one(
         {"portfolio_id": pf_id, "date": metric.date},
@@ -337,14 +343,17 @@ def add_metric(pf_id: str, metric: MetricEntry):
 
     docs = list(metric_coll.find({"portfolio_id": pf_id}).sort("date", 1))
     r = pd.Series([d["ret"] for d in docs], index=[d["date"] for d in docs])
-    bench = None
+    factors = None
     if all("benchmark" in d for d in docs):
-        bench = pd.Series(
-            [d.get("benchmark", 0.0) for d in docs],
+        factors = pd.DataFrame(
+            {"mkt": [d.get("benchmark", 0.0) for d in docs]},
             index=[d["date"] for d in docs],
         )
+        if all("smb" in d for d in docs) and all("hml" in d for d in docs):
+            factors["smb"] = [d.get("smb", 0.0) for d in docs]
+            factors["hml"] = [d.get("hml", 0.0) for d in docs]
     rf = get_treasury_rate()
-    metrics = portfolio_metrics(r, bench, rf)
+    metrics = portfolio_metrics(r, factors, rf)
     metric_coll.update_one(
         {"portfolio_id": pf_id, "date": metric.date},
         {"$set": metrics},
@@ -385,7 +394,9 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
             "sharpe",
             "alpha",
             "beta",
-            "capm_expected_return",
+            "ff_expected_return",
+            "beta_smb",
+            "beta_hml",
             "max_drawdown",
             "var",
             "cvar",

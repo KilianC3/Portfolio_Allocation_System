@@ -90,6 +90,26 @@ def alpha_beta(r: pd.Series, benchmark: pd.Series) -> tuple[float, float]:
     return float(alpha), float(beta)
 
 
+def fama_french_params(
+    r: pd.Series,
+    mkt: pd.Series,
+    smb: pd.Series,
+    hml: pd.Series,
+    rf: float = 0.0,
+) -> tuple[float, float, float, float]:
+    """Return alpha and factor betas for the Fama-French 3-factor model."""
+    df = pd.concat([r, mkt, smb, hml], axis=1, join="inner").dropna()
+    if df.empty:
+        return 0.0, 0.0, 0.0, 0.0
+    y = df.iloc[:, 0] - rf
+    X = df.iloc[:, 1:]
+    X.insert(0, "const", 1.0)
+    params, *_ = np.linalg.lstsq(X.values, y.values, rcond=None)
+    alpha = params[0] * 252
+    beta_mkt, beta_smb, beta_hml = params[1:]
+    return float(alpha), float(beta_mkt), float(beta_smb), float(beta_hml)
+
+
 def get_ten_year_treasury_rate() -> float:
     """Fetch the latest 10 Year Treasury yield as a decimal."""
     try:
@@ -174,9 +194,15 @@ def information_ratio(r: pd.Series, benchmark: pd.Series) -> float:
 
 
 def portfolio_metrics(
-    r: pd.Series, benchmark: Optional[pd.Series] = None, rf: float = 0.0
+    r: pd.Series,
+    factors: Optional[pd.DataFrame] = None,
+    rf: float = 0.0,
 ) -> dict:
-    """Compute a comprehensive set of portfolio metrics."""
+    """Compute a comprehensive set of portfolio metrics.
+
+    ``factors`` should contain a ``mkt`` column for the market return and
+    optional ``smb`` and ``hml`` columns for size and value factors.
+    """
     metrics = {
         "ret_1d": period_return(r, 1),
         "ret_7d": period_return(r, 7),
@@ -206,15 +232,37 @@ def portfolio_metrics(
     metrics["var"] = var
     metrics["cvar"] = cvar
 
-    if benchmark is not None and not benchmark.empty:
-        a, b = alpha_beta(r, benchmark)
-        metrics["alpha"] = a
-        metrics["beta"] = b
-        metrics["tracking_error"] = tracking_error(r, benchmark)
-        metrics["information_ratio"] = information_ratio(r, benchmark)
-        metrics["treynor_ratio"] = 0.0 if b == 0 else (r.mean() - rf) / b
-        market_ret = benchmark.mean() * 252
-        metrics["capm_expected_return"] = rf + b * (market_ret - rf)
+    if factors is not None and not factors.empty:
+        mkt = factors.get("mkt")
+        if mkt is not None:
+            smb = factors.get("smb")
+            hml = factors.get("hml")
+            if smb is not None and hml is not None:
+                a, b_mkt, b_smb, b_hml = fama_french_params(r, mkt, smb, hml, rf)
+                metrics["alpha"] = a
+                metrics["beta"] = b_mkt
+                metrics["beta_smb"] = b_smb
+                metrics["beta_hml"] = b_hml
+                metrics["tracking_error"] = tracking_error(r, mkt)
+                metrics["information_ratio"] = information_ratio(r, mkt)
+                metrics["treynor_ratio"] = (
+                    0.0 if b_mkt == 0 else (r.mean() - rf) / b_mkt
+                )
+                market_ret = mkt.mean() * 252
+                smb_ret = smb.mean() * 252
+                hml_ret = hml.mean() * 252
+                metrics["ff_expected_return"] = (
+                    rf + b_mkt * (market_ret - rf) + b_smb * smb_ret + b_hml * hml_ret
+                )
+            else:
+                a, b = alpha_beta(r, mkt)
+                metrics["alpha"] = a
+                metrics["beta"] = b
+                metrics["tracking_error"] = tracking_error(r, mkt)
+                metrics["information_ratio"] = information_ratio(r, mkt)
+                metrics["treynor_ratio"] = 0.0 if b == 0 else (r.mean() - rf) / b
+                market_ret = mkt.mean() * 252
+                metrics["ff_expected_return"] = rf + b * (market_ret - rf)
 
     metrics["atr_14d"] = average_true_range(r)
     metrics["rsi_14d"] = rsi(r)
@@ -321,6 +369,7 @@ __all__ = [
     "information_ratio",
     "portfolio_metrics",
     "aggregate_daily_returns_exposure",
+    "fama_french_params",
     "portfolio_correlations",
     "ticker_sector",
     "sector_exposures",

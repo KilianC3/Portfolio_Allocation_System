@@ -10,7 +10,7 @@ interface Point {
   actual: number;
 }
 
-export const CAPMChart: React.FC<{ points: Point[] }> = ({ points }) => {
+export const FamaFrenchChart: React.FC<{ points: Point[] }> = ({ points }) => {
   const chartRef = useRef<ChartJS<'line'>>(null);
 
   const data: ChartData<'line'> = {
@@ -43,7 +43,7 @@ export const CAPMChart: React.FC<{ points: Point[] }> = ({ points }) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'capm.csv');
+    link.setAttribute('download', 'fama_french.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -53,12 +53,12 @@ export const CAPMChart: React.FC<{ points: Point[] }> = ({ points }) => {
   const exportPNG = () => {
     const chart = chartRef.current;
     if (!chart) return;
-    exportChart(chart, 'capm.png');
+    exportChart(chart, 'fama_french.png');
   };
 
   return (
     <div>
-      <h3>CAPM Metrics</h3>
+      <h3>Fama-French Metrics</h3>
       <Line ref={chartRef} data={data} options={options} />
       <div style={{ marginTop: '1rem' }}>
         <button onClick={exportCSV} style={{ marginRight: '0.5rem' }}>
