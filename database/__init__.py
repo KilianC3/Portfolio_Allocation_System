@@ -327,6 +327,8 @@ db = PGDatabase(_conn)
 
 pf_coll = db["portfolios"]
 trade_coll = db["trades"]
+position_coll = db["positions"]
+position_coll.create_index([("portfolio_id", 1), ("symbol", 1)], unique=True)
 metric_coll = db["metrics"]
 politician_coll = db["politician_trades"]
 weight_coll = db["weight_history"]

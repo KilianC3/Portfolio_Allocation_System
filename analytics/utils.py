@@ -7,6 +7,8 @@ import datetime as dt
 from threading import Lock
 from typing import Mapping, Optional, Any
 
+from database import position_coll
+
 import numpy as np
 import pandas as pd
 import yfinance as yf
@@ -278,6 +280,31 @@ def sector_exposures(weights: Mapping[str, float]) -> dict[str, float]:
     return totals
 
 
+def unrealized_pnl(pf_id: str, prices: Mapping[str, float]) -> dict[str, float]:
+    """Return unrealised PnL per symbol and in total for ``pf_id``.
+
+    Parameters
+    ----------
+    pf_id: str
+        Portfolio identifier.
+    prices: Mapping[str, float]
+        Latest price for each symbol.
+    """
+
+    totals: dict[str, float] = {}
+    total = 0.0
+    for d in position_coll.find({"portfolio_id": pf_id}):
+        sym = d["symbol"]
+        qty = float(d.get("qty", 0.0))
+        cost = float(d.get("cost_basis", 0.0))
+        price = float(prices.get(sym, 0.0))
+        pnl = qty * price - cost
+        totals[sym] = pnl
+        total += pnl
+    totals["total"] = total
+    return totals
+
+
 __all__ = [
     "sharpe",
     "var_cvar",
@@ -297,6 +324,7 @@ __all__ = [
     "portfolio_correlations",
     "ticker_sector",
     "sector_exposures",
+    "unrealized_pnl",
     "lambda_from_half_life",
     "get_treasury_rate",
 ]

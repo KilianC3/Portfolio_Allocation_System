@@ -5,7 +5,7 @@ from __future__ import annotations
 import redis.asyncio as aioredis
 
 from service.logger import get_logger
-from service.config import REDIS_URL
+from service.config import REDIS_URL, LEDGER_STREAM_MAXLEN
 
 _log = get_logger("ledger")
 
@@ -18,11 +18,18 @@ class MasterLedger:
         """Reserve quantity before sending order."""
         key = f"ledger:{pf_id}:{symbol}"
         await self.redis.xadd(key, {"qty": qty, "status": "reserved"})
+        await self.redis.xtrim(key, maxlen=LEDGER_STREAM_MAXLEN, approximate=False)
         return key
 
     async def commit(self, key: str, qty: float) -> None:
         """Commit a filled quantity."""
         await self.redis.xadd(key, {"qty": qty, "status": "filled"})
+        await self.redis.xtrim(key, maxlen=LEDGER_STREAM_MAXLEN, approximate=False)
+
+    async def cancel(self, key: str, qty: float) -> None:
+        """Reverse a reservation when an order fails."""
+        await self.redis.xadd(key, {"qty": qty, "status": "canceled"})
+        await self.redis.xtrim(key, maxlen=LEDGER_STREAM_MAXLEN, approximate=False)
 
     async def current_position(self, pf_id: str, symbol: str) -> float:
         """Return filled position size."""
@@ -46,4 +53,6 @@ class MasterLedger:
                 filled += qty
             elif data.get("status") == "reserved":
                 reserved += qty
+            elif data.get("status") == "canceled":
+                reserved -= qty
         return filled - reserved

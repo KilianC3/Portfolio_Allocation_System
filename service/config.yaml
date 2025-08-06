@@ -14,6 +14,7 @@ API_PORT: 8001
 REDIS_URL: "redis://:changeme@192.168.0.59:6379/0"
 CACHE_TTL: 900
 CACHE_BACKEND: "memory"
+LEDGER_STREAM_MAXLEN: 1000
 # Cron-style schedules for periodic jobs
 SCHED_METRICS: "5 0 * * *"
 SCHED_TICKER_SCORES: "0 3 1 * *"
