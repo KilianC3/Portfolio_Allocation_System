@@ -323,7 +323,7 @@ def set_weights(pf_id: str, data: Weights):
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
-    update_doc = {
+    update_doc: Dict[str, Any] = {
         "weights": data.weights,
         "strategy": data.strategy,
         "risk_target": data.risk_target,

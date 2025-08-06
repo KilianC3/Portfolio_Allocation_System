@@ -74,7 +74,7 @@ class EquityPortfolio(Portfolio):
         persisted = dict(scaled)
         if cash > 0:
             persisted["cash"] = cash
-        update_doc = {"weights": persisted}
+        update_doc: Dict[str, Any] = {"weights": persisted}
 
         if allowed_strategies is not None:
             self.allowed_strategies = allowed_strategies
