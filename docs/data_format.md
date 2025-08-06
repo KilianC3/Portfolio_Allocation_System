@@ -42,6 +42,8 @@ analysis can reproduce past views of the data.
 | `positions` | `portfolio_id`, `symbol`, `qty`, `cost_basis`, `realized_pnl` |
 | `universe` | `symbol`, `index_name`, `_retrieved` |
 
+The `allocation_performance` table records one-period returns for each allocation method (`max_sharpe`, `risk_parity`, `min_variance`, `saa`, `taa`, `dynamic`) allowing strategy comparisons.
+
 All tables are exposed through the API. Use `/db` to list available tables and `/db/{table}` to retrieve rows in JSON or CSV for tabular display on the front end.
 
 Every column is stored as a string except for the timestamp `_retrieved` which is a `TIMESTAMP` in UTC.

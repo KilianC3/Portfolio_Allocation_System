@@ -89,7 +89,7 @@ Additional rules:
 
 - Avoid combining too many overlapping signals as this inflates estimation error and hurts live performance.
 - Heavy optimisation may show great backtests but can fail in production.
-- The allocator supports tangency, risk parity and minimum variance mixes; performance for each method is recorded nightly so the most effective approach can be identified over time.
+- The allocator supports max_sharpe (default), risk parity, minimum variance, strategic (SAA), tactical (TAA) and dynamic mixes; performance for each method is recorded nightly so the most effective approach can be identified over time.
 - Prefer simple momentum overlays or volatility scaling when signal quality varies.
 - Clean weekly returns with a z-score filter and fall back to the last weight
   vector if computed volatility looks unreasonable.

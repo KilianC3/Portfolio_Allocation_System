@@ -26,5 +26,12 @@ def test_track_allocation_methods(monkeypatch):
     coll = DummyColl()
     monkeypatch.setattr(perf, "alloc_perf_coll", coll)
     res = perf.track_allocation_performance(df)
-    assert set(res) == {"tangency", "risk_parity", "min_variance"}
-    assert len(coll.docs) == 3
+    assert set(res) == {
+        "max_sharpe",
+        "risk_parity",
+        "min_variance",
+        "saa",
+        "taa",
+        "dynamic",
+    }
+    assert len(coll.docs) == 6

@@ -110,6 +110,41 @@ def risk_parity_weights(cov: pd.DataFrame) -> dict[str, float]:
     return {c: float(w[i]) for i, c in enumerate(cov.columns)}
 
 
+def saa_weights(weekly: pd.DataFrame) -> dict[str, float]:
+    """Strategic asset allocation with fixed equal-weight targets."""
+    if weekly.empty:
+        return {}
+    n = len(weekly.columns)
+    return {c: 1 / n for c in weekly.columns}
+
+
+def taa_weights(weekly: pd.DataFrame) -> dict[str, float]:
+    """Tactical allocation that tilts weights toward recent winners."""
+    if weekly.empty:
+        return {}
+    base = pd.Series(1 / len(weekly.columns), index=weekly.columns)
+    last = weekly.tail(1).iloc[0]
+    tilt = base * (1 + last)
+    tilt = tilt.clip(lower=0)
+    if tilt.sum() == 0:
+        return base.to_dict()
+    tilt /= tilt.sum()
+    return tilt.to_dict()
+
+
+def dynamic_weights(weekly: pd.DataFrame) -> dict[str, float]:
+    """Dynamic allocation using simple momentum over the last month."""
+    if weekly.empty:
+        return {}
+    mom = (1 + weekly.tail(4)).prod() - 1
+    w = mom.clip(lower=0)
+    if w.sum() == 0:
+        w[:] = 1 / len(w)
+    else:
+        w /= w.sum()
+    return w.to_dict()
+
+
 def min_variance_weights(cov: pd.DataFrame) -> dict[str, float]:
     """Return global minimum variance portfolio weights."""
     if cov.empty:
@@ -129,7 +164,7 @@ def compute_weights(
     target_vol: float = 0.11,
     turnover_thresh: float = 0.005,
     risk_free: float = 0.0,
-    method: str = "tangency",
+    method: str = "max_sharpe",
 ) -> dict[str, float]:
     """Return portfolio weights for the chosen allocation method."""
 
@@ -157,7 +192,7 @@ def compute_weights(
     cov = pd.DataFrame(lw.covariance_, index=weekly.columns, columns=weekly.columns)
 
     dispatch: dict[str, Callable[..., dict[str, float]]] = {
-        "tangency": lambda: _tangency_weights(
+        "max_sharpe": lambda: _tangency_weights(
             weekly,
             w_prev=w_prev,
             target_vol=target_vol,
@@ -166,6 +201,16 @@ def compute_weights(
         ),
         "risk_parity": lambda: risk_parity_weights(cov),
         "min_variance": lambda: min_variance_weights(cov),
+        "saa": lambda: saa_weights(weekly),
+        "taa": lambda: taa_weights(weekly),
+        "dynamic": lambda: dynamic_weights(weekly),
+        "tangency": lambda: _tangency_weights(
+            weekly,
+            w_prev=w_prev,
+            target_vol=target_vol,
+            turnover_thresh=turnover_thresh,
+            risk_free=risk_free,
+        ),
     }
     if method not in dispatch:
         raise ValueError(f"unknown method: {method}")

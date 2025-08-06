@@ -29,12 +29,18 @@ def track_allocation_performance(weekly: pd.DataFrame) -> Dict[str, float]:
         _tangency_weights,
         risk_parity_weights,
         min_variance_weights,
+        saa_weights,
+        taa_weights,
+        dynamic_weights,
     )
 
     methods = {
-        "tangency": _tangency_weights,
+        "max_sharpe": _tangency_weights,
         "risk_parity": lambda df: risk_parity_weights(df.cov()),
         "min_variance": lambda df: min_variance_weights(df.cov()),
+        "saa": saa_weights,
+        "taa": taa_weights,
+        "dynamic": dynamic_weights,
     }
     last_row = weekly.tail(1)
     results: Dict[str, float] = {}

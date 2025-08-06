@@ -80,7 +80,7 @@ class Settings(BaseSettings):
 
     LEDGER_STREAM_MAXLEN: int = Field(1000, alias="LEDGER_STREAM_MAXLEN")
 
-    ALLOC_METHOD: str = Field("tangency", alias="ALLOC_METHOD")
+    ALLOC_METHOD: str = Field("max_sharpe", alias="ALLOC_METHOD")
 
     AUTO_START_SCHED: bool = False
 
@@ -94,7 +94,7 @@ settings = Settings(
     CACHE_TTL=900,
     CACHE_BACKEND="memory",
     LEDGER_STREAM_MAXLEN=1000,
-    ALLOC_METHOD="tangency",
+    ALLOC_METHOD="max_sharpe",
 )
 
 ALLOW_LIVE = settings.ALLOW_LIVE

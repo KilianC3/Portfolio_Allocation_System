@@ -6,7 +6,7 @@ interface Props {
 }
 
 const AllocationControls: React.FC<Props> = ({ pfId, weights }) => {
-  const [strategy, setStrategy] = useState("tangency");
+  const [strategy, setStrategy] = useState("max_sharpe");
   const [risk, setRisk] = useState(0.11);
 
   const submit = async () => {
@@ -22,9 +22,12 @@ const AllocationControls: React.FC<Props> = ({ pfId, weights }) => {
       <label>
         Strategy:
         <select value={strategy} onChange={e => setStrategy(e.target.value)}>
-          <option value="tangency">Tangency</option>
+          <option value="max_sharpe">Max Sharpe</option>
           <option value="risk_parity">Risk Parity</option>
           <option value="min_variance">Min Variance</option>
+          <option value="saa">Strategic (SAA)</option>
+          <option value="taa">Tactical (TAA)</option>
+          <option value="dynamic">Dynamic</option>
         </select>
       </label>
       <label>
