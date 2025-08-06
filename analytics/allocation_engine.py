@@ -12,7 +12,6 @@ from sklearn.covariance import LedoitWolf
 from service.config import MAX_ALLOC, MIN_ALLOC
 from database import db, alloc_log_coll
 from service.logger import get_logger
-from .performance_tracking import track_allocation_performance
 
 
 def _clean_returns(df: pd.DataFrame, z_thresh: float = 5.0) -> pd.DataFrame:
@@ -215,11 +214,4 @@ def compute_weights(
     if method not in dispatch:
         raise ValueError(f"unknown method: {method}")
 
-    weights = dispatch[method]()
-
-    try:
-        track_allocation_performance(weekly)
-    except Exception as exc:  # pragma: no cover - tracking is best effort
-        _log.debug({"perf_track_error": str(exc)})
-
-    return weights
+    return dispatch[method]()

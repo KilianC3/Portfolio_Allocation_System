@@ -37,6 +37,15 @@ async def test_update_loop_stores_ret_and_exposure(monkeypatch):
     perf_coll = PerfColl()
     monkeypatch.setattr(updater, "metric_coll", coll)
     monkeypatch.setattr(perf, "alloc_perf_coll", perf_coll)
+    captured: dict[str, list[str]] = {}
+
+    original_track = updater.track_allocation_performance
+
+    def capture_track(df):
+        captured["cols"] = list(df.columns)
+        return original_track(df)
+
+    monkeypatch.setattr(updater, "track_allocation_performance", capture_track)
     messages: list[str] = []
 
     async def fake_broadcast(text: str):
@@ -66,3 +75,4 @@ async def test_update_loop_stores_ret_and_exposure(monkeypatch):
     methods = {d["method"] for d in perf_coll.docs}
     assert "max_sharpe" in methods
     assert len(perf_coll.docs) >= 5
+    assert captured.get("cols") == ["A", "B"]
