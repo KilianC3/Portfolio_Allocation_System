@@ -164,6 +164,8 @@ class PortfolioCreate(BaseModel):
 
 class Weights(BaseModel):
     weights: Dict[str, float]
+    strategy: Optional[str] = None
+    risk_target: Optional[float] = None
 
 
 class MetricEntry(BaseModel):
@@ -200,7 +202,11 @@ def load_portfolios():
         portfolios[pf.id] = pf
         if "weights" in doc:
             try:
-                pf.set_weights(doc["weights"])
+                pf.set_weights(
+                    doc["weights"],
+                    strategy=doc.get("strategy"),
+                    risk_target=doc.get("risk_target"),
+                )
             except Exception as e:
                 log.warning(f"failed to load weights for {pf.id}: {e}")
 
@@ -221,18 +227,26 @@ def root():
 
 @app.get("/portfolios")
 def list_portfolios():
-    docs = list(pf_coll.find({}, {"name": 1, "weights": 1}))
+    docs = list(
+        pf_coll.find({}, {"name": 1, "weights": 1, "strategy": 1, "risk_target": 1})
+    )
     res = []
     for d in docs:
         d["id"] = str(d.pop("_id"))
         d["weights"] = d.get("weights", {})
+        if "strategy" in d:
+            d["strategy"] = d.get("strategy")
+        if "risk_target" in d:
+            d["risk_target"] = d.get("risk_target")
         res.append(d)
     return {"portfolios": res}
 
 
 @app.get("/strategies/summary")
 def strategies_summary() -> Dict[str, Any]:
-    docs = list(pf_coll.find({}, {"name": 1, "weights": 1}))
+    docs = list(
+        pf_coll.find({}, {"name": 1, "weights": 1, "strategy": 1, "risk_target": 1})
+    )
     res: List[Dict[str, Any]] = []
     for d in docs:
         pf_id = str(d.get("_id"))
@@ -247,6 +261,8 @@ def strategies_summary() -> Dict[str, Any]:
                 "id": pf_id,
                 "name": d.get("name"),
                 "weights": d.get("weights", {}),
+                "strategy": d.get("strategy"),
+                "risk_target": d.get("risk_target"),
                 "metrics": {
                     k: _iso(v) if k == "date" else v
                     for k, v in metric_doc.items()
@@ -275,8 +291,18 @@ def set_weights(pf_id: str, data: Weights):
     pf = portfolios.get(pf_id)
     if not pf:
         raise HTTPException(404, "portfolio not found")
-    pf.set_weights(data.weights)
-    pf_coll.update_one({"_id": pf_id}, {"$set": {"weights": data.weights}}, upsert=True)
+    pf.set_weights(data.weights, strategy=data.strategy, risk_target=data.risk_target)
+    pf_coll.update_one(
+        {"_id": pf_id},
+        {
+            "$set": {
+                "weights": data.weights,
+                "strategy": data.strategy,
+                "risk_target": data.risk_target,
+            }
+        },
+        upsert=True,
+    )
     return {"status": "ok"}
 
 

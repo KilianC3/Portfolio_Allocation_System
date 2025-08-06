@@ -140,6 +140,21 @@ def test_compute_weights_simple():
     assert abs(sum(w.values()) - 1) < 1e-6 and set(w) == {"A", "B"}
 
 
+def test_compute_weights_risk_parity_and_min_var():
+    dates = pd.date_range("2024-01-01", periods=90)
+    df = pd.DataFrame(
+        {
+            "A": np.random.normal(0, 0.01, len(dates)),
+            "B": np.random.normal(0, 0.02, len(dates)),
+        },
+        index=dates,
+    )
+    rp = compute_weights(df, method="risk_parity")
+    mv = compute_weights(df, method="min_variance")
+    assert abs(sum(rp.values()) - 1) < 1e-6
+    assert abs(sum(mv.values()) - 1) < 1e-6
+
+
 def test_compute_weights_anomaly():
     dates = pd.date_range("2024-01-01", periods=90)
     df = pd.DataFrame(

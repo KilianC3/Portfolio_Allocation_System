@@ -35,8 +35,18 @@ class EquityPortfolio(Portfolio):
         self.risk = PositionRisk(self.ledger) if self.ledger else None
         pf_coll.update_one({"_id": self.id}, {"$set": {"name": self.name}}, upsert=True)
 
-    def set_weights(self, weights: Dict[str, float]) -> None:
-        """Assign target weights ensuring normalisation and validation."""
+    def set_weights(
+        self,
+        weights: Dict[str, float],
+        strategy: str | None = None,
+        risk_target: float | None = None,
+    ) -> None:
+        """Assign target weights ensuring normalisation and validation.
+
+        Optional ``strategy`` and ``risk_target`` parameters are persisted so
+        clients can inspect or adjust the allocation method and risk level used
+        for this portfolio.
+        """
 
         if any(w < 0 for w in weights.values()):
             raise ValueError("weights must be non-negative")
@@ -62,12 +72,21 @@ class EquityPortfolio(Portfolio):
         persisted = dict(scaled)
         if cash > 0:
             persisted["cash"] = cash
+        update_doc = {"weights": persisted}
+        if strategy is not None:
+            self.strategy = strategy
+            update_doc["strategy"] = strategy
+        if risk_target is not None:
+            self.risk_target = risk_target
+            update_doc["risk_target"] = risk_target
 
-        pf_coll.update_one(
-            {"_id": self.id}, {"$set": {"weights": persisted}}, upsert=True
-        )
+        pf_coll.update_one({"_id": self.id}, {"$set": update_doc}, upsert=True)
         try:
-            doc = {"portfolio_id": self.id, "date": dt.date.today(), "weights": persisted}
+            doc = {
+                "portfolio_id": self.id,
+                "date": dt.date.today(),
+                "weights": persisted,
+            }
             weight_coll.update_one(
                 {"portfolio_id": self.id, "date": dt.date.today()},
                 {"$set": {"weights": persisted}},
@@ -84,7 +103,10 @@ class EquityPortfolio(Portfolio):
         side = order.side
         signed_qty = -qty if side == "sell" else qty
 
-        prev = position_coll.find_one({"portfolio_id": self.id, "symbol": order.symbol}) or {}
+        prev = (
+            position_coll.find_one({"portfolio_id": self.id, "symbol": order.symbol})
+            or {}
+        )
         prev_qty = float(prev.get("qty", 0.0))
         prev_cost = float(prev.get("cost_basis", 0.0))
         prev_realized = float(prev.get("realized_pnl", 0.0))

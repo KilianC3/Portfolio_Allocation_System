@@ -59,6 +59,13 @@ CREATE TABLE IF NOT EXISTS metrics (
     cvar DOUBLE,
     UNIQUE(portfolio_id, date)
 );
+CREATE TABLE IF NOT EXISTS allocation_performance (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    date DATE,
+    method TEXT,
+    ret DOUBLE,
+    UNIQUE(date, method)
+);
 CREATE TABLE IF NOT EXISTS politician_trades (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
     politician TEXT,

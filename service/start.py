@@ -11,6 +11,7 @@ from service.config import (
     CACHE_TTL,
     API_HOST,
     API_PORT,
+    ALLOC_METHOD,
 )
 from database import db_ping, init_db
 from service.logger import get_logger
@@ -76,7 +77,7 @@ async def system_checklist() -> None:
             {"A": [0.1, -0.1], "B": [0.05, 0.02]},
             index=pd.to_datetime(["2024-01-01", "2024-01-08"]),
         )
-        compute_weights(df)
+        compute_weights(df, method=ALLOC_METHOD)
         log.info("allocation PASS")
     except Exception as exc:  # pragma: no cover - numeric errors
         log.warning(f"allocation FAIL: {exc}")

@@ -80,6 +80,8 @@ class Settings(BaseSettings):
 
     LEDGER_STREAM_MAXLEN: int = Field(1000, alias="LEDGER_STREAM_MAXLEN")
 
+    ALLOC_METHOD: str = Field("tangency", alias="ALLOC_METHOD")
+
     AUTO_START_SCHED: bool = False
 
     model_config = {"case_sensitive": False}
@@ -92,6 +94,7 @@ settings = Settings(
     CACHE_TTL=900,
     CACHE_BACKEND="memory",
     LEDGER_STREAM_MAXLEN=1000,
+    ALLOC_METHOD="tangency",
 )
 
 ALLOW_LIVE = settings.ALLOW_LIVE
@@ -117,6 +120,8 @@ CACHE_TTL = settings.CACHE_TTL
 CACHE_BACKEND = settings.CACHE_BACKEND
 
 LEDGER_STREAM_MAXLEN = settings.LEDGER_STREAM_MAXLEN
+
+ALLOC_METHOD = settings.ALLOC_METHOD
 
 API_HOST = settings.API_HOST
 API_PORT = settings.API_PORT

@@ -338,6 +338,7 @@ wiki_coll = db["wiki_views"]
 insider_coll = db["dc_insider_scores"]
 contracts_coll = db["gov_contracts"]
 alloc_log_coll = db["alloc_log"]
+alloc_perf_coll = db["allocation_performance"]
 cache = db["cache"] if _conn else InMemoryCollection()
 account_paper_coll = db["account_metrics_paper"]
 account_live_coll = db["account_metrics_live"]

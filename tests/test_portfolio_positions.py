@@ -17,8 +17,10 @@ class DummyColl:
 
     def find(self, q=None):
         q = q or {}
+
         def match(d):
             return all(d.get(k) == v for k, v in q.items())
+
         return [d for d in self.docs if match(d)]
 
     def find_one(self, q):
@@ -69,6 +71,14 @@ def test_set_weights_unknown_symbol(monkeypatch):
     pf, *_ = setup_portfolio(monkeypatch)
     with pytest.raises(ValueError):
         pf.set_weights({"AAPL": 0.5, "GOOG": 0.5})
+
+
+def test_set_weights_strategy_and_risk(monkeypatch):
+    pf, pf_coll, *_ = setup_portfolio(monkeypatch)
+    pf.set_weights({"AAPL": 0.5, "MSFT": 0.5}, strategy="risk_parity", risk_target=0.15)
+    saved = pf_coll.docs[0]
+    assert saved["strategy"] == "risk_parity"
+    assert saved["risk_target"] == 0.15
 
 
 def test_trade_logging_and_pnl(monkeypatch):

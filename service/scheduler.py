@@ -7,7 +7,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from importlib import import_module
 from service.logger import get_logger
-from service.config import CRON, ALLOW_LIVE, SCHEDULES
+from service.config import CRON, ALLOW_LIVE, SCHEDULES, ALLOC_METHOD
 from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
 from analytics.allocation_engine import compute_weights
@@ -76,7 +76,9 @@ class StrategyScheduler:
                 axis=1
             )
             weekly = (1 + piv).resample("W-FRI").prod() - 1
-            weights = compute_weights(weekly, w_prev=self.last_weights)
+            weights = compute_weights(
+                weekly, w_prev=self.last_weights, method=ALLOC_METHOD
+            )
             self.last_weights = weights
             for pid, wt in weights.items():
                 pf = self.portfolios.get(pid)
@@ -184,9 +186,7 @@ class StrategyScheduler:
                 job = self.scheduler.add_job(func, trigger, id=job_id)
             elif job_id == "full_fundamentals":
                 run_time = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)
-                job = self.scheduler.add_job(
-                    func, "date", run_date=run_time, id=job_id
-                )
+                job = self.scheduler.add_job(func, "date", run_date=run_time, id=job_id)
             else:
                 sched = SCHEDULES.get(job_id)
                 if not sched:
