@@ -10,6 +10,7 @@ from analytics.utils import (
     portfolio_metrics,
     aggregate_daily_returns_exposure,
 )
+from analytics.performance_tracking import track_allocation_performance
 from database import metric_coll
 from ws.hub import broadcast_message
 from service.cache import invalidate_prefix
@@ -33,12 +34,21 @@ async def update_loop(
         data = fetch_returns()
         ts = dt.datetime.utcnow().isoformat()
         for pf_id, payload in data.items():
+            asset_returns = None
             if isinstance(payload, tuple):
-                series, exposure = payload
+                if len(payload) == 3:
+                    series, exposure, asset_returns = payload
+                else:
+                    series, exposure = payload
             else:
                 series, exposure = payload, None
 
             aggregate_daily_returns_exposure(pf_id, series, exposure, metric_coll)
+            if asset_returns is not None:
+                try:
+                    track_allocation_performance(asset_returns)
+                except Exception:  # pragma: no cover - best effort
+                    pass
             metrics = portfolio_metrics(series)
             metric_coll.update_one(
                 {"portfolio_id": pf_id, "date": series.index[-1].date()},

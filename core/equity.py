@@ -40,12 +40,14 @@ class EquityPortfolio(Portfolio):
         weights: Dict[str, float],
         strategy: str | None = None,
         risk_target: float | None = None,
+        allowed_strategies: list[str] | None = None,
     ) -> None:
         """Assign target weights ensuring normalisation and validation.
 
         Optional ``strategy`` and ``risk_target`` parameters are persisted so
         clients can inspect or adjust the allocation method and risk level used
-        for this portfolio.
+        for this portfolio. ``allowed_strategies`` restricts the set of
+        allocation methods that may be assigned to the portfolio.
         """
 
         if any(w < 0 for w in weights.values()):
@@ -73,9 +75,18 @@ class EquityPortfolio(Portfolio):
         if cash > 0:
             persisted["cash"] = cash
         update_doc = {"weights": persisted}
+
+        if allowed_strategies is not None:
+            self.allowed_strategies = allowed_strategies
+            update_doc["allowed_strategies"] = allowed_strategies
+
+        allowed = allowed_strategies or getattr(self, "allowed_strategies", None)
         if strategy is not None:
+            if allowed and strategy not in allowed:
+                raise ValueError(f"strategy {strategy} not allowed")
             self.strategy = strategy
             update_doc["strategy"] = strategy
+
         if risk_target is not None:
             self.risk_target = risk_target
             update_doc["risk_target"] = risk_target

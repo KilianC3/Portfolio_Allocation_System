@@ -166,6 +166,7 @@ class Weights(BaseModel):
     weights: Dict[str, float]
     strategy: Optional[str] = None
     risk_target: Optional[float] = None
+    allowed_strategies: Optional[List[str]] = None
 
 
 class MetricEntry(BaseModel):
@@ -228,7 +229,16 @@ def root():
 @app.get("/portfolios")
 def list_portfolios():
     docs = list(
-        pf_coll.find({}, {"name": 1, "weights": 1, "strategy": 1, "risk_target": 1})
+        pf_coll.find(
+            {},
+            {
+                "name": 1,
+                "weights": 1,
+                "strategy": 1,
+                "risk_target": 1,
+                "allowed_strategies": 1,
+            },
+        )
     )
     res = []
     for d in docs:
@@ -238,6 +248,8 @@ def list_portfolios():
             d["strategy"] = d.get("strategy")
         if "risk_target" in d:
             d["risk_target"] = d.get("risk_target")
+        if "allowed_strategies" in d:
+            d["allowed_strategies"] = d.get("allowed_strategies")
         res.append(d)
     return {"portfolios": res}
 
@@ -245,7 +257,16 @@ def list_portfolios():
 @app.get("/strategies/summary")
 def strategies_summary() -> Dict[str, Any]:
     docs = list(
-        pf_coll.find({}, {"name": 1, "weights": 1, "strategy": 1, "risk_target": 1})
+        pf_coll.find(
+            {},
+            {
+                "name": 1,
+                "weights": 1,
+                "strategy": 1,
+                "risk_target": 1,
+                "allowed_strategies": 1,
+            },
+        )
     )
     res: List[Dict[str, Any]] = []
     for d in docs:
@@ -263,6 +284,7 @@ def strategies_summary() -> Dict[str, Any]:
                 "weights": d.get("weights", {}),
                 "strategy": d.get("strategy"),
                 "risk_target": d.get("risk_target"),
+                "allowed_strategies": d.get("allowed_strategies"),
                 "metrics": {
                     k: _iso(v) if k == "date" else v
                     for k, v in metric_doc.items()
@@ -291,18 +313,25 @@ def set_weights(pf_id: str, data: Weights):
     pf = portfolios.get(pf_id)
     if not pf:
         raise HTTPException(404, "portfolio not found")
-    pf.set_weights(data.weights, strategy=data.strategy, risk_target=data.risk_target)
-    pf_coll.update_one(
-        {"_id": pf_id},
-        {
-            "$set": {
-                "weights": data.weights,
-                "strategy": data.strategy,
-                "risk_target": data.risk_target,
-            }
-        },
-        upsert=True,
-    )
+    try:
+        pf.set_weights(
+            data.weights,
+            strategy=data.strategy,
+            risk_target=data.risk_target,
+            allowed_strategies=data.allowed_strategies,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+    update_doc = {
+        "weights": data.weights,
+        "strategy": data.strategy,
+        "risk_target": data.risk_target,
+    }
+    if data.allowed_strategies is not None:
+        update_doc["allowed_strategies"] = data.allowed_strategies
+
+    pf_coll.update_one({"_id": pf_id}, {"$set": update_doc}, upsert=True)
     return {"status": "ok"}
 
 

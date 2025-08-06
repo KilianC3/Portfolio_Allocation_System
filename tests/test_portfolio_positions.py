@@ -81,6 +81,19 @@ def test_set_weights_strategy_and_risk(monkeypatch):
     assert saved["risk_target"] == 0.15
 
 
+def test_allowed_strategies(monkeypatch):
+    pf, pf_coll, *_ = setup_portfolio(monkeypatch)
+    pf.set_weights(
+        {"AAPL": 0.5, "MSFT": 0.5},
+        strategy="max_sharpe",
+        allowed_strategies=["max_sharpe", "min_variance"],
+    )
+    saved = pf_coll.docs[0]
+    assert saved["allowed_strategies"] == ["max_sharpe", "min_variance"]
+    with pytest.raises(ValueError):
+        pf.set_weights({"AAPL": 0.5, "MSFT": 0.5}, strategy="risk_parity")
+
+
 def test_trade_logging_and_pnl(monkeypatch):
     pf, _, _, trade_coll, pos_coll = setup_portfolio(monkeypatch)
     buy = SimpleNamespace(symbol="AAPL", side="buy", qty=10, filled_avg_price=100)

@@ -60,6 +60,7 @@ def test_strategy_params_round_trip(monkeypatch):
         "weights": {"AAPL": 0.6, "MSFT": 0.4},
         "strategy": "min_variance",
         "risk_target": 0.12,
+        "allowed_strategies": ["max_sharpe", "min_variance"],
     }
     resp = client.put(_auth(f"/portfolios/{pf.id}/weights"), json=data)
     assert resp.status_code == 200
@@ -68,3 +69,11 @@ def test_strategy_params_round_trip(monkeypatch):
     obj = resp.json()["portfolios"][0]
     assert obj["strategy"] == "min_variance"
     assert obj["risk_target"] == 0.12
+    assert obj["allowed_strategies"] == ["max_sharpe", "min_variance"]
+
+    bad = {
+        "weights": {"AAPL": 0.6, "MSFT": 0.4},
+        "strategy": "risk_parity",
+    }
+    resp = client.put(_auth(f"/portfolios/{pf.id}/weights"), json=bad)
+    assert resp.status_code == 400
