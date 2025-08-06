@@ -25,3 +25,7 @@ System log pushes use the following form:
 
 Clients should ignore messages with unknown `type` values so the protocol
 can evolve without breaking backwards compatibility.
+
+Front end charts can be exported to PNG files for reporting.  Components use
+a shared `exportChart` helper that calls the Chart.js `toBase64Image()`
+method and triggers a download in the browser.

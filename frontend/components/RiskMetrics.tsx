@@ -3,6 +3,7 @@ import { Line } from 'react-chartjs-2';
 import type { ChartData, ChartOptions } from 'chart.js';
 import { Chart as ChartJS } from 'chart.js/auto';
 import { MetricsSocket } from '../utils/socket';
+import { exportChart } from '../utils/export';
 
 interface MetricPoint {
   date: string;
@@ -96,12 +97,7 @@ export const RiskMetrics: React.FC<{ pfId: string }> = ({ pfId }) => {
   const exportPNG = () => {
     const chart = chartRef.current;
     if (!chart) return;
-    const link = document.createElement('a');
-    link.href = chart.toBase64Image();
-    link.setAttribute('download', `risk_metrics_${pfId}.png`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportChart(chart, `risk_metrics_${pfId}.png`);
   };
 
   return (

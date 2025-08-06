@@ -14,7 +14,12 @@ import pandas as pd
 from service.logger import get_logger
 from observability import metrics_router
 from ws import ws_router
-from ws.hub import broadcast_message, register as ws_register, unregister as ws_unregister
+from ws.hub import (
+    broadcast_message,
+    register as ws_register,
+    unregister as ws_unregister,
+)
+from service.cache import get as cache_get, set as cache_set, invalidate_prefix
 from observability.logging import LOG_DIR, clear_log_files
 from database import (
     pf_coll,
@@ -230,12 +235,10 @@ def strategies_summary() -> Dict[str, Any]:
     for d in docs:
         pf_id = str(d.get("_id"))
         metric_doc = (
-            metric_coll.find_one({"portfolio_id": pf_id}, sort=[("date", -1)])
-            or {}
+            metric_coll.find_one({"portfolio_id": pf_id}, sort=[("date", -1)]) or {}
         )
         risk_doc = (
-            risk_stats_coll.find_one({"strategy": pf_id}, sort=[("date", -1)])
-            or {}
+            risk_stats_coll.find_one({"strategy": pf_id}, sort=[("date", -1)]) or {}
         )
         res.append(
             {
@@ -347,8 +350,15 @@ def add_metric(pf_id: str, metric: MetricEntry):
         {"$set": metrics},
         upsert=True,
     )
+    invalidate_prefix(f"metrics:{pf_id}")
+    invalidate_prefix(f"dashboard:{pf_id}")
     message = json.dumps(
-        {"type": "metrics", "portfolio_id": pf_id, "date": metric.date.isoformat(), "metrics": metrics}
+        {
+            "type": "metrics",
+            "portfolio_id": pf_id,
+            "date": metric.date.isoformat(),
+            "metrics": metrics,
+        }
     )
     asyncio.create_task(broadcast_message(message))
     return {"status": "ok", "metrics": metrics}
@@ -363,7 +373,11 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
         q["date"]["$gte"] = dt.date.fromisoformat(start)
     if end:
         q["date"]["$lte"] = dt.date.fromisoformat(end)
-    docs = list(metric_coll.find(q).sort("date", 1))
+    cache_key = f"metrics:{pf_id}:{start or ''}:{end or ''}"
+    docs = cache_get(cache_key)
+    if docs is None:
+        docs = list(metric_coll.find(q).sort("date", 1))
+        cache_set(cache_key, docs)
     res = []
     for d in docs:
         entry = {"date": _iso(d["date"]), "ret": d["ret"]}
@@ -376,6 +390,7 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
             "var",
             "cvar",
             "benchmark",
+            "exposure",
             "win_rate",
             "annual_vol",
             "ret_7d",
@@ -397,7 +412,11 @@ def dashboard_timeseries(pf_id: str, format: str = "json") -> Any:
 
     Supports CSV export when ``format=csv``.
     """
-    docs = list(metric_coll.find({"portfolio_id": pf_id}).sort("date", 1))
+    cache_key = f"dashboard:{pf_id}"
+    docs = cache_get(cache_key)
+    if docs is None:
+        docs = list(metric_coll.find({"portfolio_id": pf_id}).sort("date", 1))
+        cache_set(cache_key, docs)
     data = {
         "dates": [d["date"].isoformat() for d in docs],
         "returns": [d.get("ret", 0.0) for d in docs],
@@ -572,7 +591,9 @@ def get_job(job_id: str):
 @app.post("/jobs/{job_id}/run")
 def run_job(job_id: str):
     try:
-        sched.scheduler.modify_job(job_id, next_run_time=dt.datetime.now(dt.timezone.utc))
+        sched.scheduler.modify_job(
+            job_id, next_run_time=dt.datetime.now(dt.timezone.utc)
+        )
     except Exception as e:
         raise HTTPException(404, str(e))
     return {"status": "triggered"}
@@ -583,6 +604,7 @@ def jobs_admin():
     """Simple admin view showing job health."""
     html_path = Path(__file__).with_name("admin.html")
     return HTMLResponse(html_path.read_text())
+
 
 # Data collection using dedicated scraping module
 from scrapers.politician import fetch_politician_trades, politician_coll

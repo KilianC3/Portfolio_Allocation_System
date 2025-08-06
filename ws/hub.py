@@ -9,14 +9,17 @@ subscribed front end client.
 from __future__ import annotations
 
 from typing import Set
+import asyncio
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from service.logger import get_logger
 
 # Router exported for inclusion in the main FastAPI app
 router = APIRouter()
 
 # Track all active WebSocket connections
 clients: Set[WebSocket] = set()
+log = get_logger("ws.hub")
 
 
 async def register(ws: WebSocket) -> None:
@@ -30,17 +33,26 @@ def unregister(ws: WebSocket) -> None:
     clients.discard(ws)
 
 
-async def broadcast_message(text: str) -> None:
-    """Send ``text`` to all currently connected clients.
+async def _send(ws: WebSocket, text: str) -> None:
+    try:
+        await ws.send_text(text)
+    except Exception as exc:
+        log.warning(f"websocket send failed: {exc}")
+        unregister(ws)
 
-    Connections that fail during send are removed from the registry to avoid
-    leaking stale sockets.
-    """
-    for ws in list(clients):
-        try:
-            await ws.send_text(text)
-        except Exception:
-            unregister(ws)
+
+async def broadcast_message(text: str) -> None:
+    """Send ``text`` to all currently connected clients."""
+    await asyncio.gather(
+        *[_send(ws, text) for ws in list(clients)], return_exceptions=True
+    )
+
+
+async def heartbeat(interval: int = 30) -> None:
+    """Periodically send ping frames to keep connections alive."""
+    while True:
+        await asyncio.sleep(interval)
+        await broadcast_message("ping")
 
 
 @router.websocket("/ws")
@@ -54,4 +66,4 @@ async def websocket_endpoint(ws: WebSocket) -> None:
         unregister(ws)
 
 
-__all__ = ["router", "broadcast_message", "register", "unregister"]
+__all__ = ["router", "broadcast_message", "register", "unregister", "heartbeat"]

@@ -76,6 +76,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://192.168.0.59:6379/0"
 
     CACHE_TTL: int = Field(900, alias="CACHE_TTL")
+    CACHE_BACKEND: str = Field("memory", alias="CACHE_BACKEND")
 
     AUTO_START_SCHED: bool = False
 
@@ -83,7 +84,9 @@ class Settings(BaseSettings):
 
 
 # Pass defaults explicitly so mypy recognises optional fields
-settings = Settings(MIN_ALLOCATION=0.02, MAX_ALLOCATION=0.40, CACHE_TTL=900)
+settings = Settings(
+    MIN_ALLOCATION=0.02, MAX_ALLOCATION=0.40, CACHE_TTL=900, CACHE_BACKEND="memory"
+)
 
 ALLOW_LIVE = settings.ALLOW_LIVE
 
@@ -105,6 +108,7 @@ FRED_API_KEY = settings.FRED_API_KEY
 
 API_TOKEN = settings.API_TOKEN
 CACHE_TTL = settings.CACHE_TTL
+CACHE_BACKEND = settings.CACHE_BACKEND
 
 API_HOST = settings.API_HOST
 API_PORT = settings.API_PORT

@@ -4,15 +4,21 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
-from typing import Callable
+from typing import Callable, Any
 
-from analytics.utils import portfolio_metrics
+from analytics.utils import (
+    portfolio_metrics,
+    aggregate_daily_returns_exposure,
+)
 from database import metric_coll
 from ws.hub import broadcast_message
+from service.cache import invalidate_prefix
 import json
 
 
-async def update_loop(fetch_returns: Callable[[], dict], interval: int = 300) -> None:
+async def update_loop(
+    fetch_returns: Callable[[], dict[str, Any]], interval: int = 300
+) -> None:
     """Periodically compute metrics from ``fetch_returns`` and broadcast.
 
     Parameters
@@ -26,7 +32,13 @@ async def update_loop(fetch_returns: Callable[[], dict], interval: int = 300) ->
     while True:
         data = fetch_returns()
         ts = dt.datetime.utcnow().isoformat()
-        for pf_id, series in data.items():
+        for pf_id, payload in data.items():
+            if isinstance(payload, tuple):
+                series, exposure = payload
+            else:
+                series, exposure = payload, None
+
+            aggregate_daily_returns_exposure(pf_id, series, exposure, metric_coll)
             metrics = portfolio_metrics(series)
             metric_coll.update_one(
                 {"portfolio_id": pf_id, "date": series.index[-1].date()},
@@ -43,4 +55,6 @@ async def update_loop(fetch_returns: Callable[[], dict], interval: int = 300) ->
                     }
                 )
             )
+            invalidate_prefix(f"metrics:{pf_id}")
+            invalidate_prefix(f"dashboard:{pf_id}")
         await asyncio.sleep(interval)

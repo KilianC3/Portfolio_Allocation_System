@@ -34,7 +34,7 @@ analysis can reproduce past views of the data.
 | `portfolios` | `id`, `name`, `weights` |
 | `trades` | `portfolio_id`, `symbol`, `qty`, `side`, `price`, `timestamp` |
 | `weight_history` | `portfolio_id`, `date`, `weights` |
-| `metrics` | `portfolio_id`, `date`, `ret_1d`, `ret_7d`, `ret_30d`, `ret_3m`, `ret_6m`, `ret_1y`, `ret_2y`, `sharpe`, `sortino`, `weekly_vol`, `weekly_sortino`, `alpha`, `beta`, `capm_expected_return`, `max_drawdown`, `cagr`, `win_rate`, `annual_vol`, `information_ratio`, `treynor_ratio`, `var`, `cvar`, `exposure`, `atr_14d`, `rsi_14d` |
+| `metrics` | `portfolio_id`, `date`, `ret`, `ret_1d`, `ret_7d`, `ret_30d`, `ret_3m`, `ret_6m`, `ret_1y`, `ret_2y`, `sharpe`, `sortino`, `weekly_vol`, `weekly_sortino`, `alpha`, `beta`, `capm_expected_return`, `max_drawdown`, `cagr`, `win_rate`, `annual_vol`, `information_ratio`, `treynor_ratio`, `var`, `cvar`, `exposure`, `atr_14d`, `rsi_14d` |
 | `account_metrics_paper` | `id`, `timestamp`, `equity`, `last_equity` |
 | `account_metrics_live` | `id`, `timestamp`, `equity`, `last_equity` |
 | `system_logs` | `timestamp`, `level`, `logger`, `message` |
@@ -51,6 +51,12 @@ to date.
 The `metrics` table captures daily exposure alongside risk statistics such
 as Value at Risk (`var`), Conditional VaR (`cvar`) and `max_drawdown` for
 each portfolio.
+
+## Caching
+
+Metrics queries are wrapped in a lightweight in-memory cache. Results are
+cached for ``CACHE_TTL`` seconds (900 by default) to minimise database
+load when charts poll for updates.
 
 Ticker constituents from the S&P 500, S&P 400 and Russell 2000 are
 combined in the `universe` table with an `index_name` label. The

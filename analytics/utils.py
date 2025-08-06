@@ -12,7 +12,10 @@ import pandas as pd
 import yfinance as yf
 
 
-_TREASURY_CACHE: dict[str, Any] = {"rate": 0.0, "timestamp": dt.datetime.fromtimestamp(0)}
+_TREASURY_CACHE: dict[str, Any] = {
+    "rate": 0.0,
+    "timestamp": dt.datetime.fromtimestamp(0),
+}
 _CACHE_LOCK = Lock()
 
 
@@ -30,7 +33,9 @@ def get_treasury_rate(force: bool = False) -> float:
         if not force and age < ttl and _TREASURY_CACHE["rate"]:
             return float(_TREASURY_CACHE["rate"])
         try:
-            rate = float(yf.Ticker("^IRX").history(period="1d")["Close"].iloc[-1]) / 100.0
+            rate = (
+                float(yf.Ticker("^IRX").history(period="1d")["Close"].iloc[-1]) / 100.0
+            )
         except Exception:
             rate = float(_TREASURY_CACHE["rate"])
         _TREASURY_CACHE.update({"rate": rate, "timestamp": now})
@@ -242,7 +247,7 @@ def aggregate_daily_returns_exposure(
         if "exposure" in row:
             update["exposure"] = float(row["exposure"])
         coll.update_one(
-            {"portfolio_id": pf_id, "date": date},
+            {"portfolio_id": pf_id, "date": pd.to_datetime(date).date()},
             {"$set": update},
             upsert=True,
         )
@@ -288,6 +293,7 @@ __all__ = [
     "tracking_error",
     "information_ratio",
     "portfolio_metrics",
+    "aggregate_daily_returns_exposure",
     "portfolio_correlations",
     "ticker_sector",
     "sector_exposures",

@@ -20,6 +20,8 @@ This document helps Codex (or any future agent) produce clear, consistent commit
 2. **Performance & Scalability**
    - Cache network calls and batch requests when possible.
    - Parallelise downloads where safe.
+   - Metrics endpoints use an in-memory cache with a configurable TTL to
+     reduce repeated database reads.
 3. **Robustness**
    - Handle missing data and timeouts gracefully.
    - Use adaptive thresholds to avoid empty outputs.
