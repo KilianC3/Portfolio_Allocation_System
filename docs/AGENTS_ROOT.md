@@ -20,6 +20,8 @@ This document helps Codex (or any future agent) produce clear, consistent commit
 2. **Performance & Scalability**
    - Cache network calls and batch requests when possible.
    - Parallelise downloads where safe.
+   - Metrics endpoints use an in-memory cache with a configurable TTL to
+     reduce repeated database reads.
 3. **Robustness**
    - Handle missing data and timeouts gracefully.
    - Use adaptive thresholds to avoid empty outputs.
@@ -87,7 +89,7 @@ Additional rules:
 
 - Avoid combining too many overlapping signals as this inflates estimation error and hurts live performance.
 - Heavy optimisation may show great backtests but can fail in production.
-- The allocator now uses a tangency portfolio that maximises Sharpe ratio. Avoid overly complex combinations of signals unless they clearly improve results.
+- The allocator supports max_sharpe (default), risk parity, minimum variance, strategic (SAA), tactical (TAA) and dynamic mixes; performance for each method is recorded nightly so the most effective approach can be identified over time.
 - Prefer simple momentum overlays or volatility scaling when signal quality varies.
 - Clean weekly returns with a z-score filter and fall back to the last weight
   vector if computed volatility looks unreasonable.

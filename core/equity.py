@@ -7,7 +7,7 @@ import uuid
 from types import SimpleNamespace
 from typing import Any, Dict
 
-from database import trade_coll, pf_coll, weight_coll
+from database import trade_coll, pf_coll, weight_coll, position_coll
 from infra.github_backup import backup_records
 from execution.gateway import ExecutionGateway
 from ledger import MasterLedger
@@ -35,33 +35,126 @@ class EquityPortfolio(Portfolio):
         self.risk = PositionRisk(self.ledger) if self.ledger else None
         pf_coll.update_one({"_id": self.id}, {"$set": {"name": self.name}}, upsert=True)
 
-    def set_weights(self, weights: Dict[str, float]) -> None:
-        """Assign target weights without enforcing normalization."""
-        self.weights = weights
-        pf_coll.update_one(
-            {"_id": self.id}, {"$set": {"weights": weights}}, upsert=True
-        )
+    def set_weights(
+        self,
+        weights: Dict[str, float],
+        strategy: str | None = None,
+        risk_target: float | None = None,
+        allowed_strategies: list[str] | None = None,
+    ) -> None:
+        """Assign target weights ensuring normalisation and validation.
+
+        Optional ``strategy`` and ``risk_target`` parameters are persisted so
+        clients can inspect or adjust the allocation method and risk level used
+        for this portfolio. ``allowed_strategies`` restricts the set of
+        allocation methods that may be assigned to the portfolio.
+        """
+
+        if any(w < 0 for w in weights.values()):
+            raise ValueError("weights must be non-negative")
+
+        symbols = getattr(self.gateway, "symbols", None)
+        if symbols is not None:
+            unknown = set(weights) - set(symbols)
+            if unknown:
+                raise ValueError(f"Unknown symbols: {unknown}")
+
+        total = sum(weights.values())
+        if total <= 0:
+            raise ValueError("total weight must be positive")
+
+        if total > 1:
+            scaled = {s: w / total for s, w in weights.items()}
+            cash = 0.0
+        else:
+            scaled = dict(weights)
+            cash = 1 - total
+
+        self.weights = scaled
+        persisted = dict(scaled)
+        if cash > 0:
+            persisted["cash"] = cash
+        update_doc: Dict[str, Any] = {"weights": persisted}
+
+        if allowed_strategies is not None:
+            self.allowed_strategies = allowed_strategies
+            update_doc["allowed_strategies"] = allowed_strategies
+
+        allowed = allowed_strategies or getattr(self, "allowed_strategies", None)
+        if strategy is not None:
+            if allowed and strategy not in allowed:
+                raise ValueError(f"strategy {strategy} not allowed")
+            self.strategy = strategy
+            update_doc["strategy"] = strategy
+
+        if risk_target is not None:
+            self.risk_target = risk_target
+            update_doc["risk_target"] = risk_target
+
+        pf_coll.update_one({"_id": self.id}, {"$set": update_doc}, upsert=True)
         try:
-            doc = {"portfolio_id": self.id, "date": dt.date.today(), "weights": weights}
+            doc = {
+                "portfolio_id": self.id,
+                "date": dt.date.today(),
+                "weights": persisted,
+            }
             weight_coll.update_one(
                 {"portfolio_id": self.id, "date": dt.date.today()},
-                {"$set": {"weights": weights}},
+                {"$set": {"weights": persisted}},
                 upsert=True,
             )
             backup_records("weight_history", [doc])
         except Exception:
             pass
-        _log.info({"set": weights, "pf": self.name})
+        _log.info({"set": persisted, "pf": self.name})
 
     def _log_trade(self, order: Any) -> None:
+        qty = float(order.qty)
+        price = float(getattr(order, "filled_avg_price", 0.0))
+        side = order.side
+        signed_qty = -qty if side == "sell" else qty
+
+        prev = (
+            position_coll.find_one({"portfolio_id": self.id, "symbol": order.symbol})
+            or {}
+        )
+        prev_qty = float(prev.get("qty", 0.0))
+        prev_cost = float(prev.get("cost_basis", 0.0))
+        prev_realized = float(prev.get("realized_pnl", 0.0))
+
+        if signed_qty >= 0:
+            new_qty = prev_qty + signed_qty
+            new_cost = prev_cost + signed_qty * price
+            realized = prev_realized
+        else:
+            avg_cost = 0.0 if prev_qty == 0 else prev_cost / prev_qty
+            realized_trade = (-signed_qty) * (price - avg_cost)
+            realized = prev_realized + realized_trade
+            new_qty = prev_qty + signed_qty
+            new_cost = avg_cost * new_qty
+
+        position_coll.update_one(
+            {"portfolio_id": self.id, "symbol": order.symbol},
+            {
+                "$set": {
+                    "qty": new_qty,
+                    "cost_basis": new_cost,
+                    "realized_pnl": realized,
+                }
+            },
+            upsert=True,
+        )
+
         trade_coll.insert_one(
             {
                 "portfolio_id": self.id,
                 "timestamp": dt.datetime.now(dt.timezone.utc),
                 "symbol": order.symbol,
-                "side": order.side,
-                "qty": float(order.qty),
-                "price": float(getattr(order, "filled_avg_price", 0.0)),
+                "side": side,
+                "qty": qty,
+                "price": price,
+                "cost_basis": new_cost,
+                "realized_pnl": realized,
             }
         )
 
@@ -79,14 +172,8 @@ class EquityPortfolio(Portfolio):
                 )
 
     def positions(self) -> Dict[str, float]:
-        docs = list(trade_coll.find({"portfolio_id": self.id}))
-        pos: Dict[str, float] = {}
-        for d in docs:
-            qty = float(d.get("qty", 0))
-            if d.get("side") == "sell":
-                qty *= -1
-            pos[d["symbol"]] = pos.get(d["symbol"], 0.0) + qty
-        return pos
+        docs = list(position_coll.find({"portfolio_id": self.id}))
+        return {d["symbol"]: float(d.get("qty", 0.0)) for d in docs}
 
 
 __all__ = ["EquityPortfolio"]

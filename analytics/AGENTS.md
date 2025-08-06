@@ -11,12 +11,12 @@ The helper `lambda_from_half_life()` converts a chosen half-life into an exponen
 
 These modules operate on portfolio objects from `core/` and store results
 through the `database/` helpers. Strategies in `strategies/` rely on these
-functions to build portfolios. Recent commits introduced a tangency allocator that maximises the Sharpe ratio. Tests under
+functions to build portfolios. Recent commits added a max_sharpe allocator (default) and alternatives such as risk parity, minimum variance, strategic, tactical and dynamic mixes. Tests under
 `tests/` validate the analytics helpers with mocked data.
 
 ## Allocation Tips
 - Keep weight computation simple to avoid estimation error when signals overlap.
-- The tangency allocator assumes recent weekly returns are representative; verify your data quality before relying on it.
+- The max_sharpe allocator assumes recent weekly returns are representative; verify your data quality before relying on it.
 - When signal quality is uncertain, favour volatility scaling or equal-weight fallbacks for stability.
 - Clip extreme weekly returns before estimating covariance and revert to the
   previous allocation if the computed volatility is clearly abnormal.

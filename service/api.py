@@ -1,10 +1,11 @@
 import os
 import datetime as dt
 import asyncio
+import json
 from typing import Any, Dict, Optional, List, Union
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, StreamingResponse, Response, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -13,6 +14,12 @@ import pandas as pd
 from service.logger import get_logger
 from observability import metrics_router
 from ws import ws_router
+from ws.hub import (
+    broadcast_message,
+    register as ws_register,
+    unregister as ws_unregister,
+)
+from service.cache import get as cache_get, set as cache_set, invalidate_prefix
 from observability.logging import LOG_DIR, clear_log_files
 from database import (
     pf_coll,
@@ -92,6 +99,17 @@ app.include_router(metrics_router)
 app.include_router(ws_router)
 
 
+@app.websocket("/ws/metrics")
+async def ws_metrics(ws: WebSocket) -> None:
+    """WebSocket endpoint streaming portfolio metric updates."""
+    await ws_register(ws)
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        ws_unregister(ws)
+
+
 @app.get("/health")
 async def health() -> dict:
     return {"status": "ok"}
@@ -146,12 +164,17 @@ class PortfolioCreate(BaseModel):
 
 class Weights(BaseModel):
     weights: Dict[str, float]
+    strategy: Optional[str] = None
+    risk_target: Optional[float] = None
+    allowed_strategies: Optional[List[str]] = None
 
 
 class MetricEntry(BaseModel):
     date: dt.date
     ret: float
     benchmark: Optional[float] = None
+    smb: Optional[float] = None
+    hml: Optional[float] = None
 
 
 class RiskRuleIn(BaseModel):
@@ -180,7 +203,11 @@ def load_portfolios():
         portfolios[pf.id] = pf
         if "weights" in doc:
             try:
-                pf.set_weights(doc["weights"])
+                pf.set_weights(
+                    doc["weights"],
+                    strategy=doc.get("strategy"),
+                    risk_target=doc.get("risk_target"),
+                )
             except Exception as e:
                 log.warning(f"failed to load weights for {pf.id}: {e}")
 
@@ -201,34 +228,63 @@ def root():
 
 @app.get("/portfolios")
 def list_portfolios():
-    docs = list(pf_coll.find({}, {"name": 1, "weights": 1}))
+    docs = list(
+        pf_coll.find(
+            {},
+            {
+                "name": 1,
+                "weights": 1,
+                "strategy": 1,
+                "risk_target": 1,
+                "allowed_strategies": 1,
+            },
+        )
+    )
     res = []
     for d in docs:
         d["id"] = str(d.pop("_id"))
         d["weights"] = d.get("weights", {})
+        if "strategy" in d:
+            d["strategy"] = d.get("strategy")
+        if "risk_target" in d:
+            d["risk_target"] = d.get("risk_target")
+        if "allowed_strategies" in d:
+            d["allowed_strategies"] = d.get("allowed_strategies")
         res.append(d)
     return {"portfolios": res}
 
 
 @app.get("/strategies/summary")
 def strategies_summary() -> Dict[str, Any]:
-    docs = list(pf_coll.find({}, {"name": 1, "weights": 1}))
+    docs = list(
+        pf_coll.find(
+            {},
+            {
+                "name": 1,
+                "weights": 1,
+                "strategy": 1,
+                "risk_target": 1,
+                "allowed_strategies": 1,
+            },
+        )
+    )
     res: List[Dict[str, Any]] = []
     for d in docs:
         pf_id = str(d.get("_id"))
         metric_doc = (
-            metric_coll.find_one({"portfolio_id": pf_id}, sort=[("date", -1)])
-            or {}
+            metric_coll.find_one({"portfolio_id": pf_id}, sort=[("date", -1)]) or {}
         )
         risk_doc = (
-            risk_stats_coll.find_one({"strategy": pf_id}, sort=[("date", -1)])
-            or {}
+            risk_stats_coll.find_one({"strategy": pf_id}, sort=[("date", -1)]) or {}
         )
         res.append(
             {
                 "id": pf_id,
                 "name": d.get("name"),
                 "weights": d.get("weights", {}),
+                "strategy": d.get("strategy"),
+                "risk_target": d.get("risk_target"),
+                "allowed_strategies": d.get("allowed_strategies"),
                 "metrics": {
                     k: _iso(v) if k == "date" else v
                     for k, v in metric_doc.items()
@@ -257,8 +313,25 @@ def set_weights(pf_id: str, data: Weights):
     pf = portfolios.get(pf_id)
     if not pf:
         raise HTTPException(404, "portfolio not found")
-    pf.set_weights(data.weights)
-    pf_coll.update_one({"_id": pf_id}, {"$set": {"weights": data.weights}}, upsert=True)
+    try:
+        pf.set_weights(
+            data.weights,
+            strategy=data.strategy,
+            risk_target=data.risk_target,
+            allowed_strategies=data.allowed_strategies,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+    update_doc: Dict[str, Any] = {
+        "weights": data.weights,
+        "strategy": data.strategy,
+        "risk_target": data.risk_target,
+    }
+    if data.allowed_strategies is not None:
+        update_doc["allowed_strategies"] = data.allowed_strategies
+
+    pf_coll.update_one({"_id": pf_id}, {"$set": update_doc}, upsert=True)
     return {"status": "ok"}
 
 
@@ -312,6 +385,10 @@ def add_metric(pf_id: str, metric: MetricEntry):
     update = {"ret": metric.ret}
     if metric.benchmark is not None:
         update["benchmark"] = metric.benchmark
+    if metric.smb is not None:
+        update["smb"] = metric.smb
+    if metric.hml is not None:
+        update["hml"] = metric.hml
 
     metric_coll.update_one(
         {"portfolio_id": pf_id, "date": metric.date},
@@ -321,19 +398,33 @@ def add_metric(pf_id: str, metric: MetricEntry):
 
     docs = list(metric_coll.find({"portfolio_id": pf_id}).sort("date", 1))
     r = pd.Series([d["ret"] for d in docs], index=[d["date"] for d in docs])
-    bench = None
+    factors = None
     if all("benchmark" in d for d in docs):
-        bench = pd.Series(
-            [d.get("benchmark", 0.0) for d in docs],
+        factors = pd.DataFrame(
+            {"mkt": [d.get("benchmark", 0.0) for d in docs]},
             index=[d["date"] for d in docs],
         )
+        if all("smb" in d for d in docs) and all("hml" in d for d in docs):
+            factors["smb"] = [d.get("smb", 0.0) for d in docs]
+            factors["hml"] = [d.get("hml", 0.0) for d in docs]
     rf = get_treasury_rate()
-    metrics = portfolio_metrics(r, bench, rf)
+    metrics = portfolio_metrics(r, factors, rf)
     metric_coll.update_one(
         {"portfolio_id": pf_id, "date": metric.date},
         {"$set": metrics},
         upsert=True,
     )
+    invalidate_prefix(f"metrics:{pf_id}")
+    invalidate_prefix(f"dashboard:{pf_id}")
+    message = json.dumps(
+        {
+            "type": "metrics",
+            "portfolio_id": pf_id,
+            "date": metric.date.isoformat(),
+            "metrics": metrics,
+        }
+    )
+    asyncio.create_task(broadcast_message(message))
     return {"status": "ok", "metrics": metrics}
 
 
@@ -346,7 +437,11 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
         q["date"]["$gte"] = dt.date.fromisoformat(start)
     if end:
         q["date"]["$lte"] = dt.date.fromisoformat(end)
-    docs = list(metric_coll.find(q).sort("date", 1))
+    cache_key = f"metrics:{pf_id}:{start or ''}:{end or ''}"
+    docs = cache_get(cache_key)
+    if docs is None:
+        docs = list(metric_coll.find(q).sort("date", 1))
+        cache_set(cache_key, docs)
     res = []
     for d in docs:
         entry = {"date": _iso(d["date"]), "ret": d["ret"]}
@@ -354,9 +449,14 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
             "sharpe",
             "alpha",
             "beta",
-            "capm_expected_return",
+            "ff_expected_return",
+            "beta_smb",
+            "beta_hml",
             "max_drawdown",
+            "var",
+            "cvar",
             "benchmark",
+            "exposure",
             "win_rate",
             "annual_vol",
             "ret_7d",
@@ -370,6 +470,31 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
                     entry[k] = d[k]
         res.append(entry)
     return {"metrics": res}
+
+
+@app.get("/dashboard/{pf_id}", response_model=None)
+def dashboard_timeseries(pf_id: str, format: str = "json") -> Any:
+    """Return time-series data for plotting portfolio performance.
+
+    Supports CSV export when ``format=csv``.
+    """
+    cache_key = f"dashboard:{pf_id}"
+    docs = cache_get(cache_key)
+    if docs is None:
+        docs = list(metric_coll.find({"portfolio_id": pf_id}).sort("date", 1))
+        cache_set(cache_key, docs)
+    data = {
+        "dates": [d["date"].isoformat() for d in docs],
+        "returns": [d.get("ret", 0.0) for d in docs],
+        "benchmark": [d.get("benchmark") for d in docs],
+        "var": [d.get("var") for d in docs],
+        "cvar": [d.get("cvar") for d in docs],
+        "drawdown": [d.get("max_drawdown") for d in docs],
+    }
+    if format == "csv":
+        df = pd.DataFrame(data)
+        return Response(content=df.to_csv(index=False), media_type="text/csv")
+    return data
 
 
 @app.post("/collect/metrics")
@@ -406,10 +531,13 @@ def show_system_logs(limit: int = 100, format: str = "json"):
         d["id"] = str(d.pop("_id"))
         d["timestamp"] = _iso(d.get("timestamp"))
     df = pd.DataFrame(docs)
+    records = df.to_dict(orient="records")
+    message = json.dumps({"type": "logs", "records": records})
+    asyncio.create_task(broadcast_message(message))
     if format == "csv":
         csv_data = df.to_csv(index=False)
         return Response(content=csv_data, media_type="text/csv")
-    return {"records": df.to_dict(orient="records")}
+    return {"records": records}
 
 
 @app.get("/db")
@@ -529,7 +657,9 @@ def get_job(job_id: str):
 @app.post("/jobs/{job_id}/run")
 def run_job(job_id: str):
     try:
-        sched.scheduler.modify_job(job_id, next_run_time=dt.datetime.now(dt.timezone.utc))
+        sched.scheduler.modify_job(
+            job_id, next_run_time=dt.datetime.now(dt.timezone.utc)
+        )
     except Exception as e:
         raise HTTPException(404, str(e))
     return {"status": "triggered"}
@@ -540,6 +670,7 @@ def jobs_admin():
     """Simple admin view showing job health."""
     html_path = Path(__file__).with_name("admin.html")
     return HTMLResponse(html_path.read_text())
+
 
 # Data collection using dedicated scraping module
 from scrapers.politician import fetch_politician_trades, politician_coll

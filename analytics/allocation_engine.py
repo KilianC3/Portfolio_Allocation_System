@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Mapping, Optional
+from typing import Mapping, Optional, Callable
 
 import numpy as np
 import pandas as pd
@@ -42,62 +42,19 @@ def _log_to_db(
         _log.warning({"db_error": str(exc)})
 
 
-def compute_weights(
-    ret_df: pd.DataFrame,
+def _tangency_weights(
+    weekly: pd.DataFrame,
     w_prev: Optional[Mapping[str, float]] = None,
     target_vol: float = 0.11,
     turnover_thresh: float = 0.005,
     risk_free: float = 0.0,
 ) -> dict[str, float]:
-    """Return tangency portfolio weights maximising the Sharpe ratio.
-
-    Using up to 36 weeks of cleaned weekly returns, or all available data if
-    fewer weeks are present, expected returns ``mu`` and the covariance matrix
-    ``Sigma`` are estimated with Ledoit--Wolf shrinkage.
-    The positive part of ``Sigma^-1 mu`` forms the long-only maximum-Sharpe mix
-    of risky assets.  Excess returns ``mu - r_f`` are then used to compute the
-    tangency portfolio, again taking only the nonnegative weights.  This unit-sum
-    portfolio is levered or delevered to the target volatility, constrained to
-    the 10--12% range.  Extreme or zero volatility estimates trigger a fallback
-    to the previous weights.
-    """
-
-    target_vol = max(0.10, min(0.12, target_vol))
-
-    if ret_df.empty:
-        return {}
-
-    weekly = (1 + ret_df).resample("W-FRI").prod() - 1
-    weeks = len(weekly)
-    if weeks > 36:
-        weekly = weekly.tail(36)  # limit to 36-week lookback
-    if weeks < 4:
-        _log.info({"fallback": "equal_weights", "reason": "<4 weeks"})
-        return {c: 1 / len(ret_df.columns) for c in ret_df.columns}
-    if weekly.empty:
-        _log.info({"fallback": "equal_weights", "reason": "no weekly data"})
-        return {c: 1 / len(ret_df.columns) for c in ret_df.columns}
-
-    weekly = _clean_returns(weekly)
-
-    avg = weekly.mean(axis=1)
-    for col in weekly.columns:
-        mask = weekly[col].isna()
-        if mask.any():
-            weekly.loc[mask, col] = avg[mask]
-
     mu = weekly.mean()
     _log.debug({"mu": mu.to_dict()})
     lw = LedoitWolf().fit(weekly.fillna(0))
     cov = pd.DataFrame(lw.covariance_, index=weekly.columns, columns=weekly.columns)
     _log.debug({"cov": cov.to_dict()})
     inv = np.linalg.pinv(cov.values)
-    sel = np.maximum(inv @ mu.values, 0)
-    if sel.sum() == 0:
-        sel[:] = 1
-    sel /= sel.sum()
-    _log.debug({"max_sharpe": {c: float(v) for c, v in zip(weekly.columns, sel)}})
-
     excess = mu - risk_free
     w = pd.Series(np.maximum(inv @ excess.values, 0), index=weekly.columns)
     if w.sum() == 0:
@@ -109,7 +66,7 @@ def compute_weights(
     if not np.isfinite(port_vol) or port_vol > 5 or port_vol == 0:
         _log.warning({"anomaly": "vol", "value": port_vol})
         if w_prev:
-            return dict(w_prev)  # reuse previous allocation
+            return dict(w_prev)
         w[:] = 1 / len(w)
         port_vol = float(np.sqrt(w @ cov @ w) * np.sqrt(52))
     if port_vol > 0:
@@ -125,7 +82,136 @@ def compute_weights(
         w /= w.sum()
 
     table = pd.DataFrame({"mu": mu, "weight": w})
-
     _log.info({"weights": w.to_dict(), "vol": port_vol})
     _log_to_db(table, {"target_vol": target_vol, "portfolio_vol": port_vol})
     return w.to_dict()
+
+
+def risk_parity_weights(cov: pd.DataFrame) -> dict[str, float]:
+    """Compute naive risk parity weights given a covariance matrix."""
+    if cov.empty:
+        return {}
+    n = len(cov)
+    w = np.ones(n) / n
+    for _ in range(100):
+        port_var = float(w @ cov.values @ w)
+        mrc = cov.values @ w
+        rc = w * mrc
+        target = port_var / n
+        diff = rc - target
+        if np.max(np.abs(diff)) < 1e-8:
+            break
+        w -= diff / (mrc + 1e-12)
+        w = np.maximum(w, 0)
+        if w.sum() == 0:
+            w[:] = 1 / n
+        w /= w.sum()
+    return {c: float(w[i]) for i, c in enumerate(cov.columns)}
+
+
+def saa_weights(weekly: pd.DataFrame) -> dict[str, float]:
+    """Strategic asset allocation with fixed equal-weight targets."""
+    if weekly.empty:
+        return {}
+    n = len(weekly.columns)
+    return {c: 1 / n for c in weekly.columns}
+
+
+def taa_weights(weekly: pd.DataFrame) -> dict[str, float]:
+    """Tactical allocation that tilts weights toward recent winners."""
+    if weekly.empty:
+        return {}
+    base = pd.Series(1 / len(weekly.columns), index=weekly.columns)
+    last = weekly.tail(1).iloc[0]
+    tilt = base * (1 + last)
+    tilt = tilt.clip(lower=0)
+    if tilt.sum() == 0:
+        return base.to_dict()
+    tilt /= tilt.sum()
+    return tilt.to_dict()
+
+
+def dynamic_weights(weekly: pd.DataFrame) -> dict[str, float]:
+    """Dynamic allocation using simple momentum over the last month."""
+    if weekly.empty:
+        return {}
+    mom = (1 + weekly.tail(4)).prod() - 1
+    w = mom.clip(lower=0)
+    if w.sum() == 0:
+        w[:] = 1 / len(w)
+    else:
+        w /= w.sum()
+    return w.to_dict()
+
+
+def min_variance_weights(cov: pd.DataFrame) -> dict[str, float]:
+    """Return global minimum variance portfolio weights."""
+    if cov.empty:
+        return {}
+    inv = np.linalg.pinv(cov.values)
+    ones = np.ones(len(cov))
+    w = inv @ ones
+    if w.sum() == 0:
+        w[:] = 1
+    w /= w.sum()
+    return {c: float(w[i]) for i, c in enumerate(cov.columns)}
+
+
+def compute_weights(
+    ret_df: pd.DataFrame,
+    w_prev: Optional[Mapping[str, float]] = None,
+    target_vol: float = 0.11,
+    turnover_thresh: float = 0.005,
+    risk_free: float = 0.0,
+    method: str = "max_sharpe",
+) -> dict[str, float]:
+    """Return portfolio weights for the chosen allocation method."""
+
+    target_vol = max(0.10, min(0.12, target_vol))
+
+    if ret_df.empty:
+        return {}
+
+    weekly = (1 + ret_df).resample("W-FRI").prod() - 1
+    weeks = len(weekly)
+    if weeks > 36:
+        weekly = weekly.tail(36)
+    if weeks < 4 or weekly.empty:
+        _log.info({"fallback": "equal_weights", "reason": "insufficient"})
+        return {c: 1 / len(ret_df.columns) for c in ret_df.columns}
+
+    weekly = _clean_returns(weekly)
+    avg = weekly.mean(axis=1)
+    for col in weekly.columns:
+        mask = weekly[col].isna()
+        if mask.any():
+            weekly.loc[mask, col] = avg[mask]
+
+    lw = LedoitWolf().fit(weekly.fillna(0))
+    cov = pd.DataFrame(lw.covariance_, index=weekly.columns, columns=weekly.columns)
+
+    dispatch: dict[str, Callable[..., dict[str, float]]] = {
+        "max_sharpe": lambda: _tangency_weights(
+            weekly,
+            w_prev=w_prev,
+            target_vol=target_vol,
+            turnover_thresh=turnover_thresh,
+            risk_free=risk_free,
+        ),
+        "risk_parity": lambda: risk_parity_weights(cov),
+        "min_variance": lambda: min_variance_weights(cov),
+        "saa": lambda: saa_weights(weekly),
+        "taa": lambda: taa_weights(weekly),
+        "dynamic": lambda: dynamic_weights(weekly),
+        "tangency": lambda: _tangency_weights(
+            weekly,
+            w_prev=w_prev,
+            target_vol=target_vol,
+            turnover_thresh=turnover_thresh,
+            risk_free=risk_free,
+        ),
+    }
+    if method not in dispatch:
+        raise ValueError(f"unknown method: {method}")
+
+    return dispatch[method]()

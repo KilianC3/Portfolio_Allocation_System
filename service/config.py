@@ -76,6 +76,11 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://192.168.0.59:6379/0"
 
     CACHE_TTL: int = Field(900, alias="CACHE_TTL")
+    CACHE_BACKEND: str = Field("memory", alias="CACHE_BACKEND")
+
+    LEDGER_STREAM_MAXLEN: int = Field(1000, alias="LEDGER_STREAM_MAXLEN")
+
+    ALLOC_METHOD: str = Field("max_sharpe", alias="ALLOC_METHOD")
 
     AUTO_START_SCHED: bool = False
 
@@ -83,7 +88,14 @@ class Settings(BaseSettings):
 
 
 # Pass defaults explicitly so mypy recognises optional fields
-settings = Settings(MIN_ALLOCATION=0.02, MAX_ALLOCATION=0.40, CACHE_TTL=900)
+settings = Settings(
+    MIN_ALLOCATION=0.02,
+    MAX_ALLOCATION=0.40,
+    CACHE_TTL=900,
+    CACHE_BACKEND="memory",
+    LEDGER_STREAM_MAXLEN=1000,
+    ALLOC_METHOD="max_sharpe",
+)
 
 ALLOW_LIVE = settings.ALLOW_LIVE
 
@@ -105,6 +117,11 @@ FRED_API_KEY = settings.FRED_API_KEY
 
 API_TOKEN = settings.API_TOKEN
 CACHE_TTL = settings.CACHE_TTL
+CACHE_BACKEND = settings.CACHE_BACKEND
+
+LEDGER_STREAM_MAXLEN = settings.LEDGER_STREAM_MAXLEN
+
+ALLOC_METHOD = settings.ALLOC_METHOD
 
 API_HOST = settings.API_HOST
 API_PORT = settings.API_PORT

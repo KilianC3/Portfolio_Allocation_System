@@ -1,88 +1,91 @@
 # Portfolio Allocation System (PAS)
 
-PAS automates strategy allocation, execution and analytics in a single
-service. Scrapers gather market data, analytics modules compute momentum and
-fundamental signals and strategies rebalance portfolios through a FastAPI
-interface. State lives in MariaDB with Redis providing a lightweight cache.
+The Portfolio Allocation System is an end‑to‑end platform for constructing and
+managing multi‑strategy equity portfolios.  It combines data collection,
+analytics, execution and reporting in a single deployable service.
 
-## Overview
+## Features
 
-The API exposes endpoints for analytics, generic database access and trade
-execution. APScheduler handles recurring jobs while Prometheus metrics and a
-dashboard endpoint offer observability. The system can be deployed with Docker
-or orchestrated in Kubernetes and supports both paper and live trading through
-Alpaca.
+- **Flexible allocation engine** – supports max‑Sharpe (default), risk parity,
+  minimum variance, strategic (SAA), tactical (TAA) and dynamic schemes.  Each
+  method is evaluated continuously so historical performance can be compared.
+- **Fama–French analytics** – market, size and value factors are used to
+  estimate expected returns and portfolio betas.
+- **Comprehensive ledger** – Redis backed ledger tracks reservations,
+  executions and cancellations and exposes current positions and free float.
+- **Real‑time metrics** – metrics and system log events are broadcast over a
+  WebSocket hub; the updater task aggregates daily returns and exposures for
+  dashboards.
+- **Rich front end** – Chart.js visualisations render risk metrics, returns and
+  sector weights with CSV/PNG export helpers for reporting.
 
-## Requirements
+## Architecture
 
-The project targets Python 3.10 or newer. Running the full stack requires
-MariaDB 10+, Redis 6+ and an Alpaca API key. Docker Compose is the simplest way
-to launch all services, though each component can run locally if the required
-services are available.
+The repository follows a modular layout:
 
-## Quick Start
+| Folder | Purpose |
+| ------ | ------- |
+| `analytics/` | factor models, allocation engine and performance tracking |
+| `core/` | portfolio model with weight normalisation and PnL helpers |
+| `ledger/` | Redis based trade ledger and position summaries |
+| `service/` | FastAPI application, configuration and caching utilities |
+| `tasks/` | background updater loop that refreshes metrics and broadcasts events |
+| `frontend/` | React components and utilities for charts and sockets |
+| `docs/` | additional documentation including WebSocket protocol details |
 
-Clone the repository and populate `config.yaml` or a `.env` file with your
-credentials and connection strings. From the project root, start the stack:
+MariaDB stores persistent data while Redis caches hot metrics and maintains the
+trade ledger.  All services can run locally or inside Docker containers.
+
+## Getting Started
+
+### Requirements
+
+- Python 3.10+
+- MariaDB 10+
+- Redis 6+
+- Alpaca API key for order routing (paper or live)
+
+### Installation
+
+1. Clone the repository.
+2. Populate `service/config.yaml` with database and API credentials.
+3. Install dependencies:
+
+   ```bash
+   pip install -r deploy/requirements.txt
+   ```
+
+4. Initialise the database schema:
+
+   ```bash
+   python -m database.init_db
+   ```
+
+5. Start the API and background updater:
+
+   ```bash
+   python -m service.start &
+   python scripts/run_updater.py &
+   ```
+
+Interactive docs are available at `http://localhost:8000/docs` and a simple
+dashboard at `http://localhost:8000/dashboard`.
+
+## Testing
+
+Run the unit test suite before submitting changes:
 
 ```bash
-docker-compose up --build
+pytest -q
 ```
 
-The API listens on `http://192.168.0.59:8001` by default and provides a
-dashboard at `/dashboard` and interactive docs at `/docs`.
+## Contributing
 
-## API Highlights
+Pull requests are welcome.  Please keep commits focused, format Python with
+`black`, update documentation for behavioural changes and ensure `pytest -q`
+passes.
 
-Authentication uses a bearer token supplied via the `Authorization` header.
-Endpoints include a generic `/db/{table}` proxy, portfolio analytics such as
-correlation and sector exposure, and execution helpers for submitting rebalance
-orders. WebSocket feeds publish price ticks, fills and equity updates. Metrics
-are available at `/metrics` and a simple health probe lives at `/health`.
-Momentum and fundamental datasets are exposed through collection routes like
-`/collect/volatility_momentum` and `/collect/fundamentals` with matching `GET`
-endpoints to read the stored records. Risk analytics are surfaced under
-`/risk/*` where overview, VaR/ES, drawdowns, volatility, beta, correlations,
-rule management and alert streaming expose nightly computed metrics for each
-strategy.
+## License
 
-Portfolio performance queries via `/metrics/{pf_id}` now include win rate and
-annualized volatility for each strategy.
-
-Cross-origin requests are allowed for `GET` endpoints, so a front-end can fetch
-protected resources by appending `?token=` with the API key.
-
-## Alpaca Trading API Endpoints
-
-Front-end components can also interact directly with Alpaca's REST and
-streaming interfaces. Useful routes include:
-
-- `GET /v2/account` – real-time balances
-- `GET /v2/positions` – open positions
-- `GET /v2/orders` and `POST /v2/orders` – recent orders and order entry
-- `GET /v2/account/portfolio/history` – equity curve data
-- `GET /v2/watchlists` and `/v2/watchlists/{id}/assets` – manage watchlists
-- `GET /v2/account/activities` – account activity feed
-- `GET /v2/stocks/{symbol}/bars` – intraday & historical bars
-- `GET /v2/stocks/{symbol}/trades` and `/quotes` – latest trade and quote data
-- `GET /v2/stocks/{symbol}/snapshots` – consolidated symbol snapshot
-- `GET /v2/news` – market news headlines
-- `GET /v2/corporate_actions` – upcoming corporate actions
-- `GET /v2/calendar` – market calendar
-- WebSocket `wss://stream.data.alpaca.markets/v2/iex` – real-time market data
-- WebSocket `wss://stream.alpaca.markets/v2/account` – order and position updates
-- `GET /v2/crypto/{symbol}/bars` and `/snapshots` – crypto price data
-- `GET /v2/forex/{pair}/quotes` – FX rates
-
-## Monitoring, Testing and Deployment
-
-Prometheus scrapes runtime metrics and Grafana can be layered on top for
-dashboards and alerting. Run `pytest -q` to execute the unit test suite. GitHub
-Actions builds, lints and tests the project and publishes container images for
-deployment to a staging or production environment.
-
-## Contributing and License
-
-Pull requests are welcome; please discuss major changes via an issue first.
-The codebase is released under the MIT license.
+This project is released under the MIT license.
 

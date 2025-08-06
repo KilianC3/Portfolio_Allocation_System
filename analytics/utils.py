@@ -7,12 +7,17 @@ import datetime as dt
 from threading import Lock
 from typing import Mapping, Optional, Any
 
+from database import position_coll
+
 import numpy as np
 import pandas as pd
 import yfinance as yf
 
 
-_TREASURY_CACHE: dict[str, Any] = {"rate": 0.0, "timestamp": dt.datetime.fromtimestamp(0)}
+_TREASURY_CACHE: dict[str, Any] = {
+    "rate": 0.0,
+    "timestamp": dt.datetime.fromtimestamp(0),
+}
 _CACHE_LOCK = Lock()
 
 
@@ -30,7 +35,9 @@ def get_treasury_rate(force: bool = False) -> float:
         if not force and age < ttl and _TREASURY_CACHE["rate"]:
             return float(_TREASURY_CACHE["rate"])
         try:
-            rate = float(yf.Ticker("^IRX").history(period="1d")["Close"].iloc[-1]) / 100.0
+            rate = (
+                float(yf.Ticker("^IRX").history(period="1d")["Close"].iloc[-1]) / 100.0
+            )
         except Exception:
             rate = float(_TREASURY_CACHE["rate"])
         _TREASURY_CACHE.update({"rate": rate, "timestamp": now})
@@ -57,6 +64,23 @@ def var_cvar(r: pd.Series, level: float = 0.95) -> tuple[float, float]:
     return float(var), float(cvar)
 
 
+def value_at_risk(r: pd.Series, level: float = 0.95) -> float:
+    """Wrapper returning only the Value at Risk for convenience."""
+    return float(np.quantile(r, 1 - level))
+
+
+def conditional_value_at_risk(r: pd.Series, level: float = 0.95) -> float:
+    """Return the Conditional VaR (expected shortfall) of ``r``."""
+    var = value_at_risk(r, level)
+    return float(r[r <= var].mean())
+
+
+def drawdown_series(r: pd.Series) -> pd.Series:
+    """Return the drawdown series derived from ``r``."""
+    curve = (1 + r).cumprod()
+    return curve / curve.cummax() - 1
+
+
 def alpha_beta(r: pd.Series, benchmark: pd.Series) -> tuple[float, float]:
     """Annualised alpha and beta relative to a benchmark."""
     bench = benchmark.reindex(r.index).fillna(0)
@@ -66,7 +90,27 @@ def alpha_beta(r: pd.Series, benchmark: pd.Series) -> tuple[float, float]:
     return float(alpha), float(beta)
 
 
-def get_treasury_rate() -> float:
+def fama_french_params(
+    r: pd.Series,
+    mkt: pd.Series,
+    smb: pd.Series,
+    hml: pd.Series,
+    rf: float = 0.0,
+) -> tuple[float, float, float, float]:
+    """Return alpha and factor betas for the Fama-French 3-factor model."""
+    df = pd.concat([r, mkt, smb, hml], axis=1, join="inner").dropna()
+    if df.empty:
+        return 0.0, 0.0, 0.0, 0.0
+    y = df.iloc[:, 0] - rf
+    X = df.iloc[:, 1:]
+    X.insert(0, "const", 1.0)
+    params, *_ = np.linalg.lstsq(X.values, y.values, rcond=None)
+    alpha = params[0] * 252
+    beta_mkt, beta_smb, beta_hml = params[1:]
+    return float(alpha), float(beta_mkt), float(beta_smb), float(beta_hml)
+
+
+def get_ten_year_treasury_rate() -> float:
     """Fetch the latest 10 Year Treasury yield as a decimal."""
     try:
         data = yf.Ticker("^TNX").history(period="1d")
@@ -150,9 +194,15 @@ def information_ratio(r: pd.Series, benchmark: pd.Series) -> float:
 
 
 def portfolio_metrics(
-    r: pd.Series, benchmark: Optional[pd.Series] = None, rf: float = 0.0
+    r: pd.Series,
+    factors: Optional[pd.DataFrame] = None,
+    rf: float = 0.0,
 ) -> dict:
-    """Compute a comprehensive set of portfolio metrics."""
+    """Compute a comprehensive set of portfolio metrics.
+
+    ``factors`` should contain a ``mkt`` column for the market return and
+    optional ``smb`` and ``hml`` columns for size and value factors.
+    """
     metrics = {
         "ret_1d": period_return(r, 1),
         "ret_7d": period_return(r, 7),
@@ -182,19 +232,75 @@ def portfolio_metrics(
     metrics["var"] = var
     metrics["cvar"] = cvar
 
-    if benchmark is not None and not benchmark.empty:
-        a, b = alpha_beta(r, benchmark)
-        metrics["alpha"] = a
-        metrics["beta"] = b
-        metrics["tracking_error"] = tracking_error(r, benchmark)
-        metrics["information_ratio"] = information_ratio(r, benchmark)
-        metrics["treynor_ratio"] = 0.0 if b == 0 else (r.mean() - rf) / b
-        market_ret = benchmark.mean() * 252
-        metrics["capm_expected_return"] = rf + b * (market_ret - rf)
+    if factors is not None and not factors.empty:
+        mkt = factors.get("mkt")
+        if mkt is not None:
+            smb = factors.get("smb")
+            hml = factors.get("hml")
+            if smb is not None and hml is not None:
+                a, b_mkt, b_smb, b_hml = fama_french_params(r, mkt, smb, hml, rf)
+                metrics["alpha"] = a
+                metrics["beta"] = b_mkt
+                metrics["beta_smb"] = b_smb
+                metrics["beta_hml"] = b_hml
+                metrics["tracking_error"] = tracking_error(r, mkt)
+                metrics["information_ratio"] = information_ratio(r, mkt)
+                metrics["treynor_ratio"] = (
+                    0.0 if b_mkt == 0 else (r.mean() - rf) / b_mkt
+                )
+                market_ret = mkt.mean() * 252
+                smb_ret = smb.mean() * 252
+                hml_ret = hml.mean() * 252
+                metrics["ff_expected_return"] = (
+                    rf + b_mkt * (market_ret - rf) + b_smb * smb_ret + b_hml * hml_ret
+                )
+            else:
+                a, b = alpha_beta(r, mkt)
+                metrics["alpha"] = a
+                metrics["beta"] = b
+                metrics["tracking_error"] = tracking_error(r, mkt)
+                metrics["information_ratio"] = information_ratio(r, mkt)
+                metrics["treynor_ratio"] = 0.0 if b == 0 else (r.mean() - rf) / b
+                market_ret = mkt.mean() * 252
+                metrics["ff_expected_return"] = rf + b * (market_ret - rf)
 
     metrics["atr_14d"] = average_true_range(r)
     metrics["rsi_14d"] = rsi(r)
     return metrics
+
+
+def aggregate_daily_returns_exposure(
+    pf_id: str,
+    returns: pd.Series,
+    exposure: Optional[pd.Series],
+    coll,
+) -> None:
+    """Aggregate daily returns and exposure and persist to ``coll``.
+
+    Parameters
+    ----------
+    pf_id: str
+        Portfolio identifier used as ``portfolio_id`` in the collection.
+    returns: pd.Series
+        Daily return series indexed by date.
+    exposure: Optional[pd.Series]
+        Optional exposure series aligned with ``returns``.
+    coll: Collection
+        MongoDB collection-like object with ``update_one`` method.
+    """
+
+    df = pd.DataFrame({"ret": returns}).dropna()
+    if exposure is not None:
+        df["exposure"] = exposure.reindex(df.index).fillna(0)
+    for date, row in df.iterrows():
+        update: dict[str, Any] = {"ret": float(row["ret"])}
+        if "exposure" in row:
+            update["exposure"] = float(row["exposure"])
+        coll.update_one(
+            {"portfolio_id": pf_id, "date": pd.to_datetime(date).date()},
+            {"$set": update},
+            upsert=True,
+        )
 
 
 def portfolio_correlations(ret_df: pd.DataFrame) -> pd.DataFrame:
@@ -222,6 +328,31 @@ def sector_exposures(weights: Mapping[str, float]) -> dict[str, float]:
     return totals
 
 
+def unrealized_pnl(pf_id: str, prices: Mapping[str, float]) -> dict[str, float]:
+    """Return unrealised PnL per symbol and in total for ``pf_id``.
+
+    Parameters
+    ----------
+    pf_id: str
+        Portfolio identifier.
+    prices: Mapping[str, float]
+        Latest price for each symbol.
+    """
+
+    totals: dict[str, float] = {}
+    total = 0.0
+    for d in position_coll.find({"portfolio_id": pf_id}):
+        sym = d["symbol"]
+        qty = float(d.get("qty", 0.0))
+        cost = float(d.get("cost_basis", 0.0))
+        price = float(prices.get(sym, 0.0))
+        pnl = qty * price - cost
+        totals[sym] = pnl
+        total += pnl
+    totals["total"] = total
+    return totals
+
+
 __all__ = [
     "sharpe",
     "var_cvar",
@@ -237,9 +368,12 @@ __all__ = [
     "tracking_error",
     "information_ratio",
     "portfolio_metrics",
+    "aggregate_daily_returns_exposure",
+    "fama_french_params",
     "portfolio_correlations",
     "ticker_sector",
     "sector_exposures",
+    "unrealized_pnl",
     "lambda_from_half_life",
     "get_treasury_rate",
 ]

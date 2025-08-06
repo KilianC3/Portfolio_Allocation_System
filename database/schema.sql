@@ -35,7 +35,9 @@ CREATE TABLE IF NOT EXISTS metrics (
     sharpe DOUBLE,
     alpha DOUBLE,
     beta DOUBLE,
-    capm_expected_return DOUBLE,
+    beta_smb DOUBLE,
+    beta_hml DOUBLE,
+    ff_expected_return DOUBLE,
     max_drawdown DOUBLE,
     ret_1d DOUBLE,
     ret_7d DOUBLE,
@@ -56,6 +58,13 @@ CREATE TABLE IF NOT EXISTS metrics (
     var DOUBLE,
     cvar DOUBLE,
     UNIQUE(portfolio_id, date)
+);
+CREATE TABLE IF NOT EXISTS allocation_performance (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    date DATE,
+    method TEXT,
+    ret DOUBLE,
+    UNIQUE(date, method)
 );
 CREATE TABLE IF NOT EXISTS politician_trades (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,

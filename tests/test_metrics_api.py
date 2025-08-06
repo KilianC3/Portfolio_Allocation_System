@@ -18,9 +18,12 @@ def test_metrics_include_win_rate_and_vol(monkeypatch):
         {
             "date": dt.date(2024, 1, 1),
             "ret": 0.01,
+            "exposure": 0.5,
             "win_rate": 0.6,
             "annual_vol": 0.2,
-            "capm_expected_return": 0.05,
+            "ff_expected_return": 0.05,
+            "beta_smb": 0.1,
+            "beta_hml": -0.2,
         }
     ]
 
@@ -41,4 +44,8 @@ def test_metrics_include_win_rate_and_vol(monkeypatch):
     data = resp.json()["metrics"]
     assert data[0]["win_rate"] == 0.6
     assert data[0]["volatility"] == 0.2
-    assert data[0]["capm_expected_return"] == 0.05
+    assert data[0]["ff_expected_return"] == 0.05
+    assert data[0]["beta_smb"] == 0.1
+    assert data[0]["beta_hml"] == -0.2
+    assert data[0]["exposure"] == 0.5
+    assert data[0]["ret"] == 0.01
