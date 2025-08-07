@@ -48,7 +48,9 @@ trade ledger.  All services can run locally or inside Docker containers.
 ### Installation
 
 1. Clone the repository.
-2. Populate `service/config.yaml` with database and API credentials.
+2. Populate `service/config.yaml` with database and API credentials. Cron
+   schedules for background jobs are now defined in `service/config.py` and do
+   not require entries in the YAML file.
 3. Install dependencies:
 
    ```bash

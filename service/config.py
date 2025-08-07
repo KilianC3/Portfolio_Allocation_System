@@ -140,5 +140,31 @@ if not REDIS_URL:
 else:
     REDIS_URL = REDIS_URL.replace("localhost", "192.168.0.59")
 
-# Load cron-style schedules from environment variables prefixed with SCHED_
-SCHEDULES = {k[6:].lower(): v for k, v in os.environ.items() if k.startswith("SCHED_")}
+# Default cron-style schedules for periodic jobs
+DEFAULT_SCHEDULES = {
+    "metrics": "5 0 * * *",
+    "ticker_scores": "0 3 1 * *",
+    "wsb_mentions": "0 3 1 * *",
+    "account": "0 0 * * *",
+    "risk_stats": "30 0 * * *",
+    "risk_rules": "*/5 * * * *",
+    "politician_trades": "0 2 * * *",
+    "lobbying": "30 2 * * 1",
+    "wiki_trending": "0 3 * * *",
+    "wiki_views": "30 3 * * *",
+    "dc_insider": "0 4 * * 1",
+    "gov_contracts": "0 5 * * *",
+    "app_reviews": "0 6 * * *",
+    "google_trends": "0 7 * * *",
+    "insider_buying": "0 8 * * *",
+    "vol_mom": "0 9 * * *",
+    "lev_sector": "30 9 * * *",
+    "sector_mom": "0 10 * * *",
+    "smallcap_mom": "30 10 * * *",
+    "upgrade_mom": "0 11 * * *",
+}
+
+# Allow overrides via environment variables prefixed with SCHED_
+SCHEDULES = DEFAULT_SCHEDULES | {
+    k[6:].lower(): v for k, v in os.environ.items() if k.startswith("SCHED_")
+}
