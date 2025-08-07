@@ -15,7 +15,7 @@ from service.config import (
 )
 from database import db_ping, init_db
 from service.logger import get_logger
-from service.api import load_portfolios, sched
+from service.api import load_portfolios
 from scripts.populate import run_scrapers
 from execution.gateway import AlpacaGateway
 from ledger.master_ledger import MasterLedger
@@ -117,8 +117,7 @@ async def main(host: str | None = None, port: int | None = None) -> None:
         init_db()
         log.info("loading portfolios")
         load_portfolios()
-        log.info("starting scheduler")
-        sched.start()
+        # Scheduler is started during FastAPI's startup event
         log.info("running scrapers")
         await run_scrapers(force=True)
     except Exception as exc:  # pragma: no cover - startup errors
