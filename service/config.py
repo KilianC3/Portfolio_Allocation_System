@@ -157,11 +157,11 @@ DEFAULT_SCHEDULES = {
     "app_reviews": "0 6 * * *",
     "google_trends": "0 7 * * *",
     "insider_buying": "0 8 * * *",
-    "vol_mom": "0 9 * * *",
-    "lev_sector": "30 9 * * *",
-    "sector_mom": "0 10 * * *",
-    "smallcap_mom": "30 10 * * *",
-    "upgrade_mom": "0 11 * * *",
+    "vol_mom": "0 9 * * 1",
+    "lev_sector": "30 9 * * 1",
+    "sector_mom": "0 10 * * 1",
+    "smallcap_mom": "30 10 * * 1",
+    "upgrade_mom": "0 11 * * 1",
 }
 
 # Allow overrides via environment variables prefixed with SCHED_
