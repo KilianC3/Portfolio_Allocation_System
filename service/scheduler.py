@@ -193,22 +193,27 @@ class StrategyScheduler:
                     continue
                 trigger = CronTrigger.from_crontab(sched)
                 job = self.scheduler.add_job(func, trigger, id=job_id)
-            jobs_coll.update_one(
-                {"id": job.id},
-                {"$set": {"next_run": job.next_run_time}},
-                upsert=True,
-            )
+            next_run = getattr(job, "next_run_time", None)
+            if next_run is not None:
+                jobs_coll.update_one(
+                    {"id": job.id},
+                    {"$set": {"next_run": next_run}},
+                    upsert=True,
+                )
+            else:
+                _log.warning("Job %s has no next_run_time; skipping", job.id)
 
         def _listener(event):
             job = self.scheduler.get_job(event.job_id)
             if not job:
                 return
+            next_run = getattr(job, "next_run_time", None)
             jobs_coll.update_one(
                 {"id": job.id},
                 {
                     "$set": {
                         "last_run": dt.datetime.now(dt.timezone.utc),
-                        "next_run": job.next_run_time,
+                        "next_run": next_run,
                     }
                 },
                 upsert=True,
