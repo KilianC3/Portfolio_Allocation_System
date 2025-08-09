@@ -1,5 +1,15 @@
 # API Reference
 
+## `GET /db`
+
+List all available database tables. The `system_logs` table is included so log
+records can be inspected through the same interface as other datasets.
+
+## `DELETE /db/system_logs`
+
+Clear old log entries from the `system_logs` table. The optional `days`
+parameter (default `30`) determines the age threshold of removed rows.
+
 ## `GET /db/{table}`
 
 Return records from a database collection. Supports pagination, optional field

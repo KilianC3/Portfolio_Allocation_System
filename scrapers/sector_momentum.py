@@ -40,3 +40,8 @@ def fetch_sector_momentum_summary(weeks: int = 26) -> List[dict]:
         append_snapshot("sector_momentum_weekly", rows)
     log.info("sector_momentum_weekly wrote %d rows", len(rows))
     return rows
+
+
+if __name__ == "__main__":
+    rows = fetch_sector_momentum_summary()
+    print(f"ROWS={len(rows)}")

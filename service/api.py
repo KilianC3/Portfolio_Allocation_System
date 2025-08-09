@@ -550,6 +550,9 @@ def list_tables() -> Dict[str, List[str]]:
         cur.execute("SHOW TABLES")
         rows = cur.fetchall()
     tables = [next(iter(r.values())) for r in rows]
+    # Ensure the log table is visible even if created separately
+    if "system_logs" not in tables:
+        tables.append("system_logs")
     return {"tables": tables}
 
 
@@ -597,6 +600,13 @@ def read_table(
         csv_data = df.to_csv(index=False)
         return Response(content=csv_data, media_type="text/csv")
     return {"records": df.to_dict(orient="records")}
+
+
+@app.delete("/db/system_logs")
+def clear_db_logs(days: int = 30) -> Dict[str, int]:
+    """Remove log rows older than ``days`` and return the count deleted."""
+    removed = clear_system_logs(days)
+    return {"removed": removed}
 
 
 # Scheduler management endpoints

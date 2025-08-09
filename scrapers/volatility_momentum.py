@@ -60,3 +60,8 @@ def fetch_volatility_momentum_summary(weeks: int = 52) -> List[dict]:
         append_snapshot("volatility_momentum", rows)
     log.info("volatility_momentum wrote %d rows", len(rows))
     return rows
+
+
+if __name__ == "__main__":
+    rows = fetch_volatility_momentum_summary()
+    print(f"ROWS={len(rows)}")
