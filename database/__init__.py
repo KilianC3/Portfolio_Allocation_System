@@ -379,3 +379,6 @@ def clear_system_logs(days: int = 30) -> int:
             (cutoff,),
         )
         return cur.rowcount
+
+
+from .backup import backup_to_github, restore_from_github  # noqa: E402

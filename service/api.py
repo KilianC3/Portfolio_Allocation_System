@@ -29,6 +29,8 @@ from database import (
     db,
     db_ping,
     clear_system_logs,
+    backup_to_github,
+    restore_from_github,
     log_coll,
     vol_mom_coll,
     lev_sector_coll,
@@ -67,6 +69,7 @@ from service.config import (
     AUTO_START_SCHED,
     API_TOKEN,
 )
+import strategies
 
 
 log = get_logger("api")
@@ -298,6 +301,12 @@ def strategies_summary() -> Dict[str, Any]:
             }
         )
     return {"strategies": res}
+
+
+@app.get("/strategies")
+def list_strategies() -> Dict[str, List[str]]:
+    """Return the names of all available strategy classes."""
+    return {"strategies": list(getattr(strategies, "__all__", []))}
 
 
 @app.post("/portfolios")
@@ -607,6 +616,20 @@ def clear_db_logs(days: int = 30) -> Dict[str, int]:
     """Remove log rows older than ``days`` and return the count deleted."""
     removed = clear_system_logs(days)
     return {"removed": removed}
+
+
+@app.post("/db/backup")
+def backup_db() -> Dict[str, str]:
+    """Dump all tables and commit the snapshot to git."""
+    backup_to_github()
+    return {"status": "ok"}
+
+
+@app.post("/db/restore")
+def restore_db() -> Dict[str, int]:
+    """Pull the latest backup from git and restore tables."""
+    restored = restore_from_github()
+    return {"restored": restored}
 
 
 # Scheduler management endpoints

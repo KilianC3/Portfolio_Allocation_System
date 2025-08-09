@@ -30,3 +30,20 @@ Example:
 GET /db/returns?limit=10&sort_by=date&order=desc&fields=date,ret
 ```
 
+## `POST /db/backup`
+
+Export all MariaDB tables to JSON files under `database/backups` and commit the
+snapshot to the repository. This is a lightweight data backup for historical
+reference.
+
+## `POST /db/restore`
+
+Pull the latest backup snapshot from git and repopulate the MariaDB tables from
+the JSON files.
+
+## `GET /strategies`
+
+Return the list of strategy classes available in the `strategies` package so the
+front end can present every portfolio option even before metrics have been
+computed.
+
