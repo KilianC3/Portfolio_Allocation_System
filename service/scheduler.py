@@ -1,6 +1,7 @@
 import datetime as dt
 import asyncio
 import threading
+import logging
 import pandas as pd
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -31,6 +32,7 @@ from scrapers.upgrade_momentum import fetch_upgrade_momentum_summary
 from risk.tasks import compute_risk_stats, evaluate_risk_rules
 
 _log = get_logger("sched")
+logging.getLogger("apscheduler").setLevel(logging.WARNING)
 
 
 class StrategyScheduler:

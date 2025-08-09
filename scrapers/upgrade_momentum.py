@@ -31,6 +31,9 @@ async def fetch_upgrade_momentum_summary(
             scrape_errors.labels("upgrade_momentum_weekly").inc()
             log.exception("upgrade fetch failed: %s", exc)
             return []
+        if df.empty:
+            log.warning("upgrade momentum returned no data")
+            return []
         df["ratio"] = (df["upgrades"] - df["downgrades"]) / df["total"].replace(
             0, math.nan
         )

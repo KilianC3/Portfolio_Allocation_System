@@ -35,8 +35,13 @@ def fetch_smallcap_momentum_summary(
                 scrape_errors.labels("smallcap_momentum_weekly").inc()
                 log.exception("smallcap batch %s failed: %s", batch[:3], exc)
                 continue
+            if len(px) < weeks + 1:
+                log.warning(
+                    "smallcap batch %s insufficient rows (%d)", batch[:3], len(px)
+                )
+                continue
             last = px.iloc[-1]
-            ret = px.iloc[-1] / px.iloc[-weeks] - 1
+            ret = px.iloc[-1] / px.iloc[-(weeks + 1)] - 1
             df = pd.DataFrame({"price": last, "ret": ret})
             rets.append(df)
     if not rets:
