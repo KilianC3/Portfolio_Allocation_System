@@ -23,13 +23,11 @@ from scrapers.gov_contracts import fetch_gov_contracts
 from scrapers.app_reviews import fetch_app_reviews
 from scrapers.google_trends import fetch_google_trends
 from scrapers.insider_buying import fetch_insider_buying
-from scrapers.momentum_weekly import (
-    fetch_volatility_momentum_summary,
-    fetch_leveraged_sector_summary,
-    fetch_sector_momentum_summary,
-    fetch_smallcap_momentum_summary,
-    fetch_upgrade_momentum_summary,
-)
+from scrapers.volatility_momentum import fetch_volatility_momentum_summary
+from scrapers.leveraged_sector_momentum import fetch_leveraged_sector_summary
+from scrapers.sector_momentum import fetch_sector_momentum_summary
+from scrapers.smallcap_momentum import fetch_smallcap_momentum_summary
+from scrapers.upgrade_momentum import fetch_upgrade_momentum_summary
 from risk.tasks import compute_risk_stats, evaluate_risk_rules
 
 _log = get_logger("sched")

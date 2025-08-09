@@ -29,18 +29,25 @@ async def test_run_scrapers(monkeypatch):
     monkeypatch.setattr(pop, "fetch_app_reviews", fake)
     monkeypatch.setattr(pop, "fetch_google_trends", fake)
     monkeypatch.setattr(pop, "fetch_wsb_mentions", fake)
+    monkeypatch.setattr(pop, "fetch_volatility_momentum_summary", fake)
+    monkeypatch.setattr(pop, "fetch_leveraged_sector_summary", fake)
+    monkeypatch.setattr(pop, "fetch_sector_momentum_summary", fake)
+    monkeypatch.setattr(pop, "fetch_smallcap_momentum_summary", fake)
+    monkeypatch.setattr(pop, "fetch_upgrade_momentum_summary", fake)
+    monkeypatch.setattr(pop.full_fundamentals, "main", lambda *_a, **_k: calls.append("s"))
     monkeypatch.setattr(pop, "fetch_analyst_ratings", fake)
     monkeypatch.setattr(pop, "fetch_stock_news", fake)
     monkeypatch.setattr(pop, "fetch_insider_buying", fake)
     monkeypatch.setattr(
         pop,
         "fetch_sp500_history",
-        lambda d: [{"open": 1, "high": 1, "low": 1, "close": 1, "volume": 1}],
+        lambda d: calls.append("s")
+        or [{"open": 1, "high": 1, "low": 1, "close": 1, "volume": 1}],
     )
     monkeypatch.setattr(pop, "update_all_ticker_scores", lambda: calls.append("s"))
 
     await pop.run_scrapers()
-    assert calls.count("s") == 12
+    assert calls.count("s") == 19
 
 
 def test_health(monkeypatch):

@@ -13,6 +13,12 @@ def _get(path: str):
     return client.get(path + (sep + f"token={token}" if token else ""))
 
 
+def _delete(path: str):
+    token = API_TOKEN or ""
+    sep = "&" if "?" in path else "?"
+    return client.delete(path + (sep + f"token={token}" if token else ""))
+
+
 class DummyCursor:
     def __init__(self, docs):
         self.docs = docs
@@ -64,3 +70,46 @@ def test_read_table_invalid_order(monkeypatch):
 
     resp = _get("/db/test?order=sideways")
     assert resp.status_code == 400
+
+
+class DummyShowCursor:
+    def __init__(self, tables):
+        self.tables = tables
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def execute(self, sql):
+        pass
+
+    def fetchall(self):
+        return [{"Tables_in_test": t} for t in self.tables]
+
+
+class DummyConn:
+    def __init__(self, tables):
+        self._tables = tables
+
+    def cursor(self):
+        return DummyShowCursor(self._tables)
+
+
+def test_list_tables_includes_system_logs(monkeypatch):
+    dummy_db = type("D", (), {"conn": DummyConn(["alpha", "beta"])} )
+    monkeypatch.setattr(api_module, "db", dummy_db)
+    monkeypatch.setattr(api_module, "db_ping", lambda: None)
+
+    resp = _get("/db")
+    assert resp.status_code == 200
+    tables = resp.json()["tables"]
+    assert "system_logs" in tables
+
+
+def test_clear_db_logs(monkeypatch):
+    monkeypatch.setattr(api_module, "clear_system_logs", lambda days: 7)
+    resp = _delete("/db/system_logs")
+    assert resp.status_code == 200
+    assert resp.json()["removed"] == 7

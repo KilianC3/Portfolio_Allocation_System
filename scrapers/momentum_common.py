@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
+import datetime as dt
 import pandas as pd
 import yfinance as yf
 
@@ -10,10 +11,20 @@ _CHUNK = 100
 
 
 def _weekly_closes(tickers: list[str], weeks: int) -> pd.DataFrame:
-    """Return weekly close prices for ``tickers``."""
+    """Return weekly close prices for ``tickers``.
+
+    The previous implementation relied on yfinance's ``period`` argument with
+    values like ``"26wk"`` which are not supported by the API and resulted in
+    empty downloads.  Fetch data using explicit ``start`` and ``end`` dates so
+    all momentum scrapers receive the expected price history.
+    """
+
+    end = dt.date.today()
+    start = end - dt.timedelta(weeks=weeks + 1)
     df = yf.download(
         tickers,
-        period=f"{weeks + 1}wk",
+        start=start,
+        end=end + dt.timedelta(days=1),
         interval="1wk",
         group_by="ticker",
         threads=True,

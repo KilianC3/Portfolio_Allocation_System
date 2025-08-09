@@ -48,3 +48,12 @@ async def fetch_upgrade_momentum_summary(
         append_snapshot("upgrade_momentum_weekly", rows)
     log.info("upgrade_momentum_weekly wrote %d rows", len(rows))
     return rows
+
+
+if __name__ == "__main__":
+    import asyncio
+    from scrapers.universe import load_sp500, load_sp400, load_russell2000
+
+    universe = set(load_sp500()) | set(load_sp400()) | set(load_russell2000())
+    rows = asyncio.run(fetch_upgrade_momentum_summary(universe))
+    print(f"ROWS={len(rows)}")

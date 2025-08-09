@@ -57,3 +57,10 @@ def fetch_smallcap_momentum_summary(
         append_snapshot("smallcap_momentum_weekly", rows)
     log.info("smallcap_momentum_weekly wrote %d rows", len(rows))
     return rows
+
+
+if __name__ == "__main__":
+    from scrapers.universe import load_russell2000
+
+    rows = fetch_smallcap_momentum_summary(load_russell2000())
+    print(f"ROWS={len(rows)}")
