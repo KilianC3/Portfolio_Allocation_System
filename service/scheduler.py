@@ -50,13 +50,19 @@ class StrategyScheduler:
             name, gateway=AlpacaGateway(allow_live=ALLOW_LIVE), pf_id=pf_id
         )
         self.portfolios[pf_id] = pf
-        self.scheduler.add_job(
+        job = self.scheduler.add_job(
             strat_cls().build,
             "cron",
             args=[pf],
             id=pf_id,
             **CRON[cron_key],
         )
+        if self.scheduler.running:
+            next_run = getattr(job, "next_run_time", None)
+            if next_run is not None:
+                jobs_coll.update_one(
+                    {"id": job.id}, {"$set": {"next_run": next_run}}, upsert=True
+                )
 
     def register_jobs(self) -> None:
         """Register all configured jobs but do not start the scheduler."""
@@ -183,25 +189,16 @@ class StrategyScheduler:
         for job_id, func in job_funcs.items():
             if job_id == "realloc":
                 trigger = CronTrigger(day_of_week="fri", hour=21, minute=0)
-                job = self.scheduler.add_job(func, trigger, id=job_id)
+                self.scheduler.add_job(func, trigger, id=job_id)
             elif job_id == "full_fundamentals":
                 run_time = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)
-                job = self.scheduler.add_job(func, "date", run_date=run_time, id=job_id)
+                self.scheduler.add_job(func, "date", run_date=run_time, id=job_id)
             else:
                 sched = SCHEDULES.get(job_id)
                 if not sched:
                     continue
                 trigger = CronTrigger.from_crontab(sched)
-                job = self.scheduler.add_job(func, trigger, id=job_id)
-            next_run = getattr(job, "next_run_time", None)
-            if next_run is not None:
-                jobs_coll.update_one(
-                    {"id": job.id},
-                    {"$set": {"next_run": next_run}},
-                    upsert=True,
-                )
-            else:
-                _log.warning("Job %s has no next_run_time; skipping", job.id)
+                self.scheduler.add_job(func, trigger, id=job_id)
 
         def _listener(event):
             job = self.scheduler.get_job(event.job_id)
@@ -223,7 +220,10 @@ class StrategyScheduler:
         self._registered = True
 
     def start(self):
-        """Start the scheduler, creating an event loop if needed."""
+        """Start the scheduler, registering jobs if needed."""
+        if not self._registered:
+            self.register_jobs()
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -237,6 +237,13 @@ class StrategyScheduler:
             self.scheduler.configure(event_loop=loop)
 
         self.scheduler.start()
+
+        for job in self.scheduler.get_jobs():
+            next_run = getattr(job, "next_run_time", None)
+            if next_run is not None:
+                jobs_coll.update_one(
+                    {"id": job.id}, {"$set": {"next_run": next_run}}, upsert=True
+                )
 
     def stop(self):
         """Stop all scheduled jobs without blocking."""
