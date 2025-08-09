@@ -1,19 +1,19 @@
 # Portfolio Allocation System (PAS)
 
-The Portfolio Allocation System is an end‑to‑end platform for constructing and
-managing multi‑strategy equity portfolios.  It combines data collection,
-analytics, execution and reporting in a single deployable service.
+Portfolio Allocation System (PAS) is a full‑stack platform for constructing and
+managing multi‑strategy equity portfolios. It integrates data ingestion,
+analytics, execution and reporting into a single deployable service.
 
 ## Features
 
 - **Flexible allocation engine** – supports max‑Sharpe (default), risk parity,
-  minimum variance, strategic (SAA), tactical (TAA) and dynamic schemes.  Each
+  minimum variance, strategic (SAA), tactical (TAA) and dynamic schemes. Each
   method is evaluated continuously so historical performance can be compared.
-- **Fama–French analytics** – market, size and value factors are used to
-  estimate expected returns and portfolio betas.
-- **Comprehensive ledger** – Redis backed ledger tracks reservations,
+- **Fama–French analytics** – market, size and value factors estimate expected
+  returns and portfolio betas.
+- **Comprehensive ledger** – Redis‑backed ledger tracks reservations,
   executions and cancellations and exposes current positions and free float.
-- **Real‑time metrics** – metrics and system log events are broadcast over a
+- **Real‑time metrics** – metrics and system log events are broadcast via a
   WebSocket hub; the updater task aggregates daily returns and exposures for
   dashboards.
 - **Rich front end** – Chart.js visualisations render risk metrics, returns and
@@ -34,7 +34,7 @@ The repository follows a modular layout:
 | `docs/` | additional documentation including WebSocket protocol details |
 
 MariaDB stores persistent data while Redis caches hot metrics and maintains the
-trade ledger.  All services can run locally or inside Docker containers.
+trade ledger. All services can run locally or inside Docker containers.
 
 ## Getting Started
 
@@ -49,8 +49,8 @@ trade ledger.  All services can run locally or inside Docker containers.
 
 1. Clone the repository.
 2. Populate `service/config.yaml` with database and API credentials. Cron
-   schedules for background jobs are now defined in `service/config.py` and do
-   not require entries in the YAML file.
+   schedules for background jobs are defined in `service/config.py` and do not
+   require entries in the YAML file.
 3. Install dependencies:
 
    ```bash
