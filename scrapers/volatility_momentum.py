@@ -42,6 +42,9 @@ def fetch_volatility_momentum_summary(weeks: int = 52) -> List[dict]:
                 scrape_errors.labels("volatility_momentum").inc()
                 log.exception("vol batch %s failed: %s", batch[:3], exc)
                 continue
+            if len(px) < weeks + 1:
+                log.warning("vol batch %s insufficient rows (%d)", batch[:3], len(px))
+                continue
             df = _score_vol_mom(px)
             score_frames.append(df)
     if not score_frames:

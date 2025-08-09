@@ -131,7 +131,10 @@ async def run_scrapers(force: bool = False) -> None:
                     val = next(iter(data.values()))
                     if isinstance(val, dict):
                         cols = len(val)
-            _log.info(f"{name} PASS {rows}x{cols}")
+            if rows == 0:
+                _log.warning(f"{name} produced no rows")
+            else:
+                _log.info(f"{name} PASS {rows}x{cols}")
         except Exception as exc:
             _log.exception(f"{name} FAIL: {exc}")
 

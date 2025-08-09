@@ -26,7 +26,10 @@ def fetch_leveraged_sector_summary(weeks: int = 13) -> List[dict]:
             scrape_errors.labels("leveraged_sector_momentum").inc()
             log.exception("leveraged batch failed: %s", exc)
             return []
-        ret = px.iloc[-1] / px.iloc[-weeks] - 1
+        if len(px) < weeks + 1:
+            log.warning("leveraged sector insufficient rows (%d)", len(px))
+            return []
+        ret = px.iloc[-1] / px.iloc[-(weeks + 1)] - 1
         top = ret.sort_values(ascending=False).head(_LEV_N)
         rows: List[dict] = []
         lev_sector_coll.delete_many({"date": end})

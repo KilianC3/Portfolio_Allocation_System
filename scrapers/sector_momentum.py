@@ -26,7 +26,10 @@ def fetch_sector_momentum_summary(weeks: int = 26) -> List[dict]:
             scrape_errors.labels("sector_momentum_weekly").inc()
             log.exception("sector batch failed: %s", exc)
             return []
-        ret = px.iloc[-1] / px.iloc[-weeks] - 1
+        if len(px) < weeks + 1:
+            log.warning("sector momentum insufficient rows (%d)", len(px))
+            return []
+        ret = px.iloc[-1] / px.iloc[-(weeks + 1)] - 1
         top = ret.sort_values(ascending=False).head(_SECTOR_N)
         rows: List[dict] = []
         sector_mom_coll.delete_many({"date": end})
