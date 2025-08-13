@@ -16,7 +16,11 @@ def _weekly_closes(tickers: list[str], weeks: int) -> pd.DataFrame:
     The previous implementation relied on yfinance's ``period`` argument with
     values like ``"26wk"`` which are not supported by the API and resulted in
     empty downloads.  Fetch data using explicit ``start`` and ``end`` dates so
-    all momentum scrapers receive the expected price history.
+    all momentum scrapers receive the expected price history.  Recent versions
+    of yfinance also changed the default ``auto_adjust`` flag which removed the
+    raw ``Close`` column, breaking our downstream ratio calculations.  Explicitly
+    disable adjustment and corporate action handling so the returned frame always
+    contains unadjusted close prices.
     """
 
     end = dt.date.today()
@@ -29,6 +33,8 @@ def _weekly_closes(tickers: list[str], weeks: int) -> pd.DataFrame:
         group_by="column",
         threads=True,
         progress=False,
+        auto_adjust=False,
+        actions=False,
     )
     if isinstance(df, pd.Series):
         df = df.to_frame(tickers[0])
