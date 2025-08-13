@@ -24,11 +24,28 @@ def _score_vol_mom(px: pd.DataFrame) -> pd.DataFrame:
     score = ret_52w / vol_12w.replace(0, math.nan)
     df = pd.DataFrame({"score": score, "ret_52w": ret_52w, "vol_12w": vol_12w})
     return df.dropna()
+def _tickers_from_universe(df: pd.DataFrame) -> List[str]:
+    """Extract a list of ticker symbols from ``df``."""
+    ticker_col = None
+    for cand in ("ticker", "symbol", "Symbol", "TICKER", "SYMBOL"):
+        if cand in df.columns:
+            ticker_col = cand
+            break
+    if ticker_col is None:
+        raise ValueError("Universe DataFrame does not contain a ticker column")
+    return df[ticker_col].astype(str).str.upper().str.strip().tolist()
 
 
-def fetch_volatility_momentum_summary(weeks: int = 52) -> List[dict]:
+def fetch_volatility_momentum_summary(
+    weeks: int = 52,
+    top_n: int = _VOL_N,
+    max_tickers: int | None = None,
+) -> List[dict]:
     """Store volatility-scaled momentum scores for the full universe."""
-    tickers = load_universe_any()
+    universe_df = load_universe_any()
+    tickers = _tickers_from_universe(universe_df)
+    if max_tickers is not None:
+        tickers = tickers[:max_tickers]
     init_db()
     score_frames: list[pd.DataFrame] = []
     end = dt.date.today()
@@ -50,7 +67,7 @@ def fetch_volatility_momentum_summary(weeks: int = 52) -> List[dict]:
     if not score_frames:
         return []
     all_scores = pd.concat(score_frames)
-    top = all_scores.sort_values("score", ascending=False).head(_VOL_N)
+    top = all_scores.sort_values("score", ascending=False).head(top_n)
     vol_mom_coll.delete_many({"date": end})
     rows: List[dict] = []
     for sym in top.index:
@@ -66,5 +83,5 @@ def fetch_volatility_momentum_summary(weeks: int = 52) -> List[dict]:
 
 
 if __name__ == "__main__":
-    rows = fetch_volatility_momentum_summary()
+    rows = fetch_volatility_momentum_summary(top_n=5, max_tickers=50)
     print(f"ROWS={len(rows)}")

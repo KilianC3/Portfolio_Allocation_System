@@ -12,6 +12,11 @@ import scrapers.analyst_ratings as ar
 import scrapers.universe as univ
 import scrapers.sp500_index as spx
 import scrapers.google_trends as gt
+import scrapers.sector_momentum as sm
+import scrapers.leveraged_sector_momentum as lsm
+import scrapers.smallcap_momentum as scm
+import scrapers.upgrade_momentum as um
+import scrapers.volatility_momentum as vm
 
 
 async def _fake_get(*_args, **_kw):
@@ -256,3 +261,54 @@ async def test_lobbying_no_table(monkeypatch):
     monkeypatch.setattr(lb, "async_playwright", lambda: DummyPW())
     rows = await lb.fetch_lobbying_data()
     assert rows == []
+
+
+def _fake_weekly_closes(tickers, weeks):
+    idx = pd.date_range("2024-01-01", periods=weeks + 1, freq="W")
+    data = {sym: range(1, weeks + 2) for sym in tickers}
+    return pd.DataFrame(data, index=idx)
+
+
+@pytest.mark.asyncio
+async def test_momentum_scrapers(monkeypatch):
+    tickers = [f"T{i}" for i in range(6)]
+
+    monkeypatch.setattr(sm, "_weekly_closes", _fake_weekly_closes)
+    monkeypatch.setattr(sm, "sector_mom_coll", mock.Mock())
+    rows = sm.fetch_sector_momentum_summary(weeks=1, top_n=5)
+    assert len(rows) == 5
+
+    monkeypatch.setattr(lsm, "_weekly_closes", _fake_weekly_closes)
+    monkeypatch.setattr(lsm, "lev_sector_coll", mock.Mock())
+    rows = lsm.fetch_leveraged_sector_summary(weeks=1, top_n=5)
+    assert len(rows) == 5
+
+    monkeypatch.setattr(scm, "_weekly_closes", _fake_weekly_closes)
+    monkeypatch.setattr(scm, "smallcap_mom_coll", mock.Mock())
+    rows = scm.fetch_smallcap_momentum_summary(
+        tickers, weeks=1, top_n=5, max_tickers=5
+    )
+    assert len(rows) == 5
+
+    async def fake_changes(symbols, weeks=4):
+        return pd.DataFrame(
+            {
+                "symbol": symbols,
+                "upgrades": [1] * len(symbols),
+                "downgrades": [0] * len(symbols),
+                "total": [1] * len(symbols),
+            }
+        )
+
+    monkeypatch.setattr(um, "fetch_changes", fake_changes)
+    monkeypatch.setattr(um, "upgrade_mom_coll", mock.Mock())
+    rows = await um.fetch_upgrade_momentum_summary(tickers, weeks=1, top_n=5)
+    assert len(rows) == 5
+
+    monkeypatch.setattr(vm, "_weekly_closes", _fake_weekly_closes)
+    monkeypatch.setattr(vm, "vol_mom_coll", mock.Mock())
+    monkeypatch.setattr(vm, "load_universe_any", lambda: pd.DataFrame({"ticker": tickers}))
+    rows = vm.fetch_volatility_momentum_summary(
+        weeks=2, top_n=5, max_tickers=5
+    )
+    assert len(rows) == 5

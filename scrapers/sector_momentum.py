@@ -14,8 +14,18 @@ log = get_scraper_logger(__name__)
 _SECTOR_N = 3
 
 
-def fetch_sector_momentum_summary(weeks: int = 26) -> List[dict]:
-    """Store 26-week returns for S&P sector ETFs."""
+def fetch_sector_momentum_summary(weeks: int = 26, top_n: int = _SECTOR_N) -> List[dict]:
+    """Store 26-week returns for S&P sector ETFs.
+
+    Parameters
+    ----------
+    weeks:
+        Lookback window for momentum computation.
+    top_n:
+        Number of rows to persist and return.  Allowing the caller to limit the
+        result keeps test runs lightweight and satisfies the requirement to
+        collect only a handful of rows.
+    """
     init_db()
     end = dt.date.today()
     now = dt.datetime.now(dt.timezone.utc)
@@ -30,7 +40,7 @@ def fetch_sector_momentum_summary(weeks: int = 26) -> List[dict]:
             log.warning("sector momentum insufficient rows (%d)", len(px))
             return []
         ret = px.iloc[-1] / px.iloc[-(weeks + 1)] - 1
-        top = ret.sort_values(ascending=False).head(_SECTOR_N)
+        top = ret.sort_values(ascending=False).head(top_n)
         rows: List[dict] = []
         sector_mom_coll.delete_many({"date": end})
         for sym in top.index:
@@ -46,5 +56,5 @@ def fetch_sector_momentum_summary(weeks: int = 26) -> List[dict]:
 
 
 if __name__ == "__main__":
-    rows = fetch_sector_momentum_summary()
+    rows = fetch_sector_momentum_summary(top_n=5)
     print(f"ROWS={len(rows)}")
