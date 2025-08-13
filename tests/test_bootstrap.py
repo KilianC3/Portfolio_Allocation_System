@@ -1,3 +1,4 @@
+import asyncio
 import pytest
 
 
@@ -101,3 +102,77 @@ def test_bootstrap_main(monkeypatch):
 
     boot.main()
     assert calls == ["api"]
+
+
+@pytest.mark.asyncio
+async def test_bootstrap_runs_momentum_scrapers(monkeypatch):
+    import service.start as start_mod
+
+    calls: list[str] = []
+
+    async def fake_launch_server(*_a, **_k):
+        class DummyServer:
+            started = True
+            should_exit = False
+
+        return DummyServer(), asyncio.create_task(asyncio.sleep(0))
+
+    monkeypatch.setattr(start_mod, "_launch_server", fake_launch_server)
+    monkeypatch.setattr(start_mod, "validate_config", lambda: None)
+
+    async def fake_checklist():
+        return None
+
+    monkeypatch.setattr(start_mod, "system_checklist", fake_checklist)
+    monkeypatch.setattr(start_mod, "init_db", lambda: None)
+    monkeypatch.setattr(start_mod, "load_portfolios", lambda: None)
+
+    # lightweight universe helpers
+    monkeypatch.setattr(pop, "init_db", lambda: None)
+    monkeypatch.setattr(pop, "download_sp500", lambda: None)
+    monkeypatch.setattr(pop, "download_sp400", lambda: None)
+    monkeypatch.setattr(pop, "download_russell2000", lambda: None)
+    monkeypatch.setattr(pop, "load_sp500", lambda: ["AAPL"])
+    monkeypatch.setattr(pop, "load_sp400", lambda: ["MSFT"])
+    monkeypatch.setattr(pop, "load_russell2000", lambda: ["X"] * 10)
+
+    def mark(name):
+        def inner(*_a, **_k):
+            calls.append(name)
+            return []
+
+        return inner
+
+    async def fake_upgrade(*_a, **_k):
+        calls.append("up")
+        return []
+
+    # momentum scrapers we want to ensure are executed
+    monkeypatch.setattr(pop, "fetch_volatility_momentum_summary", mark("vol"))
+    monkeypatch.setattr(pop, "fetch_leveraged_sector_summary", mark("lev"))
+    monkeypatch.setattr(pop, "fetch_sector_momentum_summary", mark("sec"))
+    monkeypatch.setattr(pop, "fetch_smallcap_momentum_summary", mark("small"))
+    monkeypatch.setattr(pop, "fetch_upgrade_momentum_summary", fake_upgrade)
+
+    # remaining scrapers stubbed to avoid network calls
+    for fn in [
+        "fetch_politician_trades",
+        "fetch_lobbying_data",
+        "fetch_trending_wiki_views",
+        "fetch_dc_insider_scores",
+        "fetch_gov_contracts",
+        "fetch_app_reviews",
+        "fetch_google_trends",
+        "fetch_wsb_mentions",
+        "fetch_analyst_ratings",
+        "fetch_stock_news",
+        "fetch_insider_buying",
+    ]:
+        monkeypatch.setattr(pop, fn, mark("stub"))
+
+    monkeypatch.setattr(pop.full_fundamentals, "main", lambda *_a, **_k: [])
+    monkeypatch.setattr(pop, "fetch_sp500_history", lambda *_a, **_k: [])
+    monkeypatch.setattr(pop, "update_all_ticker_scores", lambda: None)
+
+    await start_mod.main("x", 0)
+    assert {"vol", "lev", "sec", "small", "up"} <= set(calls)
