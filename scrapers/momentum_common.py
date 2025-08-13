@@ -26,7 +26,7 @@ def _weekly_closes(tickers: list[str], weeks: int) -> pd.DataFrame:
         start=start,
         end=end + dt.timedelta(days=1),
         interval="1wk",
-        group_by="ticker",
+        group_by="column",
         threads=True,
         progress=False,
     )

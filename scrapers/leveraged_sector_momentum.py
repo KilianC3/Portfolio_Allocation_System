@@ -14,8 +14,19 @@ log = get_scraper_logger(__name__)
 _LEV_N = 3
 
 
-def fetch_leveraged_sector_summary(weeks: int = 13) -> List[dict]:
-    """Store 13-week returns for leveraged sector ETFs."""
+def fetch_leveraged_sector_summary(
+    weeks: int = 13, top_n: int = _LEV_N
+) -> List[dict]:
+    """Store 13-week returns for leveraged sector ETFs.
+
+    Parameters
+    ----------
+    weeks:
+        Lookback window for momentum computation.
+    top_n:
+        Number of ETFs to keep.  Exposing this allows callers to limit rows
+        during testing.
+    """
     init_db()
     end = dt.date.today()
     now = dt.datetime.now(dt.timezone.utc)
@@ -30,7 +41,7 @@ def fetch_leveraged_sector_summary(weeks: int = 13) -> List[dict]:
             log.warning("leveraged sector insufficient rows (%d)", len(px))
             return []
         ret = px.iloc[-1] / px.iloc[-(weeks + 1)] - 1
-        top = ret.sort_values(ascending=False).head(_LEV_N)
+        top = ret.sort_values(ascending=False).head(top_n)
         rows: List[dict] = []
         lev_sector_coll.delete_many({"date": end})
         for sym in top.index:
@@ -46,5 +57,5 @@ def fetch_leveraged_sector_summary(weeks: int = 13) -> List[dict]:
 
 
 if __name__ == "__main__":
-    rows = fetch_leveraged_sector_summary()
+    rows = fetch_leveraged_sector_summary(top_n=5)
     print(f"ROWS={len(rows)}")

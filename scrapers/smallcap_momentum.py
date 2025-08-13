@@ -16,10 +16,29 @@ _SMALL_N = 10
 
 
 def fetch_smallcap_momentum_summary(
-    tickers: Iterable[str], weeks: int = 4
+    tickers: Iterable[str],
+    weeks: int = 4,
+    top_n: int = _SMALL_N,
+    max_tickers: int | None = None,
 ) -> List[dict]:
-    """Store top weekly return small caps."""
+    """Store top weekly return small caps.
+
+    Parameters
+    ----------
+    tickers:
+        Universe of symbols to evaluate.
+    weeks:
+        Lookback window for the momentum ratio.
+    top_n:
+        Number of rows returned.
+    max_tickers:
+        Optional cap on how many tickers are processed.  Truncating the universe
+        keeps test runs fast and avoids large downloads when a full Russell 2000
+        list is supplied.
+    """
     symbols = list(tickers)
+    if max_tickers is not None:
+        symbols = symbols[:max_tickers]
     if not symbols:
         return []
     init_db()
@@ -48,7 +67,7 @@ def fetch_smallcap_momentum_summary(
         return []
     all_df = pd.concat(rets)
     top = (
-        all_df.dropna(subset=["ret"]).sort_values("ret", ascending=False).head(_SMALL_N)
+        all_df.dropna(subset=["ret"]).sort_values("ret", ascending=False).head(top_n)
     )
     smallcap_mom_coll.delete_many({"date": end})
     rows: List[dict] = []
@@ -65,7 +84,10 @@ def fetch_smallcap_momentum_summary(
 
 
 if __name__ == "__main__":
-    from scrapers.universe import load_russell2000
+    from scrapers.universe import download_russell2000, load_russell2000
 
-    rows = fetch_smallcap_momentum_summary(load_russell2000())
+    download_russell2000()
+    rows = fetch_smallcap_momentum_summary(
+        load_russell2000(), top_n=5, max_tickers=50
+    )
     print(f"ROWS={len(rows)}")

@@ -15,10 +15,28 @@ _UPGRADE_N = 15
 
 
 async def fetch_upgrade_momentum_summary(
-    universe: Iterable[str], weeks: int = 4
+    universe: Iterable[str],
+    weeks: int = 4,
+    top_n: int = _UPGRADE_N,
+    max_symbols: int | None = None,
 ) -> List[dict]:
-    """Store analyst upgrade momentum ratios for ``universe``."""
+    """Store analyst upgrade momentum ratios for ``universe``.
+
+    Parameters
+    ----------
+    universe:
+        Iterable of tickers to evaluate.
+    weeks:
+        Lookback window for analyst rating changes.
+    top_n:
+        Number of rows returned.
+    max_symbols:
+        Optional cap on how many symbols are queried.  Limiting the universe
+        keeps calls to the QuiverQuant API small during tests.
+    """
     symbols = list(universe)
+    if max_symbols is not None:
+        symbols = symbols[:max_symbols]
     if not symbols:
         return []
     init_db()
@@ -38,7 +56,7 @@ async def fetch_upgrade_momentum_summary(
             0, math.nan
         )
         df = df.dropna(subset=["ratio"]).sort_values("ratio", ascending=False)
-        top = df.head(_UPGRADE_N)
+        top = df.head(top_n)
         rows: List[dict] = []
         upgrade_mom_coll.delete_many({"date": end})
         for _, row in top.iterrows():
@@ -58,5 +76,7 @@ if __name__ == "__main__":
     from scrapers.universe import load_sp500, load_sp400, load_russell2000
 
     universe = set(load_sp500()) | set(load_sp400()) | set(load_russell2000())
-    rows = asyncio.run(fetch_upgrade_momentum_summary(universe))
+    rows = asyncio.run(
+        fetch_upgrade_momentum_summary(universe, top_n=5, max_symbols=100)
+    )
     print(f"ROWS={len(rows)}")

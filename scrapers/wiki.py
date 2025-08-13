@@ -16,6 +16,7 @@ from database import db, pf_coll, wiki_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 from service.logger import get_scraper_logger
+import scrapers.universe as univ
 
 log = get_scraper_logger(__name__)
 from strategies.wiki_attention import index_map, wiki_title, trending_candidates
@@ -250,7 +251,19 @@ def load_universe_any() -> pd.DataFrame:
     if df is not None:
         print(f"[INFO] Loaded universe from collection: shape={df.shape}")
         return df
-    raise RuntimeError("Could not load universe from MariaDB.")
+    # Fall back to CSV universes when the database is unavailable
+    try:
+        paths = [
+            univ.download_sp500(),
+            univ.download_sp400(),
+            univ.download_russell2000(),
+        ]
+        frames = [pd.read_csv(p) for p in paths]
+        df = pd.concat(frames, ignore_index=True).drop_duplicates()
+        print(f"[INFO] Loaded universe from CSV: shape={df.shape}")
+        return df
+    except Exception as exc:
+        raise RuntimeError("Could not load universe from MariaDB or CSV.") from exc
 
 
 def build_portfolio(

@@ -270,7 +270,7 @@ async def fetch_analyst_ratings(limit: int = 15) -> List[dict]:
 
 
 async def fetch_changes(symbols: Iterable[str], weeks: int = 4) -> pd.DataFrame:
-    cutoff = pd.Timestamp.today(tz=dt.timezone.utc) - pd.Timedelta(weeks=weeks)
+    cutoff = pd.Timestamp.today() - pd.Timedelta(weeks=weeks)
     all_records = await fetch_analyst_ratings(limit=200)
     df = pd.DataFrame(all_records)
     if df.empty:
@@ -284,7 +284,7 @@ async def fetch_changes(symbols: Iterable[str], weeks: int = 4) -> pd.DataFrame:
                 "numAnalystOpinions",
             ]
         )
-    df["date"] = pd.to_datetime(df["date_utc"], errors="coerce")
+    df["date"] = pd.to_datetime(df["date_utc"], errors="coerce").dt.tz_localize(None)
     df = df.dropna(subset=["date"])
     df = df[df["date"] >= cutoff]
     rows: List[dict] = []
