@@ -2,8 +2,9 @@
 # Install and configure Redis for the portfolio system.
 set -euo pipefail
 
-REDIS_IP="192.168.0.59"
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# Allow an explicit IP override, otherwise derive it from config.yaml
+REDIS_IP="${1:-$(grep '^REDIS_URL:' "$APP_DIR/service/config.yaml" | sed -E 's/.*@([0-9.]+):.*/\1/')}"
 API_TOKEN=$(grep '^API_TOKEN:' "$APP_DIR/service/config.yaml" | awk '{print $2}' | tr -d '"')
 
 sudo apt-get update

@@ -23,6 +23,7 @@ import numpy as np
 from metrics import scrape_latency, scrape_errors
 from service.logger import get_logger
 from infra.github_backup import backup_records
+from scrapers.yf_utils import extract_close_volume
 
 log = get_logger(__name__)
 
@@ -108,24 +109,7 @@ def _fetch_history(symbols: Iterable[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
         progress=False,
     )
     log.debug("download columns: %s", df.columns)
-    if isinstance(df.columns, pd.MultiIndex):
-        lvl0 = df.columns.get_level_values(0)
-        lvl1 = df.columns.get_level_values(1)
-        if "Close" in lvl0:
-            closes = df.xs("Close", level=0, axis=1)
-            vols = df.xs("Volume", level=0, axis=1) if "Volume" in lvl0 else None
-        elif "Close" in lvl1:
-            closes = df.xs("Close", level=1, axis=1)
-            vols = df.xs("Volume", level=1, axis=1) if "Volume" in lvl1 else None
-        elif "Adj Close" in lvl1:
-            closes = df.xs("Adj Close", level=1, axis=1)
-            vols = df.xs("Volume", level=1, axis=1) if "Volume" in lvl1 else None
-        else:
-            closes = pd.DataFrame()
-            vols = None
-    else:
-        closes = df["Close"] if "Close" in df else pd.DataFrame()
-        vols = df["Volume"] if "Volume" in df else None
+    closes, vols = extract_close_volume(df)
     if isinstance(closes, pd.Series):
         key = list(yf_map.keys())[0]
         closes = closes.to_frame(key)
@@ -190,7 +174,7 @@ def _gather_metrics(symbols: Iterable[str], index_name: str) -> pd.DataFrame:
             "ret_3m": float(px.iloc[-1] / px.iloc[-63] - 1) if len(px) > 62 else 0.0,
             "ret_6m": float(px.iloc[-1] / px.iloc[-126] - 1) if len(px) > 125 else 0.0,
             "ret_12m": (
-                float(px.iloc[-22] / px.iloc[-273] - 1) if len(px) > 272 else 0.0
+                float(px.iloc[-1] / px.iloc[-253] - 1) if len(px) > 252 else 0.0
             ),
             "illiq": illiq,
             "short_ratio": fund.get("short_ratio"),

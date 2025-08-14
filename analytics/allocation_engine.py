@@ -6,6 +6,8 @@ from typing import Mapping, Optional, Callable
 
 import numpy as np
 import pandas as pd
+import datetime as dt
+import time
 
 try:  # pragma: no cover - optional Rust extension
     import risk_parity_rs as _risk_parity_rs
@@ -36,15 +38,28 @@ _log = get_logger("alloc")
 def _log_to_db(
     table: pd.DataFrame, extras: Optional[Mapping[str, float]] = None
 ) -> None:
-    """Persist scoring table for audit; ignore failures."""
-    try:
-        coll = alloc_log_coll if alloc_log_coll else db["alloc_log"]
-        doc = table.reset_index().rename(columns={"index": "symbol"}).to_dict()
-        if extras:
-            doc.update(extras)
-        coll.insert_one(doc)
-    except Exception as exc:  # pragma: no cover - logging should not fail tests
-        _log.warning({"db_error": str(exc)})
+    """Persist scoring table for audit with basic durability."""
+    required = {"mu", "weight"}
+    if not required.issubset(table.columns):
+        _log.warning({"db_error": "missing columns"})
+        return
+    coll = alloc_log_coll if alloc_log_coll else db["alloc_log"]
+    doc = {
+        "schema": 1,
+        "timestamp": dt.datetime.utcnow(),
+        "rows": table.reset_index()
+        .rename(columns={"index": "symbol"})
+        .to_dict("records"),
+    }
+    if extras:
+        doc.update(extras)
+    for attempt in range(3):
+        try:
+            coll.insert_one(doc)
+            return
+        except Exception as exc:  # pragma: no cover - logging should not fail tests
+            _log.warning({"db_error": str(exc), "attempt": attempt + 1})
+            time.sleep(2**attempt)
 
 
 def _tangency_weights(

@@ -70,21 +70,26 @@ class StrategyScheduler:
             return
 
         async def realloc_job():
-            start = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=90)
-            cur = metric_coll.find(
-                {"date": {"$gte": start.date()}},
-                {"portfolio_id": 1, "date": 1, "ret": 1},
-            )
-            df = pd.DataFrame(list(cur))
-            if df.empty:
+            def _calc_weights():
+                start = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=90)
+                cur = metric_coll.find(
+                    {"date": {"$gte": start.date()}},
+                    {"portfolio_id": 1, "date": 1, "ret": 1},
+                )
+                df = pd.DataFrame(list(cur))
+                if df.empty:
+                    return None
+                piv = df.pivot(
+                    index="date", columns="portfolio_id", values="ret"
+                ).dropna(axis=1)
+                weekly = (1 + piv).resample("W-FRI").prod() - 1
+                return compute_weights(
+                    weekly, w_prev=self.last_weights, method=ALLOC_METHOD
+                )
+
+            weights = await asyncio.to_thread(_calc_weights)
+            if not weights:
                 return
-            piv = df.pivot(index="date", columns="portfolio_id", values="ret").dropna(
-                axis=1
-            )
-            weekly = (1 + piv).resample("W-FRI").prod() - 1
-            weights = compute_weights(
-                weekly, w_prev=self.last_weights, method=ALLOC_METHOD
-            )
             self.last_weights = weights
             for pid, wt in weights.items():
                 pf = self.portfolios.get(pid)
@@ -93,11 +98,11 @@ class StrategyScheduler:
                     pf.set_weights(new)
                     await pf.rebalance()
 
-        def metrics_job():
-            update_all_metrics()
+        async def metrics_job():
+            await asyncio.to_thread(update_all_metrics)
 
-        def ticker_job():
-            update_all_ticker_scores()
+        async def ticker_job():
+            await asyncio.to_thread(update_all_ticker_scores)
 
         async def wsb_job():
             await fetch_wsb_mentions()
@@ -161,6 +166,12 @@ class StrategyScheduler:
         async def upgrade_mom_job():
             await fetch_upgrade_momentum_summary()
 
+        async def risk_stats_job():
+            await asyncio.to_thread(compute_risk_stats)
+
+        async def risk_rules_job():
+            await asyncio.to_thread(evaluate_risk_rules)
+
         job_funcs = {
             "realloc": realloc_job,
             "metrics": metrics_job,
@@ -182,8 +193,8 @@ class StrategyScheduler:
             "sector_mom": sector_mom_job,
             "smallcap_mom": smallcap_mom_job,
             "upgrade_mom": upgrade_mom_job,
-            "risk_stats": compute_risk_stats,
-            "risk_rules": evaluate_risk_rules,
+            "risk_stats": risk_stats_job,
+            "risk_rules": risk_rules_job,
         }
 
         for job_id, func in job_funcs.items():
@@ -197,7 +208,11 @@ class StrategyScheduler:
                 sched = SCHEDULES.get(job_id)
                 if not sched:
                     continue
-                trigger = CronTrigger.from_crontab(sched)
+                try:
+                    trigger = CronTrigger.from_crontab(sched)
+                except ValueError as exc:  # pragma: no cover - misconfig
+                    _log.error("invalid cron schedule", job=job_id, expr=sched)
+                    raise
                 self.scheduler.add_job(func, trigger, id=job_id)
 
         def _listener(event):

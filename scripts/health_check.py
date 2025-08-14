@@ -3,6 +3,8 @@ from __future__ import annotations
 from service.logger import get_logger
 from database import db, pf_coll, trade_coll, metric_coll
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
+import requests
+import sys
 
 _log = get_logger("health")
 
@@ -31,4 +33,11 @@ def check_system() -> dict:
 
 
 if __name__ == "__main__":
-    print(check_system())
+    try:
+        resp = requests.get("http://localhost:8000/readyz", timeout=5)
+        resp.raise_for_status()
+        print(resp.json())
+    except Exception as exc:  # pragma: no cover - network optional
+        _log.error(f"health check failed: {exc}")
+        sys.exit(1)
+    sys.exit(0)

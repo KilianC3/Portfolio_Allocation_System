@@ -7,8 +7,14 @@ from typing import List, Dict
 
 import pandas as pd
 
+import time
+
 from database import db
 from infra.github_backup import backup_records
+from service.logger import get_logger
+
+
+_log = get_logger("data_store")
 
 
 def append_snapshot(table: str, records: List[Dict]) -> None:
@@ -24,10 +30,20 @@ def append_snapshot(table: str, records: List[Dict]) -> None:
         data.append(item)
     if db.conn:
         coll = db[table]
-        try:
-            coll.insert_many(data)
-        except Exception:
-            pass
+        attempts = 3
+        for attempt in range(1, attempts + 1):
+            try:
+                coll.insert_many(data)
+                break
+            except Exception as exc:
+                _log.error(
+                    "snapshot insert failed",
+                    table=table,
+                    attempt=attempt,
+                    error=str(exc),
+                )
+                if attempt < attempts:
+                    time.sleep(2 ** (attempt - 1))
     backup_records(table, data)
 
 

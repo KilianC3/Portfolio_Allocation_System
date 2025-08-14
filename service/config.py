@@ -7,6 +7,9 @@ from pydantic_settings import BaseSettings
 import os
 from typing import Any, Dict
 from pathlib import Path
+from apscheduler.triggers.cron import CronTrigger
+
+from service.logger import get_logger
 
 
 def _parse_simple_yaml(path: str) -> Dict[str, Any]:
@@ -43,6 +46,8 @@ def _load_config_yaml(path: str | None = None) -> None:
 
 _load_config_yaml()
 
+_log = get_logger("config")
+
 
 class Settings(BaseSettings):
     """Typed configuration loaded from environment variables.
@@ -61,7 +66,7 @@ class Settings(BaseSettings):
 
     QUIVER_RATE_SEC: float = 1.1
 
-    PG_URI: str = "mysql+pymysql://maria:maria@192.168.0.59:3306/quant_fund"
+    DB_URI: str = "mysql+pymysql://maria:maria@192.168.0.59:8001/quant_fund"
 
     FRED_API_KEY: str | None = None
 
@@ -107,7 +112,7 @@ ALPACA_BASE_URL = settings.ALPACA_LIVE_URL if ALLOW_LIVE else settings.ALPACA_PA
 
 QUIVER_RATE_SEC = settings.QUIVER_RATE_SEC
 
-PG_URI = settings.PG_URI
+DB_URI = settings.DB_URI
 
 MIN_ALLOC = settings.MIN_ALLOC
 MAX_ALLOC = settings.MAX_ALLOC
@@ -168,3 +173,10 @@ DEFAULT_SCHEDULES = {
 SCHEDULES = DEFAULT_SCHEDULES | {
     k[6:].lower(): v for k, v in os.environ.items() if k.startswith("SCHED_")
 }
+
+for name, expr in SCHEDULES.items():
+    try:
+        CronTrigger.from_crontab(expr)
+    except ValueError as exc:  # pragma: no cover - misconfig
+        _log.error("invalid cron schedule", job=name, expr=expr)
+        raise RuntimeError(f"invalid cron schedule for {name}: {expr}") from exc

@@ -124,6 +124,8 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
+from scrapers.yf_utils import extract_close_volume
+
 TOP_N = 25
 PRICE_LOOKBACK_SHORT = 5
 PRICE_LOOKBACK_LONG = 20
@@ -155,19 +157,8 @@ def robust_minmax(s: pd.Series, pct_clip=PCT_CLIP) -> pd.Series:
 
 
 def _extract_price_frame(raw: pd.DataFrame | pd.Series | None) -> pd.DataFrame:
-    if raw is None or raw.empty:
-        return pd.DataFrame()
-    if isinstance(raw, pd.DataFrame):
-        if isinstance(raw.columns, pd.MultiIndex):
-            lvl0 = raw.columns.get_level_values(0)
-            for cand in ("Adj Close", "Close"):
-                if cand in lvl0:
-                    return raw.xs(cand, axis=1)
-            return raw.xs(lvl0[0], axis=1)
-        return raw
-    if isinstance(raw, pd.Series):
-        return raw.to_frame()
-    return pd.DataFrame()
+    closes, _ = extract_close_volume(raw)
+    return closes
 
 
 def download_batch(batch: list[str]) -> pd.DataFrame:

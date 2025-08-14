@@ -50,9 +50,13 @@ async def broadcast_message(text: str) -> None:
 
 async def heartbeat(interval: int = 30) -> None:
     """Periodically send ping frames to keep connections alive."""
-    while True:
-        await asyncio.sleep(interval)
-        await broadcast_message("ping")
+    try:
+        while True:
+            await asyncio.sleep(interval)
+            await broadcast_message("ping")
+    except asyncio.CancelledError:  # pragma: no cover - shutdown
+        log.info("heartbeat cancelled")
+        raise
 
 
 @router.websocket("/ws")
@@ -63,6 +67,10 @@ async def websocket_endpoint(ws: WebSocket) -> None:
         while True:
             await ws.receive_text()
     except WebSocketDisconnect:
+        pass
+    except Exception as exc:  # pragma: no cover - network
+        log.warning(f"websocket error: {exc}")
+    finally:
         unregister(ws)
 
 

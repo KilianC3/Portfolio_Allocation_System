@@ -8,7 +8,7 @@ import httpx
 
 from service.config import (
     API_TOKEN,
-    PG_URI,
+    DB_URI,
     CACHE_TTL,
     API_HOST,
     API_PORT,
@@ -36,14 +36,14 @@ def wait_for_mariadb(retries: int = 5, delay: float = 2.0) -> bool:
 
 def validate_config() -> None:
     """Check core settings and database connectivity."""
-    if not PG_URI:
-        raise RuntimeError("PG_URI not set")
+    if not DB_URI:
+        raise RuntimeError("DB_URI not set")
     if not API_TOKEN:
         raise RuntimeError("API_TOKEN not set")
     if CACHE_TTL <= 0:
         raise RuntimeError("CACHE_TTL must be positive")
     if not wait_for_mariadb():
-        raise RuntimeError(f"MariaDB connection failed ({PG_URI})")
+        raise RuntimeError(f"MariaDB connection failed ({DB_URI})")
 
 
 async def system_checklist() -> None:

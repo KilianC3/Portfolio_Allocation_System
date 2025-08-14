@@ -15,7 +15,7 @@ import datetime as dt
 from queue import Queue, Empty, Full
 
 from service.logger import get_logger, register_db_handler
-from service.config import PG_URI, ALLOW_LIVE
+from service.config import DB_URI, ALLOW_LIVE
 
 _log = get_logger("db")
 
@@ -73,13 +73,13 @@ class _PoolConnProxy:
 
 
 try:
-    parts = urlparse(PG_URI)
+    parts = urlparse(DB_URI)
     _conn_args: Dict[str, Any] = dict(
         host=parts.hostname or "localhost",
         user=parts.username or "root",
         password=parts.password or "",
         database=parts.path.lstrip("/"),
-        port=parts.port or 3306,
+        port=parts.port or 8001,
         autocommit=True,
         cursorclass=DictCursor,
     )
