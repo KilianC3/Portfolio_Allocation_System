@@ -112,16 +112,18 @@ async def test_bootstrap_runs_momentum_scrapers(monkeypatch):
 
     async def fake_launch_server(*_a, **_k):
         calls.append("api")
+        return asyncio.create_task(asyncio.sleep(0))
 
     monkeypatch.setattr(start_mod, "_launch_server", fake_launch_server)
-    monkeypatch.setattr(start_mod, "validate_config", lambda: None)
+    monkeypatch.setattr(start_mod, "validate_config", lambda: calls.append("cfg"))
 
     async def fake_checklist():
+        calls.append("chk")
         return None
 
     monkeypatch.setattr(start_mod, "system_checklist", fake_checklist)
-    monkeypatch.setattr(start_mod, "init_db", lambda: None)
-    monkeypatch.setattr(start_mod, "load_portfolios", lambda: None)
+    monkeypatch.setattr(start_mod, "init_db", lambda: calls.append("db"))
+    monkeypatch.setattr(start_mod, "load_portfolios", lambda: calls.append("load"))
 
     # lightweight universe helpers
     monkeypatch.setattr(pop, "init_db", lambda: None)
@@ -171,4 +173,7 @@ async def test_bootstrap_runs_momentum_scrapers(monkeypatch):
     monkeypatch.setattr(pop, "update_all_ticker_scores", lambda: None)
 
     await start_mod.main("x", 0)
-    assert {"vol", "lev", "sec", "small", "up", "api"} <= set(calls)
+    assert calls[0] == "api"
+    for name in ["vol", "lev", "sec", "small", "up"]:
+        assert name in calls
+        assert calls.index("api") < calls.index(name)

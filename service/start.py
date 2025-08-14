@@ -89,15 +89,15 @@ async def system_checklist() -> None:
     log.info("system checklist complete")
 
 
-async def _launch_server(host: str, port: int) -> None:
-    """Start the FastAPI server and block until shutdown."""
+async def _launch_server(host: str, port: int) -> asyncio.Task:
+    """Start the FastAPI server and return the serving task."""
     config = uvicorn.Config("service.api:app", host=host, port=port)
     server = uvicorn.Server(config)
     task = asyncio.create_task(server.serve())
     while not server.started:
         await asyncio.sleep(0.1)
-    log.info(f"api server running on http://{host}:{port}")
-    await task
+    log.info(f"api server initialised on http://{host}:{port}")
+    return task
 
 
 async def main(host: str | None = None, port: int | None = None) -> None:
@@ -107,6 +107,8 @@ async def main(host: str | None = None, port: int | None = None) -> None:
     h = host or API_HOST or "0.0.0.0"
     p = port or API_PORT or 8001
 
+    log.info("launching api server")
+    server_task = await _launch_server(h, p)
     log.info("validate config")
     validate_config()
     log.info("connectivity checks")
@@ -118,8 +120,8 @@ async def main(host: str | None = None, port: int | None = None) -> None:
     # Scheduler is started during FastAPI's startup event
     log.info("running scrapers")
     await run_scrapers(force=True)
-    log.info("launching api server")
-    await _launch_server(h, p)
+    log.info("api server running successfully")
+    await server_task
 
 
 if __name__ == "__main__":
