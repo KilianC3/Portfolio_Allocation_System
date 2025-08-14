@@ -34,6 +34,9 @@ def fetch_leveraged_sector_summary(
         Number of ETFs to keep.  Exposing this allows callers to limit rows
         during testing.
     """
+    log.info(
+        "fetch_leveraged_sector_summary start weeks=%d top_n=%d", weeks, top_n
+    )
     init_db()
     end = dt.date.today()
     now = dt.datetime.now(dt.timezone.utc)

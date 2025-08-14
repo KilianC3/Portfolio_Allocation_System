@@ -111,11 +111,7 @@ async def test_bootstrap_runs_momentum_scrapers(monkeypatch):
     calls: list[str] = []
 
     async def fake_launch_server(*_a, **_k):
-        class DummyServer:
-            started = True
-            should_exit = False
-
-        return DummyServer(), asyncio.create_task(asyncio.sleep(0))
+        calls.append("api")
 
     monkeypatch.setattr(start_mod, "_launch_server", fake_launch_server)
     monkeypatch.setattr(start_mod, "validate_config", lambda: None)
@@ -175,4 +171,4 @@ async def test_bootstrap_runs_momentum_scrapers(monkeypatch):
     monkeypatch.setattr(pop, "update_all_ticker_scores", lambda: None)
 
     await start_mod.main("x", 0)
-    assert {"vol", "lev", "sec", "small", "up"} <= set(calls)
+    assert {"vol", "lev", "sec", "small", "up", "api"} <= set(calls)

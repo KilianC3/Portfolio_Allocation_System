@@ -33,6 +33,9 @@ def fetch_sector_momentum_summary(weeks: int = 26, top_n: int = _SECTOR_N) -> Li
         result keeps test runs lightweight and satisfies the requirement to
         collect only a handful of rows.
     """
+    log.info(
+        "fetch_sector_momentum_summary start weeks=%d top_n=%d", weeks, top_n
+    )
     init_db()
     end = dt.date.today()
     now = dt.datetime.now(dt.timezone.utc)

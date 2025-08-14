@@ -2,6 +2,7 @@ import asyncio
 from unittest import mock
 import pandas as pd
 import pytest
+from typing import Any
 
 import scrapers.dc_insider as dc
 import scrapers.lobbying as lb
@@ -312,3 +313,32 @@ async def test_momentum_scrapers(monkeypatch):
         weeks=2, top_n=5, max_tickers=5
     )
     assert len(rows) == 5
+
+
+def test_weekly_closes_uses_explicit_dates(monkeypatch):
+    import scrapers.momentum_common as mc
+
+    called: dict[str, Any] = {}
+
+    def fake_download(
+        tickers, start, end, interval, group_by, threads, progress, auto_adjust, actions
+    ):
+        called.update(
+            {
+                "start": start,
+                "end": end,
+                "auto_adjust": auto_adjust,
+                "actions": actions,
+            }
+        )
+        idx = pd.date_range(start, periods=3, freq="W")
+        cols = pd.MultiIndex.from_product([["Close"], tickers])
+        data = [[1] * len(tickers) for _ in range(3)]
+        return pd.DataFrame(data, index=idx, columns=cols)
+
+    monkeypatch.setattr(mc.yf, "download", fake_download)
+    df = mc._weekly_closes(["A", "B"], weeks=2)
+    assert called["auto_adjust"] is False
+    assert called["actions"] is False
+    assert df.columns.tolist() == ["A", "B"]
+    assert len(df) == 3

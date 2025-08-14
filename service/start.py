@@ -89,45 +89,37 @@ async def system_checklist() -> None:
     log.info("system checklist complete")
 
 
-async def _launch_server(host: str, port: int) -> tuple[uvicorn.Server, asyncio.Task]:
-    """Start the FastAPI server and return the server and its task."""
+async def _launch_server(host: str, port: int) -> None:
+    """Start the FastAPI server and block until shutdown."""
     config = uvicorn.Config("service.api:app", host=host, port=port)
     server = uvicorn.Server(config)
     task = asyncio.create_task(server.serve())
     while not server.started:
         await asyncio.sleep(0.1)
     log.info(f"api server running on http://{host}:{port}")
-    return server, task
+    await task
 
 
 async def main(host: str | None = None, port: int | None = None) -> None:
-    """Launch the API first, then run setup tasks and scrapers."""
+    """Run startup tasks and then launch the API server."""
     log.info("startup sequence begin")
 
-    h = host or API_HOST or "192.168.0.59"
+    h = host or API_HOST or "0.0.0.0"
     p = port or API_PORT or 8001
-    server, task = await _launch_server(h, p)
 
-    try:
-        log.info("validate config")
-        validate_config()
-        log.info("connectivity checks")
-        await system_checklist()
-        log.info("initialising database")
-        init_db()
-        log.info("loading portfolios")
-        load_portfolios()
-        # Scheduler is started during FastAPI's startup event
-        log.info("running scrapers")
-        await run_scrapers(force=True)
-    except Exception as exc:  # pragma: no cover - startup errors
-        log.exception(f"fatal startup error: {exc}")
-        server.should_exit = True
-        await task
-        raise
-
-    log.info("system up and running")
-    await task
+    log.info("validate config")
+    validate_config()
+    log.info("connectivity checks")
+    await system_checklist()
+    log.info("initialising database")
+    init_db()
+    log.info("loading portfolios")
+    load_portfolios()
+    # Scheduler is started during FastAPI's startup event
+    log.info("running scrapers")
+    await run_scrapers(force=True)
+    log.info("launching api server")
+    await _launch_server(h, p)
 
 
 if __name__ == "__main__":

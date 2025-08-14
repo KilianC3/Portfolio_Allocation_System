@@ -49,6 +49,12 @@ def fetch_volatility_momentum_summary(
     max_tickers: int | None = None,
 ) -> List[dict]:
     """Store volatility-scaled momentum scores for the full universe."""
+    log.info(
+        "fetch_volatility_momentum_summary start weeks=%d top_n=%d max_tickers=%s",
+        weeks,
+        top_n,
+        max_tickers,
+    )
     universe_df = load_universe_any()
     tickers = _tickers_from_universe(universe_df)
     if max_tickers is not None:
