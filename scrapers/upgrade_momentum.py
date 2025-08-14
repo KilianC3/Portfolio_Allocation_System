@@ -41,6 +41,12 @@ async def fetch_upgrade_momentum_summary(
         Optional cap on how many symbols are queried.  Limiting the universe
         keeps calls to the QuiverQuant API small during tests.
     """
+    log.info(
+        "fetch_upgrade_momentum_summary start weeks=%d top_n=%d max_symbols=%s",
+        weeks,
+        top_n,
+        max_symbols,
+    )
     symbols = list(universe)
     if max_symbols is not None:
         symbols = symbols[:max_symbols]

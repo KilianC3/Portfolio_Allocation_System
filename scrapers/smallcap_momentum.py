@@ -43,6 +43,12 @@ def fetch_smallcap_momentum_summary(
         keeps test runs fast and avoids large downloads when a full Russell 2000
         list is supplied.
     """
+    log.info(
+        "fetch_smallcap_momentum_summary start weeks=%d top_n=%d max_tickers=%s",
+        weeks,
+        top_n,
+        max_tickers,
+    )
     symbols = list(tickers)
     if max_tickers is not None:
         symbols = symbols[:max_tickers]
