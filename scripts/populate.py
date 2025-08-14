@@ -96,6 +96,14 @@ async def run_scrapers(force: bool = False) -> None:
         "full_fundamentals": "top_scores",
     }
 
+    momentum_names = {
+        "volatility_momentum",
+        "leveraged_sector_momentum",
+        "sector_momentum_weekly",
+        "smallcap_momentum_weekly",
+        "upgrade_momentum_weekly",
+    }
+
     today = pd.Timestamp.utcnow().normalize()
 
     for name, func in scrapers:
@@ -110,7 +118,11 @@ async def run_scrapers(force: bool = False) -> None:
                     ):
                         _log.info(f"{name} already current - skipping")
                         continue
-                elif name != "analyst_ratings" and has_recent_rows(table, today):
+                elif (
+                    name not in momentum_names
+                    and name != "analyst_ratings"
+                    and has_recent_rows(table, today)
+                ):
                     _log.info(f"{name} already current - skipping")
                     continue
             result = func()

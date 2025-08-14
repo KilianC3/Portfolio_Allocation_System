@@ -7,6 +7,11 @@ from typing import Mapping, Optional, Callable
 import numpy as np
 import pandas as pd
 
+try:  # pragma: no cover - optional Rust extension
+    import risk_parity_rs as _risk_parity_rs
+except Exception:  # pragma: no cover - extension may be missing
+    _risk_parity_rs = None
+
 from sklearn.covariance import LedoitWolf
 
 from service.config import MAX_ALLOC, MIN_ALLOC
@@ -88,9 +93,18 @@ def _tangency_weights(
 
 
 def risk_parity_weights(cov: pd.DataFrame) -> dict[str, float]:
-    """Compute naive risk parity weights given a covariance matrix."""
+    """Compute naive risk parity weights.
+
+    Uses the compiled Rust implementation when available and falls back to a
+    pure-Python iterative solver otherwise.
+    """
     if cov.empty:
         return {}
+
+    if _risk_parity_rs is not None:
+        weights = _risk_parity_rs.risk_parity_weights(cov.values.astype(float))
+        return {c: float(weights[i]) for i, c in enumerate(cov.columns)}
+
     n = len(cov)
     w = np.ones(n) / n
     for _ in range(100):

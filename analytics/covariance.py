@@ -6,20 +6,44 @@ from typing import Literal
 
 import numpy as np
 import pandas as pd
-from sklearn.covariance import LedoitWolf
-from sklearn.decomposition import PCA
+
+try:  # pragma: no cover - optional Rust extension
+    import covariance_rs as _covariance_rs
+except Exception:  # pragma: no cover - extension may be missing
+    _covariance_rs = None
 
 
 def ledoit_wolf_cov(returns: pd.DataFrame) -> pd.DataFrame:
-    """Shrinkage covariance estimator (Ledoit-Wolf)."""
+    """Shrinkage covariance estimator (Ledoit–Wolf).
+
+    Uses the Rust implementation when available and falls back to
+    scikit-learn otherwise.
+    """
+    if _covariance_rs is not None:
+        cov = _covariance_rs.ledoit_wolf_cov(returns.values.astype(float))
+        return pd.DataFrame(cov, index=returns.columns, columns=returns.columns)
+
+    from sklearn.covariance import LedoitWolf
+
     lw = LedoitWolf().fit(returns)
-    cov = pd.DataFrame(lw.covariance_, index=returns.columns, columns=returns.columns)
-    return cov
+    return pd.DataFrame(lw.covariance_, index=returns.columns, columns=returns.columns)
 
 
 def pca_factor_cov(returns: pd.DataFrame, n_components: int = 5) -> pd.DataFrame:
-    """Factor-model covariance via PCA."""
-    n_comp = min(n_components, len(returns.columns))
+    """Factor-model covariance via PCA.
+
+    Attempts to use the Rust extension and falls back to a Python
+    implementation if the compiled module is unavailable.
+    """
+    if _covariance_rs is not None:
+        cov = _covariance_rs.pca_factor_cov(
+            returns.values.astype(float), int(n_components)
+        )
+        return pd.DataFrame(cov, index=returns.columns, columns=returns.columns)
+
+    from sklearn.decomposition import PCA
+
+    n_comp = min(int(n_components), returns.shape[1])
     returns_demeaned = returns - returns.mean()
     pca = PCA(n_components=n_comp)
     scores = pca.fit_transform(returns_demeaned)
@@ -27,8 +51,7 @@ def pca_factor_cov(returns: pd.DataFrame, n_components: int = 5) -> pd.DataFrame
     factor_cov = np.cov(scores, rowvar=False)
     cov = loadings @ factor_cov @ loadings.T
     resid = returns_demeaned - scores @ loadings.T
-    diag = np.diag(resid.var(axis=0, ddof=0))
-    cov += diag
+    cov += np.diag(resid.var(axis=0, ddof=0))
     return pd.DataFrame(cov, index=returns.columns, columns=returns.columns)
 
 
