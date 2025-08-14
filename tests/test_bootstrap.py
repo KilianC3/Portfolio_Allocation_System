@@ -125,6 +125,23 @@ async def test_bootstrap_runs_momentum_scrapers(monkeypatch):
     monkeypatch.setattr(start_mod, "init_db", lambda: calls.append("db"))
     monkeypatch.setattr(start_mod, "load_portfolios", lambda: calls.append("load"))
 
+    # avoid real HTTP requests during API connectivity check
+    class DummyResponse:
+        def raise_for_status(self):
+            return None
+
+    class DummyClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, *_a, **_k):
+            return DummyResponse()
+
+    monkeypatch.setattr(start_mod.httpx, "AsyncClient", lambda: DummyClient())
+
     # lightweight universe helpers
     monkeypatch.setattr(pop, "init_db", lambda: None)
     monkeypatch.setattr(pop, "download_sp500", lambda: None)
@@ -173,7 +190,6 @@ async def test_bootstrap_runs_momentum_scrapers(monkeypatch):
     monkeypatch.setattr(pop, "update_all_ticker_scores", lambda: None)
 
     await start_mod.main("x", 0)
-    assert calls[0] == "api"
     for name in ["vol", "lev", "sec", "small", "up"]:
         assert name in calls
-        assert calls.index("api") < calls.index(name)
+        assert calls.index(name) < calls.index("api")

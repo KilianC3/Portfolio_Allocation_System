@@ -40,13 +40,21 @@ from analytics.tracking import update_all_ticker_scores
 _log = get_logger("populate")
 
 
-async def run_scrapers(force: bool = False) -> None:
+async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
     """Run all scrapers sequentially and log row counts.
 
     Parameters
     ----------
     force: bool
         If True, bypass staleness checks and run every scraper.
+
+    Returns
+    -------
+    dict
+        Mapping of scraper name to a ``(rows, cols)`` tuple summarising the
+        output. This allows callers to emit their own consolidated log
+        messages, for example to highlight momentum scraper results during
+        bootstrap.
     """
     await asyncio.to_thread(download_sp500)
     await asyncio.to_thread(download_sp400)
@@ -105,6 +113,7 @@ async def run_scrapers(force: bool = False) -> None:
     }
 
     today = pd.Timestamp.utcnow().normalize()
+    results: dict[str, tuple[int, int]] = {}
 
     for name, func in scrapers:
         _log.info(f"{name} start")
@@ -147,15 +156,19 @@ async def run_scrapers(force: bool = False) -> None:
                 _log.warning(f"{name} produced no rows")
             else:
                 _log.info(f"{name} PASS {rows}x{cols}")
+            results[name] = (rows, cols)
         except Exception as exc:
             _log.exception(f"{name} FAIL: {exc}")
+            results[name] = (0, 0)
+    return results
 
 
 def main() -> None:
     """Initialise the database and run all scrapers."""
     _log.info("initialising database and running scrapers")
     init_db()
-    asyncio.run(run_scrapers(force=True))
+    summary = asyncio.run(run_scrapers(force=True))
+    _log.info({"scrapers": summary})
     _log.info("populate complete")
 
 

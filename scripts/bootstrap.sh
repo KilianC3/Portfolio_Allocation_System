@@ -14,8 +14,8 @@ source "$VENV_DIR/bin/activate"
 pip install --upgrade pip
 pip install -r "$APP_DIR/deploy/requirements.txt"
 sudo apt-get update
-echo "Installing git, git-lfs and MariaDB"
-sudo apt-get install -y git git-lfs mariadb-server
+echo "Installing git, git-lfs, curl and MariaDB"
+sudo apt-get install -y git git-lfs curl mariadb-server
 git lfs install --system
 if ! git -C "$APP_DIR" remote | grep -q backup; then
   git -C "$APP_DIR" remote add backup https://github.com/KilianC3/Backup
@@ -55,4 +55,8 @@ systemctl daemon-reload
 systemctl enable portfolio
 systemctl start portfolio
 
+echo "Waiting for API to become available"
+until curl -sf "http://192.168.0.59:8001/strategies" >/dev/null; do
+  sleep 2
+done
 echo "Bootstrap complete. Service portfolio is running."
