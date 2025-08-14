@@ -4,31 +4,21 @@ from __future__ import annotations
 
 from typing import Literal
 
-import numpy as np
 import pandas as pd
-from sklearn.covariance import LedoitWolf
-from sklearn.decomposition import PCA
+import covariance_rs
 
 
 def ledoit_wolf_cov(returns: pd.DataFrame) -> pd.DataFrame:
-    """Shrinkage covariance estimator (Ledoit-Wolf)."""
-    lw = LedoitWolf().fit(returns)
-    cov = pd.DataFrame(lw.covariance_, index=returns.columns, columns=returns.columns)
-    return cov
+    """Shrinkage covariance estimator (Ledoit-Wolf) via Rust."""
+    cov = covariance_rs.ledoit_wolf_cov(returns.values.astype(float))
+    return pd.DataFrame(cov, index=returns.columns, columns=returns.columns)
 
 
 def pca_factor_cov(returns: pd.DataFrame, n_components: int = 5) -> pd.DataFrame:
-    """Factor-model covariance via PCA."""
-    n_comp = min(n_components, len(returns.columns))
-    returns_demeaned = returns - returns.mean()
-    pca = PCA(n_components=n_comp)
-    scores = pca.fit_transform(returns_demeaned)
-    loadings = pca.components_.T
-    factor_cov = np.cov(scores, rowvar=False)
-    cov = loadings @ factor_cov @ loadings.T
-    resid = returns_demeaned - scores @ loadings.T
-    diag = np.diag(resid.var(axis=0, ddof=0))
-    cov += diag
+    """Factor-model covariance via PCA in Rust."""
+    cov = covariance_rs.pca_factor_cov(
+        returns.values.astype(float), int(n_components)
+    )
     return pd.DataFrame(cov, index=returns.columns, columns=returns.columns)
 
 

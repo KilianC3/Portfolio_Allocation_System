@@ -7,6 +7,8 @@ from typing import Mapping, Optional, Callable
 import numpy as np
 import pandas as pd
 
+import risk_parity_rs
+
 from sklearn.covariance import LedoitWolf
 
 from service.config import MAX_ALLOC, MIN_ALLOC
@@ -88,25 +90,11 @@ def _tangency_weights(
 
 
 def risk_parity_weights(cov: pd.DataFrame) -> dict[str, float]:
-    """Compute naive risk parity weights given a covariance matrix."""
+    """Compute naive risk parity weights via the Rust extension."""
     if cov.empty:
         return {}
-    n = len(cov)
-    w = np.ones(n) / n
-    for _ in range(100):
-        port_var = float(w @ cov.values @ w)
-        mrc = cov.values @ w
-        rc = w * mrc
-        target = port_var / n
-        diff = rc - target
-        if np.max(np.abs(diff)) < 1e-8:
-            break
-        w -= diff / (mrc + 1e-12)
-        w = np.maximum(w, 0)
-        if w.sum() == 0:
-            w[:] = 1 / n
-        w /= w.sum()
-    return {c: float(w[i]) for i, c in enumerate(cov.columns)}
+    weights = risk_parity_rs.risk_parity_weights(cov.values.astype(float))
+    return {c: float(weights[i]) for i, c in enumerate(cov.columns)}
 
 
 def saa_weights(weekly: pd.DataFrame) -> dict[str, float]:
