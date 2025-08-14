@@ -22,7 +22,7 @@ def test_strategy_summary_aggregates(monkeypatch):
         return {"date": dt.date(2024, 1, 1), "ret": 0.1, "portfolio_id": q["portfolio_id"]}
 
     def fake_risk(q, sort=None):
-        return {"date": dt.date(2024, 1, 1), "var95": -0.05, "strategy": q["strategy"]}
+        return {"date": dt.date(2024, 1, 1), "var95": 0.05, "strategy": q["strategy"]}
 
     monkeypatch.setattr(metric_coll, "find_one", fake_metric)
     monkeypatch.setattr(risk_stats_coll, "find_one", fake_risk)
@@ -31,5 +31,5 @@ def test_strategy_summary_aggregates(monkeypatch):
     assert resp.status_code == 200
     data = resp.json()["strategies"][0]
     assert data["metrics"]["ret"] == 0.1
-    assert data["risk"]["var95"] == -0.05
+    assert data["risk"]["var95"] == 0.05
     assert data["weights"] == {"AAPL": 0.5}

@@ -5,7 +5,7 @@ ALPACA_LIVE_KEY: "your-live-key"
 ALPACA_LIVE_SECRET: "your-live-secret"
 ALPACA_LIVE_URL: "https://api.alpaca.markets"
 ALLOW_LIVE: false
-PG_URI: "mysql+pymysql://maria:maria@192.168.0.59:3306/quant_fund"
+DB_URI: "mysql+pymysql://maria:maria@192.168.0.59:8001/quant_fund"
 FRED_API_KEY: "your-fred-key"
 API_TOKEN: "changeme"
 AUTO_START_SCHED: true

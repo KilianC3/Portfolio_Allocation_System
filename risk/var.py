@@ -1,4 +1,4 @@
-"""Historical value at risk utilities.
+r"""Historical value at risk utilities.
 
 The functions implement basic risk metrics used throughout the project.
 
@@ -26,14 +26,16 @@ import pandas as pd
 
 
 def historical_var(returns: pd.Series, level: float = 0.95) -> float:
-    """Return historical value at risk."""
-    return float(np.quantile(returns, 1 - level))
+    """Return historical value at risk as a positive loss value."""
+    q = np.quantile(returns, 1 - level)
+    return float(-q)
 
 
 def cvar(returns: pd.Series, level: float = 0.95) -> float:
-    """Conditional value at risk."""
-    var = historical_var(returns, level)
-    return float(returns[returns <= var].mean())
+    """Conditional value at risk as a positive expected loss."""
+    q = np.quantile(returns, 1 - level)
+    tail_mean = returns[returns <= q].mean()
+    return float(-tail_mean)
 
 
 __all__ = ["historical_var", "cvar"]

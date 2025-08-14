@@ -5,6 +5,8 @@ set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VENV_DIR="$APP_DIR/venv"
+# Derive the application IP from service configuration
+APP_IP=$(grep '^REDIS_URL:' "$APP_DIR/service/config.yaml" | sed -E 's/.*@([0-9.]+):.*/\1/')
 
 # Create or activate virtual environment
 if [ ! -d "$VENV_DIR" ]; then
@@ -21,14 +23,16 @@ if ! git -C "$APP_DIR" remote | grep -q backup; then
   git -C "$APP_DIR" remote add backup https://github.com/KilianC3/Backup
 fi
 git -C "$APP_DIR" lfs install --local
-# Bind MariaDB to 192.168.0.59 so remote clients can connect
-sudo sed -i 's/^bind-address.*/bind-address = 192.168.0.59/' /etc/mysql/mariadb.conf.d/50-server.cnf
-"$APP_DIR/scripts/setup_redis.sh"
+# Bind MariaDB to the same IP and port as Redis so remote clients can connect
+sudo sed -i "s/^bind-address.*/bind-address = ${APP_IP}/" /etc/mysql/mariadb.conf.d/50-server.cnf
+sudo sed -i "s/^#\?port.*/port = 8001/" /etc/mysql/mariadb.conf.d/50-server.cnf
+"$APP_DIR/scripts/setup_redis.sh" "$APP_IP"
 sudo systemctl enable mariadb
 sudo systemctl start mariadb
 sudo mysql -e "CREATE DATABASE IF NOT EXISTS quant_fund;"
 sudo mysql -e "GRANT ALL PRIVILEGES ON quant_fund.* TO 'maria'@'%' IDENTIFIED BY 'maria'; FLUSH PRIVILEGES;"
 python -m playwright install chromium
+python "$APP_DIR/scripts/populate.py"
 
 
 # Register the service
@@ -42,7 +46,7 @@ Requires=mariadb.service redis-server.service
 Type=simple
 WorkingDirectory=$APP_DIR
 Environment=PYTHONPATH=$APP_DIR
-ExecStart=$VENV_DIR/bin/python $APP_DIR/service/start.py --host 192.168.0.59 --port 8001
+ExecStart=$VENV_DIR/bin/python $APP_DIR/service/start.py --host ${APP_IP} --port 8001
 Restart=on-failure
 StandardOutput=journal
 StandardError=journal
@@ -56,7 +60,7 @@ systemctl enable portfolio
 systemctl start portfolio
 
 echo "Waiting for API to become available"
-until curl -sf "http://192.168.0.59:8001/strategies" >/dev/null; do
+until curl -sf "http://${APP_IP}:8001/strategies" >/dev/null; do
   sleep 2
 done
 echo "Bootstrap complete. Service portfolio is running."

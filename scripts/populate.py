@@ -63,10 +63,22 @@ async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
     if len(universe) < 2000:
         _log.warning(f"universe size {len(universe)} < 2000")
 
+    today = pd.Timestamp.utcnow().normalize()
+    results: dict[str, tuple[int, int]] = {}
+
+    wiki_task: asyncio.Task | None = None
+    if force or not has_recent_rows("wiki_views", today):
+        _log.info("wiki_views start")
+        if asyncio.iscoroutinefunction(fetch_trending_wiki_views):
+            wiki_task = asyncio.create_task(fetch_trending_wiki_views())
+        else:
+            wiki_task = asyncio.create_task(asyncio.to_thread(fetch_trending_wiki_views))
+    else:
+        _log.info("wiki_views already current - skipping")
+
     scrapers = [
         ("politician_trades", fetch_politician_trades),
         ("lobbying", fetch_lobbying_data),
-        ("wiki_views", fetch_trending_wiki_views),
         ("dc_insider_scores", fetch_dc_insider_scores),
         ("gov_contracts", fetch_gov_contracts),
         ("app_reviews", fetch_app_reviews),
@@ -111,9 +123,6 @@ async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
         "smallcap_momentum_weekly",
         "upgrade_momentum_weekly",
     }
-
-    today = pd.Timestamp.utcnow().normalize()
-    results: dict[str, tuple[int, int]] = {}
 
     for name, func in scrapers:
         _log.info(f"{name} start")
@@ -160,6 +169,24 @@ async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
         except Exception as exc:
             _log.exception(f"{name} FAIL: {exc}")
             results[name] = (0, 0)
+    if wiki_task:
+        try:
+            data = await asyncio.wait_for(wiki_task, timeout=300)
+            rows = len(data)
+            cols = len(data[0]) if rows and isinstance(data[0], dict) else 0
+            if rows == 0:
+                _log.warning("wiki_views produced no rows")
+            else:
+                _log.info(f"wiki_views PASS {rows}x{cols}")
+            results["wiki_views"] = (rows, cols)
+        except asyncio.TimeoutError:
+            wiki_task.cancel()
+            _log.exception("wiki_views timed out")
+            results["wiki_views"] = (0, 0)
+        except Exception as exc:  # pragma: no cover - network optional
+            _log.exception(f"wiki_views FAIL: {exc}")
+            results["wiki_views"] = (0, 0)
+
     return results
 
 

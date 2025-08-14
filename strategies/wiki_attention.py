@@ -14,6 +14,7 @@ from io import StringIO
 import wikipedia
 import yfinance as yf
 from tqdm import tqdm
+from scrapers.yf_utils import extract_close_volume
 from unidecode import unidecode
 
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
@@ -36,6 +37,7 @@ SCORE_WEIGHTS = dict(momentum=0.7, z=0.3)
 PERIOD = "2mo"
 TICKER_BATCH = 50
 PCT_CLIP = (1, 99)
+
 
 @functools.lru_cache(maxsize=1)
 def index_map() -> Dict[str, str]:
@@ -187,19 +189,8 @@ def robust_minmax(s: pd.Series, pct_clip: tuple[int, int] = PCT_CLIP) -> pd.Seri
 
 
 def _extract_price_frame(raw: pd.DataFrame | pd.Series | None) -> pd.DataFrame:
-    if raw is None or raw.empty:
-        return pd.DataFrame()
-    if isinstance(raw, pd.DataFrame):
-        if isinstance(raw.columns, pd.MultiIndex):
-            lvl0 = raw.columns.get_level_values(0)
-            for candidate in ("Adj Close", "Close"):
-                if candidate in lvl0:
-                    return raw.xs(candidate, axis=1)
-            return raw.xs(lvl0[0], axis=1)
-        return raw
-    if isinstance(raw, pd.Series):
-        return raw.to_frame()
-    return pd.DataFrame()
+    closes, _ = extract_close_volume(raw)
+    return closes
 
 
 def get_momentum_returns(tickers: list[str]) -> pd.DataFrame:
@@ -232,7 +223,9 @@ def get_momentum_returns(tickers: list[str]) -> pd.DataFrame:
     return pd.DataFrame.from_dict(results, orient="index")
 
 
-def build_wiki_portfolio(df_base: pd.DataFrame, top_n: int = TOP_N) -> tuple[pd.DataFrame, pd.DataFrame]:
+def build_wiki_portfolio(
+    df_base: pd.DataFrame, top_n: int = TOP_N
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Rank tickers by momentum blended with Wikipedia z-score.
 
     Parameters

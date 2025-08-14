@@ -32,7 +32,7 @@ def test_treasury_rate_cache(monkeypatch):
 
 
 def test_refresh_route(monkeypatch):
-    os.environ["API_TOKEN"] = ""
+    os.environ["API_TOKEN"] = "token"
     calls = [0]
     monkeypatch.setattr(utils.yf, "Ticker", lambda _: _mock_ticker(calls)())
     utils._TREASURY_CACHE["rate"] = 0.0
@@ -45,7 +45,7 @@ def test_refresh_route(monkeypatch):
     api = reload(api)
     client = TestClient(api.app)
 
-    resp = client.get("/refresh/treasury_rate")
+    resp = client.get("/refresh/treasury_rate?token=token")
     assert resp.status_code == 200
     assert resp.json()["rate"] == 0.05
     assert calls[0] == 1

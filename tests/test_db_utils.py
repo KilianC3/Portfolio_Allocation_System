@@ -1,7 +1,7 @@
 import os
 import pytest
 
-os.environ["PG_URI"] = "mysql+pymysql://localhost/test"
+os.environ["DB_URI"] = "mysql+pymysql://localhost/test"
 
 
 def test_build_where_simple():

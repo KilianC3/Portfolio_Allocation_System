@@ -6,6 +6,8 @@ import datetime as dt
 import pandas as pd
 import yfinance as yf
 
+from scrapers.yf_utils import extract_close_volume
+
 
 _CHUNK = 100
 
@@ -36,8 +38,7 @@ def _weekly_closes(tickers: list[str], weeks: int) -> pd.DataFrame:
         auto_adjust=False,
         actions=False,
     )
-    if isinstance(df, pd.Series):
-        df = df.to_frame(tickers[0])
-    if isinstance(df.columns, pd.MultiIndex):
-        df = df.xs("Close", level=0, axis=1)
-    return df.dropna(how="all")
+    closes, _ = extract_close_volume(df)
+    if isinstance(closes, pd.Series):
+        closes = closes.to_frame(tickers[0])
+    return closes.dropna(how="all")

@@ -44,6 +44,12 @@ def get_treasury_rate(force: bool = False) -> float:
         return float(rate)
 
 
+def get_treasury_timestamp() -> dt.datetime:
+    """Return the timestamp associated with the cached treasury rate."""
+    with _CACHE_LOCK:
+        return _TREASURY_CACHE["timestamp"]
+
+
 def lambda_from_half_life(h: int) -> float:
     """Return the exponential decay factor for a given half-life ``h``."""
     return 1 - 2 ** (-1 / h)

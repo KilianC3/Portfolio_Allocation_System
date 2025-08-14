@@ -49,17 +49,18 @@ from core.equity import EquityPortfolio
 from execution.gateway import AlpacaGateway
 from service.config import ALLOW_LIVE
 from service.scheduler import StrategyScheduler
-import analytics.utils as analytics_utils
 from analytics.utils import (
     portfolio_metrics,
     portfolio_correlations,
     sector_exposures,
     get_treasury_rate,
+    get_treasury_timestamp,
 )
 from metrics import rebalance_latency
 from analytics import update_all_metrics, update_all_ticker_scores
 from analytics.account import account_coll
 from risk.var import historical_var, cvar
+from risk.tasks import ALLOWED_METRICS, ALLOWED_OPERATORS
 from ledger import MasterLedger
 import httpx
 from service.config import (
@@ -85,16 +86,23 @@ app.add_middleware(
 )
 
 
+OPEN_ENDPOINTS = {"/health", "/readyz"}
+
+
 @app.middleware("http")
 async def auth(request: Request, call_next):
+    if request.url.path in OPEN_ENDPOINTS:
+        return await call_next(request)
     token = request.headers.get("Authorization")
     if not token:
         token = request.query_params.get("token")
         if token:
             token = f"Bearer {token}"
-    if API_TOKEN and request.url.path not in {"/health", "/readyz"}:
-        if token != f"Bearer {API_TOKEN}":
-            return JSONResponse(status_code=401, content={"detail": "unauthorized"})
+    if not API_TOKEN:
+        log.warning("API_TOKEN not set; refusing access to %s", request.url.path)
+        return JSONResponse(status_code=503, content={"detail": "token not configured"})
+    if token != f"Bearer {API_TOKEN}":
+        return JSONResponse(status_code=401, content={"detail": "unauthorized"})
     return await call_next(request)
 
 
@@ -142,7 +150,7 @@ async def readyz():
 def refresh_treasury_rate() -> Dict[str, Any]:
     """Force refresh of the cached treasury rate."""
     rate = get_treasury_rate(force=True)
-    ts = analytics_utils._TREASURY_CACHE["timestamp"].isoformat()
+    ts = get_treasury_timestamp().isoformat()
     return {"rate": rate, "timestamp": ts}
 
 
@@ -186,6 +194,19 @@ class RiskRuleIn(BaseModel):
     metric: str
     operator: str
     threshold: float
+
+
+def _validate_rule(rule: "RiskRuleIn") -> None:
+    if rule.metric not in ALLOWED_METRICS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"metric must be one of {sorted(ALLOWED_METRICS)}",
+        )
+    if rule.operator not in ALLOWED_OPERATORS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"operator must be one of {sorted(ALLOWED_OPERATORS)}",
+        )
 
 
 def _iso(o):
@@ -1192,6 +1213,7 @@ def risk_correlations(items: str, window: int = 30) -> Dict[str, Any]:
 
 @app.post("/risk/rules")
 def create_rule(rule: RiskRuleIn) -> Dict[str, Any]:
+    _validate_rule(rule)
     if not risk_rules_coll.conn:
         return {"id": 0}
     with risk_rules_coll.conn.cursor() as cur:
@@ -1220,6 +1242,7 @@ def list_rules() -> Dict[str, Any]:
 
 @app.put("/risk/rules/{rule_id}")
 def update_rule(rule_id: int, rule: RiskRuleIn) -> Dict[str, Any]:
+    _validate_rule(rule)
     risk_rules_coll.update_one(
         {"_id": rule_id},
         {

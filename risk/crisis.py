@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from typing import Dict
 
+import time
 import requests
 import pandas as pd
 import numpy as np
@@ -46,14 +47,26 @@ DEFAULT_WEIGHTS = {k: v / _tot for k, v in DEFAULT_WEIGHTS.items()}
 
 
 def get_fred_series(series_id: str, api_key: str, start: str = START_DATE) -> pd.Series:
-    """Fetch a FRED series and return a numeric pandas Series indexed by date."""
+    """Fetch a FRED series with basic retry and return it as a pandas Series."""
     params = {
         "series_id": series_id,
         "api_key": api_key,
         "file_type": "json",
         "observation_start": start,
     }
-    resp = requests.get(FRED_OBS_URL, params=params, timeout=10)
+    backoff = 1.0
+    resp: requests.Response | None = None
+    for attempt in range(3):
+        try:
+            resp = requests.get(FRED_OBS_URL, params=params, timeout=10)
+            resp.raise_for_status()
+            break
+        except Exception:
+            if attempt == 2:
+                raise
+            time.sleep(backoff)
+            backoff *= 2
+    assert resp is not None  # for type checkers
     data = resp.json().get("observations", [])
     df = pd.DataFrame(data)
     df["date"] = pd.to_datetime(df["date"])

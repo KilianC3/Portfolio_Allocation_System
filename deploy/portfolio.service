@@ -7,7 +7,8 @@ Requires=mariadb.service
 Type=simple
 WorkingDirectory=/opt/portfolio
 Environment=PYTHONPATH=/opt/portfolio
-ExecStart=/opt/portfolio/venv/bin/python /opt/portfolio/service/start.py --host 192.168.0.59 --port 8001
+EnvironmentFile=/etc/portfolio.env
+ExecStart=/opt/portfolio/venv/bin/python /opt/portfolio/service/start.py --host ${API_HOST} --port ${API_PORT}
 Restart=on-failure
 StandardOutput=journal
 StandardError=journal

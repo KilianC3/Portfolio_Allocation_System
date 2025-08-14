@@ -17,6 +17,17 @@ from database import (
 )
 from risk.var import historical_var, cvar
 
+ALLOWED_OPERATORS = {">", "<", ">=", "<="}
+ALLOWED_METRICS = {
+    "var95",
+    "var99",
+    "es95",
+    "es99",
+    "vol30d",
+    "beta30d",
+    "max_drawdown",
+}
+
 
 def _load_returns(strategy: str, days: int = 60) -> pd.Series:
     q = {"strategy": strategy}
@@ -33,7 +44,9 @@ def _sp500_returns(days: int = 60) -> pd.Series:
     if not rows:
         return pd.Series(dtype=float)
     rows.sort(key=lambda r: r["date"])
-    closes = pd.Series([r["close"] for r in rows], index=[pd.to_datetime(r["date"]) for r in rows])
+    closes = pd.Series(
+        [r["close"] for r in rows], index=[pd.to_datetime(r["date"]) for r in rows]
+    )
     rets = closes.pct_change().dropna()
     return rets.tail(days)
 
@@ -54,7 +67,11 @@ def compute_risk_stats(days: int = 60) -> None:
         var99 = historical_var(ser, 0.99)
         es95 = cvar(ser, 0.95)
         es99 = cvar(ser, 0.99)
-        vol30 = float(ser.rolling(30).std().iloc[-1]) if len(ser) >= 30 else float(ser.std())
+        vol30 = (
+            float(ser.rolling(30).std().iloc[-1])
+            if len(ser) >= 30
+            else float(ser.std())
+        )
         beta = float(ser.cov(bench) / bench.var()) if not bench.empty else 0.0
         cum = (1 + ser).cumprod()
         peak = cum.cummax()
@@ -99,6 +116,8 @@ def evaluate_risk_rules() -> None:
             ">=": operator.ge,
             "<=": operator.le,
         }
+        if r["operator"] not in ALLOWED_OPERATORS or r["metric"] not in ALLOWED_METRICS:
+            continue
         func = op_map.get(r["operator"])
         if func and func(metric_val, r["threshold"]):
             risk_alerts_coll.insert_many(
@@ -114,4 +133,9 @@ def evaluate_risk_rules() -> None:
             )
 
 
-__all__ = ["compute_risk_stats", "evaluate_risk_rules"]
+__all__ = [
+    "compute_risk_stats",
+    "evaluate_risk_rules",
+    "ALLOWED_OPERATORS",
+    "ALLOWED_METRICS",
+]

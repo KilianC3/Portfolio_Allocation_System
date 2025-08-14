@@ -30,8 +30,14 @@ async def update_loop(
         Sleep interval between updates in seconds.
     """
 
+    sem = asyncio.Semaphore(4)
+
+    async def run_sync(func: Callable, *args: Any, **kwargs: Any) -> Any:
+        async with sem:
+            return await asyncio.to_thread(func, *args, **kwargs)
+
     while True:
-        data = fetch_returns()
+        data = await run_sync(fetch_returns)
         ts = dt.datetime.utcnow().isoformat()
         for pf_id, payload in data.items():
             asset_returns = None
@@ -43,14 +49,21 @@ async def update_loop(
             else:
                 series, exposure = payload, None
 
-            aggregate_daily_returns_exposure(pf_id, series, exposure, metric_coll)
+            await run_sync(
+                aggregate_daily_returns_exposure,
+                pf_id,
+                series,
+                exposure,
+                metric_coll,
+            )
             if asset_returns is not None:
                 try:
-                    track_allocation_performance(asset_returns)
+                    await run_sync(track_allocation_performance, asset_returns)
                 except Exception:  # pragma: no cover - best effort
                     pass
-            metrics = portfolio_metrics(series)
-            metric_coll.update_one(
+            metrics = await run_sync(portfolio_metrics, series)
+            await run_sync(
+                metric_coll.update_one,
                 {"portfolio_id": pf_id, "date": series.index[-1].date()},
                 {"$set": metrics},
                 upsert=True,
@@ -65,6 +78,6 @@ async def update_loop(
                     }
                 )
             )
-            invalidate_prefix(f"metrics:{pf_id}")
-            invalidate_prefix(f"dashboard:{pf_id}")
+            await run_sync(invalidate_prefix, f"metrics:{pf_id}")
+            await run_sync(invalidate_prefix, f"dashboard:{pf_id}")
         await asyncio.sleep(interval)
