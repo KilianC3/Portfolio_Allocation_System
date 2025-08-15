@@ -158,7 +158,12 @@ class AlpacaGateway(ExecutionGateway):
             key = await ledger.reserve(pf_id, symbol, qty)
         else:
             key = None
-        resp = await self._request("POST", "/v2/orders", json=payload)
+        try:
+            resp = await self._request("POST", "/v2/orders", json=payload)
+        except Exception:
+            if ledger and key is not None:
+                await ledger.cancel(key, qty)
+            raise
         if ledger and key is not None:
             await ledger.commit(key, qty)
         try:

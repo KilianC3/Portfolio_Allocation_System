@@ -105,7 +105,7 @@ def test_bootstrap_main(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_bootstrap_runs_momentum_scrapers(monkeypatch):
+async def test_api_starts_before_momentum_scrapers(monkeypatch):
     import service.start as start_mod
 
     calls: list[str] = []
@@ -162,7 +162,7 @@ async def test_bootstrap_runs_momentum_scrapers(monkeypatch):
         calls.append("up")
         return []
 
-    # momentum scrapers we want to ensure are executed
+    # momentum scrapers we want to ensure are executed after API start
     monkeypatch.setattr(pop, "fetch_volatility_momentum_summary", mark("vol"))
     monkeypatch.setattr(pop, "fetch_leveraged_sector_summary", mark("lev"))
     monkeypatch.setattr(pop, "fetch_sector_momentum_summary", mark("sec"))
@@ -192,4 +192,4 @@ async def test_bootstrap_runs_momentum_scrapers(monkeypatch):
     await start_mod.main("x", 0)
     for name in ["vol", "lev", "sec", "small", "up"]:
         assert name in calls
-        assert calls.index(name) < calls.index("api")
+        assert calls.index("api") < calls.index(name)

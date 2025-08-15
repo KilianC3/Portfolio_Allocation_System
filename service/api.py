@@ -80,7 +80,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -242,6 +242,16 @@ async def startup_event():
     sched.register_jobs()
     if AUTO_START_SCHED:
         sched.start()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Release gateway resources for all portfolios."""
+    for pf in portfolios.values():
+        try:
+            await pf.close()
+        except Exception as exc:
+            log.warning("gateway close failed for %s: %s", pf.id, exc)
 
 
 @app.get("/")

@@ -116,14 +116,6 @@ async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
         "full_fundamentals": "top_scores",
     }
 
-    momentum_names = {
-        "volatility_momentum",
-        "leveraged_sector_momentum",
-        "sector_momentum_weekly",
-        "smallcap_momentum_weekly",
-        "upgrade_momentum_weekly",
-    }
-
     for name, func in scrapers:
         _log.info(f"{name} start")
         try:
@@ -137,9 +129,7 @@ async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
                         _log.info(f"{name} already current - skipping")
                         continue
                 elif (
-                    name not in momentum_names
-                    and name != "analyst_ratings"
-                    and has_recent_rows(table, today)
+                    name != "analyst_ratings" and has_recent_rows(table, today)
                 ):
                     _log.info(f"{name} already current - skipping")
                     continue
