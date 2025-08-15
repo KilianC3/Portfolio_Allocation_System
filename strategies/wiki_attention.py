@@ -5,6 +5,9 @@ import functools
 import logging
 import math
 import re
+import asyncio
+import concurrent.futures
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -17,7 +20,7 @@ from tqdm import tqdm
 from scrapers.yf_utils import extract_close_volume
 from unidecode import unidecode
 
-from scrapers.universe import load_sp500, load_sp400, load_russell2000
+from scrapers.universe import load_sp500, load_sp400
 
 _log = logging.getLogger("scrapers.wiki_attention")
 _log.setLevel(logging.INFO)
@@ -39,18 +42,47 @@ TICKER_BATCH = 50
 PCT_CLIP = (1, 99)
 
 
+CACHE_FILE = Path(__file__).resolve().parents[1] / "cache" / "wiki_index_map.csv"
+
+
 @functools.lru_cache(maxsize=1)
 def index_map() -> Dict[str, str]:
-    """Return {symbol: company_name} for the combined universe."""
-    syms = set(load_sp500()) | set(load_sp400()) | set(load_russell2000())
-    out: Dict[str, str] = {}
-    for sym in syms:
-        try:
-            name = yf.Ticker(sym).info.get("shortName") or sym
-        except Exception:
-            name = sym
-        out[sym] = name
-    return out
+    """Return {symbol: company_name} for S&P 500 and S&P 400 constituents.
+
+    Results are cached to ``cache/wiki_index_map.csv`` so subsequent runs avoid
+    repeated network calls to yfinance. Missing entries are fetched in parallel
+    to reduce startup latency.
+    """
+
+    syms = set(load_sp500()) | set(load_sp400())
+    mapping: Dict[str, str] = {}
+
+    if CACHE_FILE.exists():
+        df = pd.read_csv(CACHE_FILE)
+        mapping = dict(zip(df.symbol, df.name))
+
+    missing = sorted(s for s in syms if s not in mapping)
+    if missing:
+        _log.info("index_map fetching %d symbols", len(missing))
+
+        def _fetch(sym: str) -> Tuple[str, str]:
+            try:
+                return sym, yf.Ticker(sym).info.get("shortName") or sym
+            except Exception:
+                return sym, sym
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+            for sym, name in ex.map(_fetch, missing):
+                mapping[sym] = name
+
+        CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(mapping.items(), columns=["symbol", "name"]).to_csv(
+            CACHE_FILE, index=False
+        )
+    else:
+        _log.info("index_map loaded %d symbols from cache", len(mapping))
+
+    return mapping
 
 
 def wiki_title(name: str) -> Optional[str]:
@@ -123,7 +155,7 @@ def _ticker_from_wikidata(title: str) -> Optional[Tuple[str, str]]:
         return None
 
 
-def trending_candidates(min_views: int = 3_000) -> Dict[str, str]:
+async def trending_candidates(min_views: int = 3_000) -> Dict[str, str]:
     """Return {symbol: company} from yesterday's top-viewed list.
 
     Only tickers present in the combined index universe are included.
@@ -136,7 +168,7 @@ def trending_candidates(min_views: int = 3_000) -> Dict[str, str]:
     for delta in range(1, 8):
         day = dt.date.today() - dt.timedelta(days=delta)
         try:
-            arts = _fetch_topviews(day)
+            arts = await asyncio.to_thread(_fetch_topviews, day)
             break
         except Exception as e:  # pragma: no cover - network optional
             last_exc = e
@@ -144,18 +176,21 @@ def trending_candidates(min_views: int = 3_000) -> Dict[str, str]:
         _log.warning("Topviews fetch failed: %s", last_exc)
         return {}
 
-    allowed = index_map()
+    allowed = await asyncio.to_thread(index_map)
     out: Dict[str, str] = {}
+    tasks = []
     for art in arts:
         if art["views"] < min_views:
             break
         title = art["article"]
         if not _looks_like_company(title):
             continue
-        tup = _ticker_from_wikidata(title)
-        if not tup:
+        tasks.append(asyncio.to_thread(_ticker_from_wikidata, title))
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    for res in results:
+        if not res or isinstance(res, Exception):
             continue
-        sym, name = tup
+        sym, name = res
         if sym in allowed:
             out[sym] = name
 

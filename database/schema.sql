@@ -134,11 +134,19 @@ CREATE TABLE IF NOT EXISTS google_trends (
 
 CREATE TABLE IF NOT EXISTS analyst_ratings (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    date_utc DATETIME,
     ticker TEXT,
-    rating TEXT,
-    date TEXT,
+    company TEXT,
+    analyst TEXT,
+    rating_current TEXT,
+    pt_prior DOUBLE,
+    pt_current DOUBLE,
+    pt_pct_change DOUBLE,
+    importance TEXT,
+    notes TEXT,
+    action TEXT,
     _retrieved TIMESTAMP,
-    UNIQUE(ticker, rating, date)
+    UNIQUE(ticker, date_utc)
 );
 
 CREATE TABLE IF NOT EXISTS news_headlines (
@@ -148,6 +156,7 @@ CREATE TABLE IF NOT EXISTS news_headlines (
     link TEXT,
     source TEXT,
     time TEXT,
+    sentiment FLOAT,
     _retrieved TIMESTAMP
 );
 
@@ -339,3 +348,50 @@ CREATE TABLE IF NOT EXISTS jobs (
     last_run DATETIME NULL,
     next_run DATETIME NULL
 );
+
+-- Ensure composite unique keys for daily snapshots
+ALTER TABLE wiki_views DROP INDEX IF EXISTS page;
+ALTER TABLE wiki_views ADD UNIQUE KEY IF NOT EXISTS uq_wiki_views_page_date (page, date);
+
+ALTER TABLE google_trends DROP INDEX IF EXISTS ticker;
+ALTER TABLE google_trends ADD UNIQUE KEY IF NOT EXISTS uq_google_trends (ticker, date);
+
+ALTER TABLE reddit_mentions DROP INDEX IF EXISTS ticker;
+ALTER TABLE reddit_mentions ADD UNIQUE KEY IF NOT EXISTS uq_reddit_mentions (ticker, date);
+
+ALTER TABLE app_reviews DROP INDEX IF EXISTS ticker;
+ALTER TABLE app_reviews ADD UNIQUE KEY IF NOT EXISTS uq_app_reviews (ticker, date);
+
+ALTER TABLE gov_contracts DROP INDEX IF EXISTS ticker;
+ALTER TABLE gov_contracts ADD UNIQUE KEY IF NOT EXISTS uq_gov_contracts (ticker, date, value);
+
+ALTER TABLE volatility_momentum DROP INDEX IF EXISTS symbol;
+ALTER TABLE volatility_momentum ADD UNIQUE KEY IF NOT EXISTS uq_volmom (symbol, date);
+
+ALTER TABLE leveraged_sector_momentum DROP INDEX IF EXISTS symbol;
+ALTER TABLE leveraged_sector_momentum ADD UNIQUE KEY IF NOT EXISTS uq_levmom (symbol, date);
+
+ALTER TABLE sector_momentum_weekly DROP INDEX IF EXISTS symbol;
+ALTER TABLE sector_momentum_weekly ADD UNIQUE KEY IF NOT EXISTS uq_secmom (symbol, date);
+
+ALTER TABLE smallcap_momentum_weekly DROP INDEX IF EXISTS symbol;
+ALTER TABLE smallcap_momentum_weekly ADD UNIQUE KEY IF NOT EXISTS uq_smallmom (symbol, date);
+
+ALTER TABLE upgrade_momentum_weekly DROP INDEX IF EXISTS symbol;
+ALTER TABLE upgrade_momentum_weekly ADD UNIQUE KEY IF NOT EXISTS uq_upgdmom (symbol, date);
+
+ALTER TABLE analyst_ratings DROP INDEX IF EXISTS ticker;
+ALTER TABLE analyst_ratings ADD UNIQUE KEY IF NOT EXISTS uq_analyst_ratings (ticker, date_utc);
+
+ALTER TABLE news_headlines ADD COLUMN IF NOT EXISTS sentiment FLOAT;
+ALTER TABLE analyst_ratings
+  ADD COLUMN IF NOT EXISTS date_utc DATETIME,
+  ADD COLUMN IF NOT EXISTS company TEXT,
+  ADD COLUMN IF NOT EXISTS analyst TEXT,
+  ADD COLUMN IF NOT EXISTS rating_current TEXT,
+  ADD COLUMN IF NOT EXISTS pt_prior DOUBLE,
+  ADD COLUMN IF NOT EXISTS pt_current DOUBLE,
+  ADD COLUMN IF NOT EXISTS pt_pct_change DOUBLE,
+  ADD COLUMN IF NOT EXISTS importance TEXT,
+  ADD COLUMN IF NOT EXISTS notes TEXT,
+  ADD COLUMN IF NOT EXISTS action TEXT;

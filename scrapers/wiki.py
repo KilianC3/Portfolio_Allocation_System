@@ -8,6 +8,7 @@ if str(ROOT) not in sys.path:
 import datetime as dt
 import json
 from typing import List
+import asyncio
 
 from service.config import QUIVER_RATE_SEC
 from infra.rate_limiter import DynamicRateLimiter
@@ -84,14 +85,20 @@ async def fetch_trending_wiki_views(top_k: int = 10, days: int = 7) -> List[dict
         top_k,
         days,
     )
-    cand = list(trending_candidates().items())
-    mapping = index_map()
+    log.info("trending_candidates start")
+    cand = list((await trending_candidates()).items())
+    log.info("trending_candidates end %s candidates", len(cand))
+    log.info("index_map start")
+    mapping = await asyncio.to_thread(index_map)
+    log.info("index_map end")
     if len(cand) < top_k:
         extra = [(sym, name) for sym, name in mapping.items() if sym not in dict(cand)]
         cand.extend(extra)
     pages = []
-    for _, name in cand:
-        page = wiki_title(name)
+    for idx, (_, name) in enumerate(cand, 1):
+        log.info("wiki_title start %s %s/%s", name, idx, len(cand))
+        page = await asyncio.to_thread(wiki_title, name)
+        log.info("wiki_title end %s -> %s", name, page)
         if page and page not in pages:
             pages.append(page)
         if len(pages) >= top_k:
@@ -99,7 +106,8 @@ async def fetch_trending_wiki_views(top_k: int = 10, days: int = 7) -> List[dict
 
     top = pages[:top_k]
     out: List[dict] = []
-    for pg in top:
+    for i, pg in enumerate(top, 1):
+        log.info("fetch_wiki_views progress %s %s/%s", pg, i, len(top))
         try:
             out.extend(await fetch_wiki_views(pg, days))
         except Exception as exc:  # pragma: no cover - network optional

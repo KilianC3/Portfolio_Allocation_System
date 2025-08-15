@@ -318,7 +318,11 @@ class PGCollection:
             ["(" + ",".join([PLACEHOLDER] * len(cols)) + ")" for _ in values]
         )
         flat = [v for row in values for v in row]
-        sql = f"INSERT INTO {self.table} ({','.join(cols)}) VALUES {placeholders}"
+        updates = ",".join([f"{c}=VALUES({c})" for c in cols])
+        sql = (
+            f"INSERT INTO {self.table} ({','.join(cols)}) VALUES {placeholders} "
+            f"ON DUPLICATE KEY UPDATE {updates}"
+        )
         conn = self.pool.get()
         try:
             with conn.cursor() as cur:

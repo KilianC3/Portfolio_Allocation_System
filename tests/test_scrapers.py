@@ -18,6 +18,7 @@ import scrapers.leveraged_sector_momentum as lsm
 import scrapers.smallcap_momentum as scm
 import scrapers.upgrade_momentum as um
 import scrapers.volatility_momentum as vm
+from scrapers.yf_utils import flatten_columns
 
 
 async def _fake_get(*_args, **_kw):
@@ -342,3 +343,17 @@ def test_weekly_closes_uses_explicit_dates(monkeypatch):
     assert called["actions"] is False
     assert df.columns.tolist() == ["A", "B"]
     assert len(df) == 3
+
+
+def test_flatten_columns_multiindex():
+    idx = pd.date_range("2024-01-01", periods=2, freq="D")
+    cols = pd.MultiIndex.from_product([["AAPL", "MSFT"], ["Close", "Volume"]])
+    data = [[1, 2, 3, 4], [5, 6, 7, 8]]
+    df = pd.DataFrame(data, index=idx, columns=cols)
+    flat = flatten_columns(df)
+    assert flat.columns.tolist() == [
+        "AAPL_Close",
+        "AAPL_Volume",
+        "MSFT_Close",
+        "MSFT_Volume",
+    ]
