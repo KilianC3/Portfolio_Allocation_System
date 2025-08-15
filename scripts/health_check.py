@@ -34,7 +34,7 @@ def check_system() -> dict:
 
 if __name__ == "__main__":
     try:
-        resp = requests.get("http://192.168.0.59:8000/readyz", timeout=5)
+        resp = requests.get("http://192.168.0.59:8001/readyz", timeout=5)
         resp.raise_for_status()
         print(resp.json())
     except Exception as exc:  # pragma: no cover - network optional

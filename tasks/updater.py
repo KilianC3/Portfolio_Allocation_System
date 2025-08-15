@@ -79,5 +79,4 @@ async def update_loop(
                 )
             )
             await run_sync(invalidate_prefix, f"metrics:{pf_id}")
-            await run_sync(invalidate_prefix, f"dashboard:{pf_id}")
         await asyncio.sleep(interval)

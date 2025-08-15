@@ -15,7 +15,7 @@ analytics, execution and reporting into a single deployable service.
   executions and cancellations and exposes current positions and free float.
 - **Real‑time metrics** – metrics and system log events are broadcast via a
   WebSocket hub; the updater task aggregates daily returns and exposures for
-  dashboards.
+  downstream visualisations.
 - **Rich front end** – Chart.js visualisations render risk metrics, returns and
   sector weights with CSV/PNG export helpers for reporting.
 
@@ -70,8 +70,7 @@ trade ledger. All services can run locally or inside Docker containers.
    python scripts/run_updater.py &
    ```
 
-Interactive docs are available at `http://192.168.0.59:8000/docs` and a simple
-dashboard at `http://192.168.0.59:8000/dashboard`.
+Interactive docs are available at `http://192.168.0.59:8001/docs`.
 
 ## Testing
 
