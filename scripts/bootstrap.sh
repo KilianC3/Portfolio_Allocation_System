@@ -60,7 +60,7 @@ systemctl enable portfolio
 systemctl start portfolio
 
 echo "Waiting for API to become available"
-until curl -sf "http://${APP_IP}:8001/strategies" >/dev/null; do
+until curl -sf "http://${APP_IP}:8001/health" >/dev/null; do
   sleep 2
 done
 echo "Bootstrap complete. Service portfolio is running."

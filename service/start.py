@@ -117,22 +117,20 @@ async def main(host: str | None = None, port: int | None = None) -> None:
     log.info("loading portfolios")
     load_portfolios()
     # Scheduler is started during FastAPI's startup event
-    log.info("running scrapers")
-    results = await run_scrapers(force=True)
-    momentum_logs = {k: v for k, v in results.items() if "momentum" in k}
-    if momentum_logs:
-        log.info({"momentum_scrapers": momentum_logs})
     log.info("launching api server")
     server_task = await _launch_server(h, p)
     log.info("testing api connection")
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"http://{h}:{p}/strategies", timeout=10)
+            resp = await client.get(f"http://{h}:{p}/health", timeout=10)
             resp.raise_for_status()
         log.info("api connection PASS")
     except Exception as exc:  # pragma: no cover - network optional
         log.warning(f"api connection FAIL: {exc}")
         raise
+    log.info("running scrapers")
+    results = await run_scrapers(force=True)
+    log.info({"scrapers": results})
     log.info("bootstrap complete")
     await server_task
 

@@ -171,6 +171,11 @@ class EquityPortfolio(Portfolio):
                     SimpleNamespace(**order) if isinstance(order, dict) else order
                 )
 
+    async def close(self) -> None:
+        """Close underlying gateway resources."""
+        if hasattr(self.gateway, "close"):
+            await self.gateway.close()
+
     def positions(self) -> Dict[str, float]:
         docs = list(position_coll.find({"portfolio_id": self.id}))
         return {d["symbol"]: float(d.get("qty", 0.0)) for d in docs}
