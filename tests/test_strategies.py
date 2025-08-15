@@ -129,14 +129,11 @@ async def run_all():
         ), mock.patch(
             "strategies.google_trends.news_coll",
             Coll(
-                [{"ticker": "AAPL", "headline": "AAPL beats estimates", "time": "1d"}]
+                [{"ticker": "AAPL", "headline": "AAPL beats estimates, shares up", "time": "1d"}]
             ),
         ), mock.patch(
             "strategies.google_trends.app_reviews_coll",
             Coll([{"ticker": "AAPL", "hype": "5", "date": "2024-01-01"}]),
-        ), mock.patch(
-            "strategies.google_trends._pipe",
-            lambda x: [{"label": "POSITIVE"}],
         ), mock.patch(
             "strategies.wallstreetbets.run_analysis",
             lambda d, t: pd.DataFrame({"symbol": ["AAPL", "MSFT"]}),

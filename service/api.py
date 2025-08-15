@@ -3,10 +3,9 @@ import datetime as dt
 import asyncio
 import json
 from typing import Any, Dict, Optional, List, Union
-from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse, StreamingResponse, Response, HTMLResponse
+from fastapi.responses import JSONResponse, StreamingResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
@@ -445,7 +444,6 @@ def add_metric(pf_id: str, metric: MetricEntry):
         upsert=True,
     )
     invalidate_prefix(f"metrics:{pf_id}")
-    invalidate_prefix(f"dashboard:{pf_id}")
     message = json.dumps(
         {
             "type": "metrics",
@@ -500,31 +498,6 @@ def get_metrics(pf_id: str, start: Optional[str] = None, end: Optional[str] = No
                     entry[k] = d[k]
         res.append(entry)
     return {"metrics": res}
-
-
-@app.get("/dashboard/{pf_id}", response_model=None)
-def dashboard_timeseries(pf_id: str, format: str = "json") -> Any:
-    """Return time-series data for plotting portfolio performance.
-
-    Supports CSV export when ``format=csv``.
-    """
-    cache_key = f"dashboard:{pf_id}"
-    docs = cache_get(cache_key)
-    if docs is None:
-        docs = list(metric_coll.find({"portfolio_id": pf_id}).sort("date", 1))
-        cache_set(cache_key, docs)
-    data = {
-        "dates": [d["date"].isoformat() for d in docs],
-        "returns": [d.get("ret", 0.0) for d in docs],
-        "benchmark": [d.get("benchmark") for d in docs],
-        "var": [d.get("var") for d in docs],
-        "cvar": [d.get("cvar") for d in docs],
-        "drawdown": [d.get("max_drawdown") for d in docs],
-    }
-    if format == "csv":
-        df = pd.DataFrame(data)
-        return Response(content=df.to_csv(index=False), media_type="text/csv")
-    return data
 
 
 @app.post("/collect/metrics")
@@ -717,13 +690,6 @@ def run_job(job_id: str):
     except Exception as e:
         raise HTTPException(404, str(e))
     return {"status": "triggered"}
-
-
-@app.get("/admin/jobs", response_class=HTMLResponse)
-def jobs_admin():
-    """Simple admin view showing job health."""
-    html_path = Path(__file__).with_name("admin.html")
-    return HTMLResponse(html_path.read_text())
 
 
 # Data collection using dedicated scraping module

@@ -75,7 +75,7 @@ class _PoolConnProxy:
 try:
     parts = urlparse(DB_URI)
     _conn_args: Dict[str, Any] = dict(
-        host=parts.hostname or "localhost",
+        host=parts.hostname or "192.168.0.59",
         user=parts.username or "root",
         password=parts.password or "",
         database=parts.path.lstrip("/"),
