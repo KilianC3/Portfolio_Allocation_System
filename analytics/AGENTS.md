@@ -4,7 +4,7 @@ This package contains analytics utilities used by the allocation engine.
 Key modules:
 -- `covariance.py` – covariance estimation helpers.
 -- `robust.py` and `tracking.py` – robust statistics and performance tracking.
--- `account.py` and `collector.py` – scrape account metrics and collect statistics.
+-- `account.py` – scrape account metrics.
 Portfolio metrics compute rolling 7-day, 30-day and 1-year returns and append results to CSV files in cache/metrics/.
 Allocation logs capture the expected return, covariance matrix and final weights so the UI can show complete diagnostics.
 The helper `lambda_from_half_life()` converts a chosen half-life into an exponential decay factor used by the covariance calculations.

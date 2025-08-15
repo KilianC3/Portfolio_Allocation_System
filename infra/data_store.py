@@ -27,6 +27,8 @@ def append_snapshot(table: str, records: List[Dict]) -> None:
         for col, val in item.items():
             if isinstance(val, dt.datetime):
                 item[col] = val.replace(tzinfo=None)
+            elif pd.isna(val):
+                item[col] = None
         data.append(item)
     if db.conn:
         coll = db[table]

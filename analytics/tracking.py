@@ -23,7 +23,7 @@ import numpy as np
 from metrics import scrape_latency, scrape_errors
 from service.logger import get_logger
 from infra.github_backup import backup_records
-from scrapers.yf_utils import extract_close_volume
+from scrapers.yf_utils import extract_close_volume, flatten_columns
 
 log = get_logger(__name__)
 
@@ -108,7 +108,7 @@ def _fetch_history(symbols: Iterable[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
         threads=True,
         progress=False,
     )
-    log.debug("download columns: %s", df.columns)
+    log.debug("download columns: %s", flatten_columns(df).columns.tolist())
     closes, vols = extract_close_volume(df)
     if isinstance(closes, pd.Series):
         key = list(yf_map.keys())[0]

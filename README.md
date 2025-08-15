@@ -63,11 +63,10 @@ trade ledger. All services can run locally or inside Docker containers.
    python -m database.init_db
    ```
 
-5. Start the API and background updater:
+5. Start the API and background jobs:
 
    ```bash
    python -m service.start &
-   python scripts/run_updater.py &
    ```
 
 Interactive docs are available at `http://192.168.0.59:8001/docs`.

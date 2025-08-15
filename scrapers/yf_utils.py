@@ -7,6 +7,20 @@ from typing import Tuple, Optional
 import pandas as pd
 
 
+def flatten_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a copy of ``df`` with any MultiIndex columns flattened.
+
+    Joins column levels with underscores so a download with columns like
+    ``("AAPL", "Close")`` becomes ``"AAPL_Close"``.  DataFrames that already
+    have a single column level are returned unchanged.
+    """
+    if not isinstance(df.columns, pd.MultiIndex):
+        return df
+    flat = df.copy()
+    flat.columns = ["_".join(map(str, tup)).strip("_") for tup in flat.columns.values]
+    return flat
+
+
 def extract_close_volume(
     raw: pd.DataFrame | pd.Series | None,
 ) -> Tuple[pd.DataFrame, Optional[pd.DataFrame]]:
@@ -47,4 +61,4 @@ def extract_close_volume(
     return closes, vols
 
 
-__all__ = ["extract_close_volume"]
+__all__ = ["extract_close_volume", "flatten_columns"]

@@ -1,4 +1,3 @@
-from .collector import record_snapshot
 from .covariance import estimate_covariance
 from .tracking import update_all_metrics, update_all_ticker_scores
 from .fundamentals import compute_fundamental_metrics, yf_symbol
@@ -14,7 +13,6 @@ from .utils import (
 )
 
 __all__ = [
-    "record_snapshot",
     "estimate_covariance",
     "minmax_portfolio",
     "update_all_metrics",
