@@ -188,7 +188,7 @@ async def trending_candidates(min_views: int = 3_000) -> Dict[str, str]:
         tasks.append(asyncio.to_thread(_ticker_from_wikidata, title))
     results = await asyncio.gather(*tasks, return_exceptions=True)
     for res in results:
-        if not res or isinstance(res, Exception):
+        if not res or isinstance(res, BaseException):
             continue
         sym, name = res
         if sym in allowed:
