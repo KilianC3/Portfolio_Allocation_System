@@ -70,8 +70,8 @@ trade ledger. All services can run locally or inside Docker containers.
    python scripts/run_updater.py &
    ```
 
-Interactive docs are available at `http://localhost:8000/docs` and a simple
-dashboard at `http://localhost:8000/dashboard`.
+Interactive docs are available at `http://192.168.0.59:8000/docs` and a simple
+dashboard at `http://192.168.0.59:8000/dashboard`.
 
 ## Testing
 

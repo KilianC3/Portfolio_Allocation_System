@@ -1,15 +1,8 @@
 from __future__ import annotations
 
 import pandas as pd
-from typing import TYPE_CHECKING, Optional
-
-try:
-    from transformers import pipeline
-except Exception:  # pragma: no cover - optional dependency
-    pipeline = None  # type: ignore
-
-if TYPE_CHECKING:
-    from transformers.pipelines import TextClassificationPipeline
+from typing import Optional
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 from database import (
     google_trends_coll as trends_coll,
@@ -19,20 +12,12 @@ from database import (
 
 from core.equity import EquityPortfolio
 
+_analyzer: Optional[SentimentIntensityAnalyzer]
 
-_pipe: Optional["TextClassificationPipeline"]
-
-if pipeline is not None:
-    try:  # pragma: no cover - download may fail
-        _pipe = pipeline(
-            task="text-classification",
-            model="distilbert/distilbert-base-uncased-finetuned-sst-2-english",
-            revision="714eb0f",
-        )
-    except Exception:  # pragma: no cover - fallback
-        _pipe = None
-else:  # pragma: no cover - pipeline import failure
-    _pipe = None
+try:
+    _analyzer = SentimentIntensityAnalyzer()
+except Exception:  # pragma: no cover - analyzer init failure
+    _analyzer = None
 
 
 class GoogleTrendsNewsSentiment:
@@ -43,14 +28,10 @@ class GoogleTrendsNewsSentiment:
 
     @staticmethod
     def _score(text: str) -> int:
-        if _pipe:
+        if _analyzer:
             try:
-                out = _pipe(text[:512])[0]
-                return (
-                    1
-                    if out["label"].startswith("POS")
-                    else -1 if out["label"].startswith("NEG") else 0
-                )
+                score = _analyzer.polarity_scores(text)["compound"]
+                return 1 if score > 0.05 else -1 if score < -0.05 else 0
             except Exception:
                 pass
         t = text.lower()
@@ -69,7 +50,10 @@ class GoogleTrendsNewsSentiment:
         if not docs:
             return pd.Series(dtype=float)
         df = pd.DataFrame(docs)
-        df["score"] = df["headline"].map(self._score)
+        if "sentiment" in df.columns:
+            df["score"] = pd.to_numeric(df["sentiment"], errors="coerce")
+        else:
+            df["score"] = df["headline"].map(self._score)
         return df.groupby("ticker")["score"].mean()
 
     def _review_hype(self) -> pd.Series:

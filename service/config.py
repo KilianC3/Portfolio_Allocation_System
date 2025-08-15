@@ -66,7 +66,7 @@ class Settings(BaseSettings):
 
     QUIVER_RATE_SEC: float = 1.1
 
-    DB_URI: str = "mysql+pymysql://maria:maria@192.168.0.59:8001/quant_fund"
+    DB_URI: str = "mysql+pymysql://maria:maria@192.168.0.59:3306/quant_fund"
 
     FRED_API_KEY: str | None = None
 
@@ -142,8 +142,6 @@ REDIS_URL = settings.REDIS_URL
 if not REDIS_URL:
     token = settings.API_TOKEN or "changeme"
     REDIS_URL = f"redis://:{token}@192.168.0.59:6379/0"
-else:
-    REDIS_URL = REDIS_URL.replace("localhost", "192.168.0.59")
 
 # Default cron-style schedules for periodic jobs
 DEFAULT_SCHEDULES = {

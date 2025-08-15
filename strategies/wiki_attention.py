@@ -129,11 +129,19 @@ def trending_candidates(min_views: int = 3_000) -> Dict[str, str]:
     Only tickers present in the combined index universe are included.
     """
 
-    yday = dt.date.today() - dt.timedelta(days=1)
-    try:
-        arts = _fetch_topviews(yday)
-    except Exception as e:
-        _log.warning("Topviews fetch failed: %s", e)
+    # Wikimedia topviews are occasionally missing for the most recent day.
+    # Walk backwards up to a week until data is available to avoid hard
+    # failures when yesterday's snapshot has not been published yet.
+    last_exc: Exception | None = None
+    for delta in range(1, 8):
+        day = dt.date.today() - dt.timedelta(days=delta)
+        try:
+            arts = _fetch_topviews(day)
+            break
+        except Exception as e:  # pragma: no cover - network optional
+            last_exc = e
+    else:
+        _log.warning("Topviews fetch failed: %s", last_exc)
         return {}
 
     allowed = index_map()

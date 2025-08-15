@@ -18,11 +18,13 @@ from database import db, pf_coll
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 from service.logger import get_scraper_logger
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 log = get_scraper_logger(__name__)
 
 news_coll = db["news_headlines"] if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
+_analyzer = SentimentIntensityAnalyzer()
 
 
 async def fetch_stock_news(limit: int = 50) -> List[dict]:
@@ -69,6 +71,13 @@ async def fetch_stock_news(limit: int = 50) -> List[dict]:
             "time": date_cell.get_text(strip=True),
             "_retrieved": now,
         }
+        try:
+            score = _analyzer.polarity_scores(headline)["compound"]
+            item["sentiment"] = (
+                1 if score > 0.05 else -1 if score < -0.05 else 0
+            )
+        except Exception:
+            item["sentiment"] = 0
         news_coll.insert_one(item)
         rows.append(item)
         if len(rows) >= limit:

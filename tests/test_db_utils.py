@@ -1,7 +1,7 @@
 import os
 import pytest
 
-os.environ["DB_URI"] = "mysql+pymysql://localhost/test"
+os.environ["DB_URI"] = "mysql+pymysql://192.168.0.59/test"
 
 
 def test_build_where_simple():
