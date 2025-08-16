@@ -18,8 +18,20 @@ import datetime as dt
 import warnings
 from typing import List, Sequence, Dict, Iterable, Tuple
 import time
+import random
+
+import requests
+from requests.exceptions import HTTPError as RequestsHTTPError
+
+HTTP_ERRORS: tuple[type[BaseException], ...] = (RequestsHTTPError,)
+try:  # yfinance may use curl_cffi under the hood
+    from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError  # type: ignore
+    HTTP_ERRORS = (RequestsHTTPError, CurlHTTPError)
+except Exception:  # pragma: no cover - curl_cffi optional
+    pass
 
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
+from scrapers.edgar import fetch_edgar_facts
 from database import init_db, top_score_coll
 from infra.github_backup import backup_records
 from service.logger import get_scraper_logger
@@ -29,6 +41,19 @@ import pandas as pd
 import yfinance as yf
 
 log = get_scraper_logger(__name__)
+
+UA = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124 Safari/537.36"
+)
+session = requests.Session()
+session.headers.update(
+    {
+        "User-Agent": UA,
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept": "application/json, text/plain, */*",
+    }
+)
 
 PRICE_LOOKBACK_DAYS = 400
 POSITION_DOLLARS = 5_000_000
@@ -120,6 +145,38 @@ def gv(df, aliases: Sequence[str], idx: int, default=np.nan):
     return default
 
 
+def fetch_fundamentals(symbol: str) -> Dict[str, float]:
+    """Return fundamentals for ``symbol`` with retries and fallbacks.
+
+    Attempts the heavier :meth:`yfinance.Ticker.get_info` call once and, on
+    common HTTP errors, retries after a short backoff.  If that fails, fall back
+    to the lighter ``fast_info`` payload.  Returns an empty dict if all attempts
+    fail so callers can decide how to handle missing data.
+    """
+
+    t = yf.Ticker(symbol, session=session)
+    for delay in (0.5, 1.0):
+        try:
+            return t.get_info()
+        except HTTP_ERRORS as e:  # pragma: no cover - network conditions vary
+            msg = str(e)
+            if any(code in msg for code in ("401", "403", "429")):
+                time.sleep(delay + random.random())
+                continue
+            raise
+        except Exception:
+            break
+
+    try:  # fall back to lightweight fast_info
+        fi = t.fast_info
+        data = {k: getattr(fi, k) for k in dir(fi) if not k.startswith("_")}
+        if data:
+            return data
+    except Exception:
+        pass
+    return fetch_edgar_facts(symbol)
+
+
 def pct_change_price(series: pd.Series, periods: int):
     if len(series) < periods + 1:
         return np.nan
@@ -180,7 +237,7 @@ def download_prices_batch(
 
 def previous_shares_outstanding(ticker: str):
     try:
-        tk = yf.Ticker(ticker)
+        tk = yf.Ticker(ticker, session=session)
         hist = tk.get_shares_full(start=dt.date.today() - dt.timedelta(days=500))
         if hist is not None and not hist.empty:
             hist = hist.sort_index()
@@ -377,11 +434,14 @@ def collect_fundamentals(ticker: str):
     backoff = INFO_BACKOFF_SEC
     for attempt in range(1, INFO_RETRIES + 1):
         try:
-            tk = yf.Ticker(ticker)
+            tk = yf.Ticker(ticker, session=session)
             fin = last_two(tk.financials)
             bs = last_two(tk.balance_sheet)
             cf = last_two(tk.cashflow)
-            info = tk.info
+            info = fetch_fundamentals(ticker)
+            if not info:
+                log.warning("collect_fundamentals skip %s: no fundamentals", ticker)
+                return {}
             break
         except Exception as exc:
             if attempt == INFO_RETRIES:
@@ -481,7 +541,7 @@ def build_price_metrics(
                         (recent["High"] - recent["Low"]) / recent["Close"]
                     ).mean()
                     avg_vol = recent["Volume"].mean()
-                    info = yf.Ticker(t).info
+                    info = fetch_fundamentals(t)
                     shares = info.get("sharesOutstanding")
                     insider = info.get("heldPercentInsiders") or 0.0
                     float_shares = shares * (1 - insider) if shares else np.nan
@@ -777,7 +837,7 @@ def build_fundamentals(universe: Iterable[str]) -> pd.DataFrame:
         data["ticker"] = t
         rows.append(data)
         if TICKER_SLEEP_SEC and i + 1 < len(tickers):
-            time.sleep(TICKER_SLEEP_SEC)
+            time.sleep(TICKER_SLEEP_SEC + random.random() * 0.3)
     return pd.DataFrame(rows).set_index("ticker")
 
 
