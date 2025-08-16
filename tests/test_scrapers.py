@@ -52,6 +52,33 @@ async def _fake_get_wiki(*_args, **_kw):
     return '{"items": [{"timestamp": "2024010100", "views": 42}]}'
 
 
+@mock.patch.object(ar, "fetch_upgrades")
+@mock.patch.object(ar, "init_db")
+@pytest.mark.asyncio
+async def test_fetch_analyst_ratings_formats_rows(mock_init_db, mock_fetch_upgrades):
+    df = pd.DataFrame(
+        [
+            {
+                "date": pd.Timestamp("2024-01-01", tz="UTC"),
+                "ticker": "AAPL",
+                "company_name": "Apple",
+                "analyst": "Jane",
+                "rating_current": "Buy",
+                "pt_prior": 100.0,
+                "pt_current": 110.0,
+                "pt_pct_change": 10.0,
+                "importance": 5,
+                "notes": "note",
+                "action": "UPGRADE",
+            }
+        ]
+    )
+    mock_fetch_upgrades.return_value = (df, df)
+    rows = await ar.fetch_analyst_ratings(limit=1)
+    assert rows[0]["ticker"] == "AAPL"
+    assert rows[0]["date_utc"] == "2024-01-01T00:00:00+00:00"
+
+
 @mock.patch.object(dc, "scrape_get", side_effect=_fake_get)
 @mock.patch.object(gc, "scrape_get", side_effect=_fake_get)
 @mock.patch.object(pol, "scrape_get", side_effect=_fake_get_politician)

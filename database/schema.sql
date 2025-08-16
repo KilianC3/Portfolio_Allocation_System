@@ -381,8 +381,6 @@ ALTER TABLE upgrade_momentum_weekly DROP INDEX IF EXISTS symbol;
 ALTER TABLE upgrade_momentum_weekly ADD UNIQUE KEY IF NOT EXISTS uq_upgdmom (symbol, date);
 
 ALTER TABLE analyst_ratings DROP INDEX IF EXISTS ticker;
-ALTER TABLE analyst_ratings ADD UNIQUE KEY IF NOT EXISTS uq_analyst_ratings (ticker, date_utc);
-
 ALTER TABLE news_headlines ADD COLUMN IF NOT EXISTS sentiment FLOAT;
 ALTER TABLE analyst_ratings
   ADD COLUMN IF NOT EXISTS date_utc DATETIME,
@@ -394,4 +392,5 @@ ALTER TABLE analyst_ratings
   ADD COLUMN IF NOT EXISTS pt_pct_change DOUBLE,
   ADD COLUMN IF NOT EXISTS importance TEXT,
   ADD COLUMN IF NOT EXISTS notes TEXT,
-  ADD COLUMN IF NOT EXISTS action TEXT;
+  ADD COLUMN IF NOT EXISTS action TEXT,
+  ADD UNIQUE KEY IF NOT EXISTS uq_analyst_ratings (ticker, date_utc);
