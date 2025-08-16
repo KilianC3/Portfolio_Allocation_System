@@ -20,7 +20,6 @@ from typing import List, Sequence, Dict, Iterable, Tuple
 import time
 import random
 
-import requests
 from requests.exceptions import HTTPError as RequestsHTTPError
 
 HTTP_ERRORS: tuple[type[BaseException], ...] = (RequestsHTTPError,)
@@ -41,19 +40,6 @@ import pandas as pd
 import yfinance as yf
 
 log = get_scraper_logger(__name__)
-
-UA = (
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/124 Safari/537.36"
-)
-session = requests.Session()
-session.headers.update(
-    {
-        "User-Agent": UA,
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept": "application/json, text/plain, */*",
-    }
-)
 
 PRICE_LOOKBACK_DAYS = 400
 POSITION_DOLLARS = 5_000_000
@@ -154,7 +140,7 @@ def fetch_fundamentals(symbol: str) -> Dict[str, float]:
     fail so callers can decide how to handle missing data.
     """
 
-    t = yf.Ticker(symbol, session=session)
+    t = yf.Ticker(symbol)
     for delay in (0.5, 1.0):
         try:
             return t.get_info()
@@ -237,7 +223,7 @@ def download_prices_batch(
 
 def previous_shares_outstanding(ticker: str):
     try:
-        tk = yf.Ticker(ticker, session=session)
+        tk = yf.Ticker(ticker)
         hist = tk.get_shares_full(start=dt.date.today() - dt.timedelta(days=500))
         if hist is not None and not hist.empty:
             hist = hist.sort_index()
@@ -434,7 +420,7 @@ def collect_fundamentals(ticker: str):
     backoff = INFO_BACKOFF_SEC
     for attempt in range(1, INFO_RETRIES + 1):
         try:
-            tk = yf.Ticker(ticker, session=session)
+            tk = yf.Ticker(ticker)
             fin = last_two(tk.financials)
             bs = last_two(tk.balance_sheet)
             cf = last_two(tk.cashflow)
