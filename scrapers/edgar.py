@@ -1,6 +1,6 @@
 import random
 import time
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import requests
 
@@ -47,7 +47,7 @@ def _latest_fact(facts: dict, *names: str) -> Optional[float]:
         node = facts.get(name)
         if not node or "units" not in node:
             continue
-        units = next(iter(node["units"].values()), [])
+        units: list[dict[str, Any]] = next(iter(node["units"].values()), [])
         if units:
             val = units[-1].get("val")
             if val is not None:

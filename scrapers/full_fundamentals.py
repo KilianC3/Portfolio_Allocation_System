@@ -21,10 +21,14 @@ import time
 import random
 
 import requests
+from requests.exceptions import HTTPError as RequestsHTTPError
+
+HTTP_ERRORS: tuple[type[BaseException], ...] = (RequestsHTTPError,)
 try:  # yfinance may use curl_cffi under the hood
-    from curl_cffi.requests.exceptions import HTTPError
-except Exception:  # fallback to standard requests
-    from requests.exceptions import HTTPError
+    from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError  # type: ignore
+    HTTP_ERRORS = (RequestsHTTPError, CurlHTTPError)
+except Exception:  # pragma: no cover - curl_cffi optional
+    pass
 
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
 from scrapers.edgar import fetch_edgar_facts
@@ -154,7 +158,7 @@ def fetch_fundamentals(symbol: str) -> Dict[str, float]:
     for delay in (0.5, 1.0):
         try:
             return t.get_info()
-        except HTTPError as e:  # pragma: no cover - network conditions vary
+        except HTTP_ERRORS as e:  # pragma: no cover - network conditions vary
             msg = str(e)
             if any(code in msg for code in ("401", "403", "429")):
                 time.sleep(delay + random.random())
