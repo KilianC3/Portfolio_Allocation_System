@@ -237,7 +237,7 @@ def load_portfolios():
 
 @app.on_event("startup")
 async def startup_event():
-    """Log when the API begins accepting requests."""
+    """Log readiness and register scheduler jobs."""
     log.info("api ready")
     sched.register_jobs()
     if AUTO_START_SCHED:
