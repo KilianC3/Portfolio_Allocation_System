@@ -47,7 +47,7 @@ def _sp500_returns(days: int = 60) -> pd.Series:
     closes = pd.Series(
         [r["close"] for r in rows], index=[pd.to_datetime(r["date"]) for r in rows]
     )
-    rets = closes.pct_change().dropna()
+    rets = closes.pct_change(fill_method=None).dropna()
     return rets.tail(days)
 
 

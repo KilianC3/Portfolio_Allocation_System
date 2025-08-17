@@ -25,7 +25,7 @@ _VOL_N = 5
 
 
 def _score_vol_mom(px: pd.DataFrame) -> pd.DataFrame:
-    pct = px.pct_change()
+    pct = px.pct_change(fill_method=None)
     ret_52w = px.iloc[-1] / px.iloc[0] - 1
     vol_12w = pct.tail(12).std() * math.sqrt(52)
     score = ret_52w / vol_12w.replace(0, math.nan)
