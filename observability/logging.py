@@ -7,6 +7,11 @@ from typing import Dict, Tuple
 import datetime as dt
 import time
 
+try:  # systemd journal available in deployment but optional in tests
+    from systemd.journal import JournalHandler  # type: ignore
+except Exception:  # pragma: no cover - platform dependent
+    JournalHandler = None
+
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -34,10 +39,13 @@ handler = RotatingFileHandler(
     os.path.join(LOG_DIR, "app.log"), maxBytes=1_000_000, backupCount=3
 )
 handler.addFilter(_DedupFilter())
+_handlers = [handler]
+if JournalHandler is not None:
+    _handlers.append(JournalHandler())
 logging.basicConfig(
     level=getattr(logging, level, logging.INFO),
     format="%(message)s",
-    handlers=[handler, logging.StreamHandler()],
+    handlers=_handlers,
 )
 
 structlog.configure(
