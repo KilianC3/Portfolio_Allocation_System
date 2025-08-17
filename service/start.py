@@ -128,11 +128,17 @@ async def main(host: str | None = None, port: int | None = None) -> None:
     except Exception as exc:  # pragma: no cover - network optional
         log.warning(f"api connection FAIL: {exc}")
         raise
-    log.info("running scrapers")
-    results = await run_scrapers(force=True)
-    log.info({"scrapers": results})
+    async def _run_scrapers_bg() -> None:
+        try:
+            log.info("running scrapers")
+            results = await run_scrapers(force=True)
+            log.info({"scrapers": results})
+        except Exception:
+            log.exception("scrapers failed")
+
+    scraper_task = asyncio.create_task(_run_scrapers_bg())
     log.info("bootstrap complete")
-    await server_task
+    await asyncio.gather(server_task, scraper_task)
 
 
 if __name__ == "__main__":

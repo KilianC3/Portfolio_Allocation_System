@@ -21,7 +21,7 @@ from metrics import scrape_latency, scrape_errors
 from scrapers.wiki import load_universe_any
 
 log = get_scraper_logger(__name__)
-_VOL_N = 5
+_VOL_N = 15
 
 
 def _score_vol_mom(px: pd.DataFrame) -> pd.DataFrame:
@@ -96,5 +96,5 @@ def fetch_volatility_momentum_summary(
 
 
 if __name__ == "__main__":
-    rows = fetch_volatility_momentum_summary(top_n=5, max_tickers=50)
+    rows = fetch_volatility_momentum_summary(top_n=15, max_tickers=50)
     print(f"ROWS={len(rows)}")
