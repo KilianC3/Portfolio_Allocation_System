@@ -3,7 +3,7 @@
 Assorted command-line tools.
 - `bootstrap.py` now delegates to `service.start.main`; it simply runs the
   system checklist and then launches the full startup sequence.
-- `bootstrap.sh` assumes the repo is already downloaded, installs requirements, runs all scrapers once and registers a systemd service. The MariaDB user and database are created automatically.
+- `bootstrap.sh` assumes the repo is already downloaded, installs requirements and registers a systemd service. The MariaDB user and database are created automatically. Run scrapers manually if data backfilling is required.
 - `setup_redis.sh` installs Redis, configures the bind address and enables the systemd service.
 - `health_check.py` reports system status including portfolio and metric counts.
 
