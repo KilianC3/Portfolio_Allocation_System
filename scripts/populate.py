@@ -59,7 +59,10 @@ async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
     await asyncio.to_thread(download_sp500)
     await asyncio.to_thread(download_sp400)
     await asyncio.to_thread(download_russell2000)
-    universe = set(load_sp500()) | set(load_sp400()) | set(load_russell2000())
+    sp500 = load_sp500()
+    sp400 = load_sp400()
+    r2k = load_russell2000()
+    universe = set(sp500) | set(sp400) | set(r2k)
     if len(universe) < 2000:
         _log.warning(f"universe size {len(universe)} < 2000")
 
@@ -95,7 +98,7 @@ async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
             "upgrade_momentum_weekly",
             lambda: fetch_upgrade_momentum_summary(universe),
         ),
-        ("full_fundamentals", lambda: full_fundamentals.main(universe)),
+        ("full_fundamentals", lambda: full_fundamentals.main(sp400)),
         ("analyst_ratings", fetch_analyst_ratings),
         ("insider_buying", fetch_insider_buying),
         ("stock_news", fetch_stock_news),
