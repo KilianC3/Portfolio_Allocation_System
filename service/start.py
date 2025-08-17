@@ -124,12 +124,12 @@ async def main(host: str | None = None, port: int | None = None) -> None:
         async with httpx.AsyncClient() as client:
             resp = await client.get(f"http://{h}:{p}/health", timeout=10)
             resp.raise_for_status()
-        log.info("api connection PASS")
+        log.info(f"API running on http://{h}:{p} - Swagger UI: http://{h}:{p}/docs")
     except Exception as exc:  # pragma: no cover - network optional
         log.warning(f"api connection FAIL: {exc}")
         raise
-    log.info("starting scrapers")
     asyncio.create_task(run_scrapers(force=True))
+    log.info("scrapers running in background")
     log.info("bootstrap complete")
     await server_task
 
