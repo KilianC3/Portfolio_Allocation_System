@@ -17,7 +17,6 @@ from service.config import (
 from database import db_ping, init_db
 from service.logger import get_logger
 from service.api import load_portfolios
-from scripts.populate import run_scrapers
 from execution.gateway import AlpacaGateway
 from ledger.master_ledger import MasterLedger
 from analytics.allocation_engine import compute_weights
@@ -128,9 +127,7 @@ async def main(host: str | None = None, port: int | None = None) -> None:
     except Exception as exc:  # pragma: no cover - network optional
         log.warning(f"api connection FAIL: {exc}")
         raise
-    asyncio.create_task(run_scrapers(force=True))
-    log.info("scrapers running in background")
-    log.info("bootstrap complete")
+    log.info("startup complete")
     await server_task
 
 

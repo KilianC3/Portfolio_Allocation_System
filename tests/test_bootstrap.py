@@ -35,7 +35,9 @@ async def test_run_scrapers(monkeypatch):
     monkeypatch.setattr(pop, "fetch_sector_momentum_summary", fake)
     monkeypatch.setattr(pop, "fetch_smallcap_momentum_summary", fake)
     monkeypatch.setattr(pop, "fetch_upgrade_momentum_summary", fake)
-    monkeypatch.setattr(pop.full_fundamentals, "main", lambda *_a, **_k: calls.append("s"))
+    monkeypatch.setattr(
+        pop.full_fundamentals, "main", lambda *_a, **_k: calls.append("s")
+    )
     monkeypatch.setattr(pop, "fetch_analyst_ratings", fake)
     monkeypatch.setattr(pop, "fetch_stock_news", fake)
     monkeypatch.setattr(pop, "fetch_insider_buying", fake)
@@ -105,9 +107,10 @@ def test_bootstrap_main(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_api_starts_before_momentum_scrapers(monkeypatch):
+async def test_startup_runs_without_scrapers(monkeypatch):
     import service.start as start_mod
     import service.api as api_mod
+    from scripts import populate as pop_mod
 
     calls: list[str] = []
 
@@ -143,13 +146,16 @@ async def test_api_starts_before_momentum_scrapers(monkeypatch):
 
     monkeypatch.setattr(start_mod.httpx, "AsyncClient", lambda: DummyClient())
 
-    async def fake_run_scrapers(force=True):
-        calls.append("scrapers")
+    called: list[str] = []
 
-    monkeypatch.setattr(start_mod, "run_scrapers", fake_run_scrapers)
+    async def fake_run_scrapers(force=True):
+        called.append("scrapers")
+
+    monkeypatch.setattr(pop_mod, "run_scrapers", fake_run_scrapers)
     monkeypatch.setattr(api_mod.sched, "register_jobs", lambda: None)
     monkeypatch.setattr(api_mod, "AUTO_START_SCHED", False)
 
     await start_mod.main("x", 0)
     await asyncio.sleep(0)
-    assert calls.index("api") < calls.index("scrapers")
+    assert "api" in calls
+    assert called == []
