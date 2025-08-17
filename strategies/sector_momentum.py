@@ -73,7 +73,7 @@ class SectorRiskParityMomentum:
         top = ranks.head(3).index.tolist()
         if not top:
             return
-        rets = prices[top].pct_change().dropna().tail(4)
+        rets = prices[top].pct_change(fill_method=None).dropna().tail(4)
         if rets.empty:
             return
         w, cov = self._risk_parity(rets)

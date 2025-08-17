@@ -35,7 +35,7 @@ class VolatilityScaledMomentum:
 
     def _rank(self, prices: pd.DataFrame) -> pd.DataFrame:
         ret_12m = prices.iloc[-1] / prices.iloc[-52] - 1
-        vol_60 = prices.pct_change().tail(12).std() * math.sqrt(52)
+        vol_60 = prices.pct_change(fill_method=None).tail(12).std() * math.sqrt(52)
         score = ret_12m / vol_60.replace(0, float("nan"))
         ranks = pd.DataFrame({"ret": ret_12m, "vol": vol_60, "score": score})
         return ranks.sort_values("score", ascending=False)

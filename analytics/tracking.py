@@ -51,7 +51,7 @@ def _fetch_returns(symbols: Iterable[str], days: int = 90) -> pd.DataFrame:
         closes.append(df)
 
     big = pd.concat(closes, axis=1)
-    return big.pct_change().dropna()
+    return big.pct_change(fill_method=None).dropna()
 
 
 def update_all_metrics(days: int = 90) -> None:
@@ -137,7 +137,7 @@ def _gather_metrics(symbols: Iterable[str], index_name: str) -> pd.DataFrame:
 
     spx = (
         yf.download("^GSPC", period="13mo", interval="1d", progress=False)["Close"]
-        .pct_change()
+        .pct_change(fill_method=None)
         .dropna()
     )
     today = dt.date.today()
@@ -145,7 +145,7 @@ def _gather_metrics(symbols: Iterable[str], index_name: str) -> pd.DataFrame:
     for sym in closes.columns:
         px = closes[sym].dropna()
         vol = vols[sym].reindex(px.index).ffill()
-        r = px.pct_change().dropna()
+        r = px.pct_change(fill_method=None).dropna()
         if r.empty:
             continue
         fund = compute_fundamental_metrics(sym)

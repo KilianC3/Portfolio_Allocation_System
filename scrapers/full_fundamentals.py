@@ -29,7 +29,7 @@ try:  # yfinance may use curl_cffi under the hood
 except Exception:  # pragma: no cover - curl_cffi optional
     pass
 
-from scrapers.universe import load_sp500, load_sp400, load_russell2000
+from scrapers.universe import load_sp400
 from scrapers.edgar import fetch_edgar_facts
 from database import init_db, top_score_coll
 from infra.github_backup import backup_records
@@ -485,7 +485,7 @@ def compute_altman(fin, bs, info):
 def build_price_metrics(
     px: pd.DataFrame, ohlcv: Dict[str, pd.DataFrame], tickers: List[str]
 ) -> pd.DataFrame:
-    rets = px.pct_change().replace([np.inf, -np.inf], np.nan)
+    rets = px.pct_change(fill_method=None).replace([np.inf, -np.inf], np.nan)
     rows = []
     for t in tickers:
         s = px[t].dropna() if t in px.columns else pd.Series(dtype=float)
@@ -837,9 +837,8 @@ def build_dataset(universe: Iterable[str]) -> pd.DataFrame:
 
 
 def load_default_universe() -> List[str]:
-    """Return tickers from the combined index universe."""
-    syms = set(load_sp500()) | set(load_sp400()) | set(load_russell2000())
-    return sorted(syms)
+    """Return tickers for the S&P 400 universe."""
+    return sorted(load_sp400())
 
 
 def run_scoring(universe: Iterable[str]):
