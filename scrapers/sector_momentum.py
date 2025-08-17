@@ -18,7 +18,7 @@ from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 
 log = get_scraper_logger(__name__)
-_SECTOR_N = 3
+_SECTOR_N = 5
 
 
 def fetch_sector_momentum_summary(weeks: int = 26, top_n: int = _SECTOR_N) -> List[dict]:
