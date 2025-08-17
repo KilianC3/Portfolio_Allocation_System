@@ -2,7 +2,7 @@
 
 All data collection scripts.
 - `universe.py` pulls ticker lists for the S&P 400, S&P 500 and Russell 2000. The Russell list is parsed from Wikipedia using the same helper as the other indices.
-- `full_fundamentals.py` computes fundamental and price-based scores across the entire universe.
+- `full_fundamentals.py` computes fundamental and price-based scores across the S&P 400 universe.
 - `wiki.py` and others in this folder fetch alternative data from QuiverQuant and public APIs.
 
 Scrapers call `init_db()` to ensure tables exist and the `universe` helper stores index constituents to MariaDB and CSV.

@@ -942,8 +942,8 @@ def show_upgrade_mom(limit: int = 50):
 
 @app.post("/collect/fundamentals")
 async def collect_fundamentals():
-    universe = set(load_sp500()) | set(load_sp400()) | set(load_russell2000())
-    await asyncio.to_thread(run_full_fundamentals, universe)
+    tickers = load_sp400()
+    await asyncio.to_thread(run_full_fundamentals, tickers)
     return {"status": "ok"}
 
 
