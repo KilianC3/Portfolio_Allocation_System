@@ -32,7 +32,9 @@ sudo systemctl start mariadb
 sudo mysql -e "CREATE DATABASE IF NOT EXISTS quant_fund;"
 sudo mysql -e "GRANT ALL PRIVILEGES ON quant_fund.* TO 'maria'@'%' IDENTIFIED BY 'maria'; FLUSH PRIVILEGES;"
 python -m playwright install chromium
-python "$APP_DIR/scripts/populate.py"
+# Scrapers are intentionally excluded from bootstrap to avoid noisy console
+# output and to keep deployment idempotent. Run `scripts/populate.py`
+# manually once the service is up if data backfilling is required.
 
 
 # Register the service
