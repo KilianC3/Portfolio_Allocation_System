@@ -11,13 +11,15 @@ class DummyColl:
     def __init__(self):
         self.docs = {}
 
+    def insert_many(self, docs):
+        for doc in docs:
+            key = (doc["portfolio_id"], doc["date"])
+            self.docs[key] = doc
+
     def update_one(self, match, update, upsert=False):
         key = (match["portfolio_id"], match["date"])
         doc = self.docs.get(key, {})
-        if "$set" in update:
-            doc.update(update["$set"])
-        else:
-            doc.update(update)
+        doc.update(update.get("$set", update))
         self.docs[key] = doc
 
 

@@ -78,9 +78,11 @@ class DBHandler(logging.Handler):
             pass
 
 
-def add_db_handler(coll) -> None:
+def add_db_handler(coll, level: int = logging.WARNING) -> None:
     """Attach a database log handler to the root logger."""
-    logging.getLogger().addHandler(DBHandler(coll))
+    handler = DBHandler(coll)
+    handler.setLevel(level)
+    logging.getLogger().addHandler(handler)
 
 
 def clear_log_files() -> None:

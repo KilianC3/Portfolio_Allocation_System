@@ -7,7 +7,7 @@ import datetime as dt
 import hashlib
 import random
 
-import requests
+import httpx
 
 from service.config import CACHE_TTL
 from service.logger import get_logger
@@ -32,7 +32,7 @@ log = get_logger(__name__)
 async def get(url: str, retries: int = 3) -> str:
     """Fetch ``url`` asynchronously with caching and basic retries.
 
-    Uses ``requests`` inside a thread so network calls work behind proxies.
+    Uses ``httpx.AsyncClient`` and respects the dynamic rate limiter.
     Adds detailed logging for cache hits and retry attempts.
     """
 
@@ -52,37 +52,32 @@ async def get(url: str, retries: int = 3) -> str:
     backoff = 1.0
     async with RATE:
         error: Exception | None = None
-        for attempt in range(retries):
-            try:
-                log.info("fetch attempt %s/%s %s", attempt + 1, retries, url)
-
-                def _fetch() -> str:
-                    r = requests.get(
-                        url,
-                        headers={"User-Agent": random.choice(USER_AGENTS)},
-                        timeout=15,
+        async with httpx.AsyncClient(timeout=15) as client:
+            for attempt in range(retries):
+                try:
+                    log.info("fetch attempt %s/%s %s", attempt + 1, retries, url)
+                    resp = await client.get(
+                        url, headers={"User-Agent": random.choice(USER_AGENTS)}
                     )
-                    r.raise_for_status()
-                    return r.text
-
-                text = await asyncio.to_thread(_fetch)
-                log.debug("fetched %d chars from %s", len(text), url)
-                cache.replace_one(
-                    {"cache_key": key},
-                    {
-                        "cache_key": key,
-                        "payload": text,
-                        "expire": dt.datetime.now(dt.timezone.utc)
-                        + dt.timedelta(seconds=TTL),
-                    },
-                    upsert=True,
-                )
-                RATE.reset()
-                return text
-            except Exception as exc:
-                RATE.backoff()
-                error = exc
-                log.warning("fetch attempt %s failed: %s", attempt + 1, exc)
-                await asyncio.sleep(backoff)
-                backoff *= 2
+                    resp.raise_for_status()
+                    text = resp.text
+                    log.debug("fetched %d chars from %s", len(text), url)
+                    cache.replace_one(
+                        {"cache_key": key},
+                        {
+                            "cache_key": key,
+                            "payload": text,
+                            "expire": dt.datetime.now(dt.timezone.utc)
+                            + dt.timedelta(seconds=TTL),
+                        },
+                        upsert=True,
+                    )
+                    RATE.reset()
+                    return text
+                except Exception as exc:
+                    RATE.backoff()
+                    error = exc
+                    log.warning("fetch attempt %s failed: %s", attempt + 1, exc)
+                    await asyncio.sleep(backoff)
+                    backoff *= 2
         raise RuntimeError(f"Failed {url}: {error}")

@@ -11,7 +11,9 @@ Database utilities built on PyMySQL for MariaDB.
 The helpers are used by scrapers to store raw data and by strategies to fetch
 historic metrics. Startup calls `init_db()` here to create tables. If MariaDB
 is unavailable the collections simply become no-ops so tests can run without a
-database.
+database. The connection pool size is configurable via `DB_POOL_SIZE` and
+indexes exist on `ticker_scores(index_name)` and `metrics(portfolio_id)` for
+faster lookups.
 
 - **Reminder:** triple-check modifications and run tests to prevent regressions.
 

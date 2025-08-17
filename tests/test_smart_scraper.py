@@ -21,11 +21,11 @@ async def test_get_handles_naive_expire(monkeypatch):
         upsert=True,
     )
     monkeypatch.setattr(smart_scraper, "cache", mem)
-    monkeypatch.setattr(
-        smart_scraper.requests,
-        "get",
-        lambda *a, **k: (_ for _ in ()).throw(AssertionError("network")),
-    )
+
+    async def fake_get(self, *a, **k):
+        raise AssertionError("network")
+
+    monkeypatch.setattr(smart_scraper.httpx.AsyncClient, "get", fake_get)
 
     result = await smart_scraper.get(url)
     assert result == "cached"

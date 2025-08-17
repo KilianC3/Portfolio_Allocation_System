@@ -394,3 +394,6 @@ ALTER TABLE analyst_ratings
   ADD COLUMN IF NOT EXISTS notes TEXT,
   ADD COLUMN IF NOT EXISTS action TEXT,
   ADD UNIQUE KEY IF NOT EXISTS uq_analyst_ratings (ticker, date_utc);
+
+ALTER TABLE ticker_scores ADD INDEX IF NOT EXISTS idx_ticker_scores_index_name (index_name);
+ALTER TABLE metrics ADD INDEX IF NOT EXISTS idx_metrics_portfolio (portfolio_id);

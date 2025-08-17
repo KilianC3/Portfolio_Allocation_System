@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     QUIVER_RATE_SEC: float = 1.1
 
     DB_URI: str = "mysql+pymysql://maria:maria@192.168.0.59:3306/quant_fund"
+    DB_POOL_SIZE: int = 10
 
     FRED_API_KEY: str | None = None
 
@@ -113,6 +114,7 @@ ALPACA_BASE_URL = settings.ALPACA_LIVE_URL if ALLOW_LIVE else settings.ALPACA_PA
 QUIVER_RATE_SEC = settings.QUIVER_RATE_SEC
 
 DB_URI = settings.DB_URI
+DB_POOL_SIZE = settings.DB_POOL_SIZE
 
 MIN_ALLOC = settings.MIN_ALLOC
 MAX_ALLOC = settings.MAX_ALLOC

@@ -3,8 +3,9 @@ from __future__ import annotations
 import os
 from typing import Dict
 
-import time
-import requests
+import asyncio
+import os
+import httpx
 import pandas as pd
 import numpy as np
 
@@ -46,8 +47,9 @@ _tot = sum(DEFAULT_WEIGHTS.values())
 DEFAULT_WEIGHTS = {k: v / _tot for k, v in DEFAULT_WEIGHTS.items()}
 
 
-def get_fred_series(series_id: str, api_key: str, start: str = START_DATE) -> pd.Series:
-    """Fetch a FRED series with basic retry and return it as a pandas Series."""
+async def _get_fred_series(
+    client: httpx.AsyncClient, series_id: str, api_key: str, start: str = START_DATE
+) -> pd.Series:
     params = {
         "series_id": series_id,
         "api_key": api_key,
@@ -55,23 +57,33 @@ def get_fred_series(series_id: str, api_key: str, start: str = START_DATE) -> pd
         "observation_start": start,
     }
     backoff = 1.0
-    resp: requests.Response | None = None
+    resp: httpx.Response | None = None
     for attempt in range(3):
         try:
-            resp = requests.get(FRED_OBS_URL, params=params, timeout=10)
+            resp = await client.get(FRED_OBS_URL, params=params)
             resp.raise_for_status()
             break
         except Exception:
             if attempt == 2:
                 raise
-            time.sleep(backoff)
+            await asyncio.sleep(backoff)
             backoff *= 2
-    assert resp is not None  # for type checkers
+    assert resp is not None
     data = resp.json().get("observations", [])
     df = pd.DataFrame(data)
     df["date"] = pd.to_datetime(df["date"])
     df["value"] = pd.to_numeric(df["value"], errors="coerce")
     return df.set_index("date")["value"].rename(series_id)
+
+
+def get_fred_series(series_id: str, api_key: str, start: str = START_DATE) -> pd.Series:
+    """Fetch a FRED series and return it as a pandas Series."""
+
+    async def _run() -> pd.Series:
+        async with httpx.AsyncClient(timeout=10) as client:
+            return await _get_fred_series(client, series_id, api_key, start)
+
+    return asyncio.run(_run())
 
 
 def compute_z_scores(df: pd.DataFrame, window: int = 252) -> pd.DataFrame:
@@ -91,14 +103,21 @@ def compute_cci(signals: pd.DataFrame, weights: Dict[str, float]) -> pd.Series:
 
 def latest_cci(api_key: str | None = None) -> float:
     """Return the most recent CCI value using default series and weights."""
+
     key: str = str(api_key or os.getenv("FRED_API_KEY", ""))
-    frames = []
-    for sid in DEFAULT_SERIES.values():
-        frames.append(get_fred_series(sid, key))
-    df = pd.concat(frames, axis=1)
-    df = df.ffill().dropna()
-    cci = compute_cci(df, DEFAULT_WEIGHTS)
-    return float(cci.iloc[-1])
+
+    async def _run() -> float:
+        async with httpx.AsyncClient(timeout=10) as client:
+            tasks = [
+                _get_fred_series(client, sid, key) for sid in DEFAULT_SERIES.values()
+            ]
+            frames = await asyncio.gather(*tasks)
+        df = pd.concat(frames, axis=1)
+        df = df.ffill().dropna()
+        cci = compute_cci(df, DEFAULT_WEIGHTS)
+        return float(cci.iloc[-1])
+
+    return asyncio.run(_run())
 
 
 def cci_scaling(cci: float) -> float:

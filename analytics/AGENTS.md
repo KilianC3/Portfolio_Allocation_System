@@ -14,6 +14,9 @@ through the `database/` helpers. Strategies in `strategies/` rely on these
 functions to build portfolios. Recent commits added a max_sharpe allocator (default) and alternatives such as risk parity, minimum variance, strategic, tactical and dynamic mixes. Tests under
 `tests/` validate the analytics helpers with mocked data.
 
+Ticker score and return aggregation routines batch inserts with
+`insert_many` to minimise per-row latency when writing to MariaDB.
+
 ## Allocation Tips
 - Keep weight computation simple to avoid estimation error when signals overlap.
 - The max_sharpe allocator assumes recent weekly returns are representative; verify your data quality before relying on it.

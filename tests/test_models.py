@@ -63,8 +63,8 @@ def test_update_ticker_scores(monkeypatch):
     rec = []
 
     class Coll:
-        def update_one(self, *a, **k):
-            rec.append(a)
+        def insert_many(self, docs):
+            rec.extend(docs)
 
     monkeypatch.setattr(trk, "ticker_score_coll", Coll())
     monkeypatch.setattr(
@@ -81,7 +81,7 @@ def test_update_ticker_scores(monkeypatch):
         },
     )
     trk.update_ticker_scores(["AAPL"], "S&P500")
-    assert rec and rec[0][1]["$set"]["index_name"] == "S&P500"
+    assert rec and rec[0]["index_name"] == "S&P500"
 
 
 def test_record_top_scores(monkeypatch):

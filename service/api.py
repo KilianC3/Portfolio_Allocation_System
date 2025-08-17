@@ -400,7 +400,12 @@ async def close_position(pf_id: str, symbol: str):
     weights = pf.weights.copy()
     weights.pop(symbol, None)
     pf.set_weights(weights)
-    pf_coll.update_one({"_id": pf_id}, {"$set": {"weights": weights}}, upsert=True)
+    await asyncio.to_thread(
+        pf_coll.update_one,
+        {"_id": pf_id},
+        {"$set": {"weights": weights}},
+        True,
+    )
     await pf.rebalance()
     return {"status": "closed"}
 

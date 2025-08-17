@@ -298,15 +298,18 @@ def aggregate_daily_returns_exposure(
     df = pd.DataFrame({"ret": returns}).dropna()
     if exposure is not None:
         df["exposure"] = exposure.reindex(df.index).fillna(0)
+    records: list[dict[str, Any]] = []
     for date, row in df.iterrows():
-        update: dict[str, Any] = {"ret": float(row["ret"])}
+        rec: dict[str, Any] = {
+            "portfolio_id": pf_id,
+            "date": pd.to_datetime(date).date(),
+            "ret": float(row["ret"]),
+        }
         if "exposure" in row:
-            update["exposure"] = float(row["exposure"])
-        coll.update_one(
-            {"portfolio_id": pf_id, "date": pd.to_datetime(date).date()},
-            {"$set": update},
-            upsert=True,
-        )
+            rec["exposure"] = float(row["exposure"])
+        records.append(rec)
+    if records:
+        coll.insert_many(records)
 
 
 def portfolio_correlations(ret_df: pd.DataFrame) -> pd.DataFrame:
