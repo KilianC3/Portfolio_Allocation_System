@@ -230,18 +230,17 @@ def update_ticker_scores(symbols: Iterable[str], index_name: str) -> None:
     if df.empty:
         return
     today = dt.date.today()
-    for _, row in df.iterrows():
-        doc = {
-            "symbol": row["symbol"],
-            "index_name": row["index_name"],
-            "date": today,
-            "score": float(row["overall_score"]),
-        }
-        ticker_score_coll.update_one(
-            {"symbol": doc["symbol"], "date": today},
-            {"$set": doc},
-            upsert=True,
+    docs: list[dict] = []
+    for row in df.itertuples(index=False):
+        docs.append(
+            {
+                "symbol": row.symbol,
+                "index_name": row.index_name,
+                "date": today,
+                "score": float(row.overall_score),
+            }
         )
+    ticker_score_coll.insert_many(docs)
     log.info("ticker scores updated")
 
 
@@ -264,19 +263,16 @@ def update_all_ticker_scores() -> None:
     scored = _compute_scores(all_rows)
     today = dt.date.today()
     docs: list[dict] = []
-    for _, row in scored.iterrows():
-        doc = {
-            "symbol": row["symbol"],
-            "index_name": row["index_name"],
-            "date": today,
-            "score": float(row["overall_score"]),
-        }
-        ticker_score_coll.update_one(
-            {"symbol": doc["symbol"], "date": today},
-            {"$set": doc},
-            upsert=True,
+    for row in scored.itertuples(index=False):
+        docs.append(
+            {
+                "symbol": row.symbol,
+                "index_name": row.index_name,
+                "date": today,
+                "score": float(row.overall_score),
+            }
         )
-        docs.append(doc)
+    ticker_score_coll.insert_many(docs)
     backup_records("ticker_scores", docs)
     log.info("update_all_ticker_scores done")
     record_top_scores()

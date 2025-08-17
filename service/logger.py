@@ -1,3 +1,4 @@
+import logging
 from observability.logging import get_logger, add_db_handler
 
 
@@ -12,8 +13,8 @@ def get_scraper_logger(name: str):
 
 
 def register_db_handler(coll) -> None:
-    """Add a handler that stores all logs in ``coll``."""
-    add_db_handler(coll)
+    """Add a handler that stores warnings and errors in ``coll``."""
+    add_db_handler(coll, level=logging.WARNING)
 
 
 __all__ = ["get_logger", "get_scraper_logger", "register_db_handler"]

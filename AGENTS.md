@@ -14,6 +14,11 @@ Key folders:
 
 See `docs/AGENTS_ROOT.md` for detailed commit conventions.
 
+MariaDB connection pooling is configurable through the `DB_POOL_SIZE`
+environment variable and only warnings/errors are persisted to the
+`system_logs` table. External data fetches now use asynchronous `httpx`
+clients to avoid blocking I/O.
+
 ## Commit Checklist
 
 Before approving any commit, exhaustively inspect the codebase end‑to‑end. For

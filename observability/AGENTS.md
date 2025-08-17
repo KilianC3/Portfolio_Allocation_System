@@ -6,7 +6,8 @@ Utilities for logging and metrics.
 
 Other packages import these modules to report status and errors.
 Logging now includes the scheduler startup routine and prints first-row samples
-from scrapers during testing for easier debugging.
+from scrapers during testing for easier debugging. Only warnings and errors
+are persisted to the database via a filtered handler.
 
 - **Reminder:** triple-check modifications and run tests to prevent regressions.
 

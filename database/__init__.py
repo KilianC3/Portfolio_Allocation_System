@@ -15,7 +15,7 @@ import datetime as dt
 from queue import Queue, Empty, Full
 
 from service.logger import get_logger, register_db_handler
-from service.config import DB_URI, ALLOW_LIVE
+from service.config import DB_URI, ALLOW_LIVE, DB_POOL_SIZE
 
 _log = get_logger("db")
 
@@ -83,7 +83,7 @@ try:
         autocommit=True,
         cursorclass=DictCursor,
     )
-    _pool = _ConnectionPool(_conn_args)
+    _pool = _ConnectionPool(_conn_args, maxsize=DB_POOL_SIZE)
     conn = _pool.get()
     with conn.cursor() as cur:
         cur.execute("SELECT 1")

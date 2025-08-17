@@ -7,8 +7,8 @@ Supporting infrastructure used across the system.
 - `charts/` and `grafana/` – static assets for observability dashboards.
 
 These tools are imported by `scrapers/` and monitored via `observability/`.
-The July 2025 release introduced a threaded scraper using `requests` to better
-handle network proxies.
+Network fetches now rely on `httpx.AsyncClient` with a dynamic rate limiter
+instead of threaded `requests` calls.
 
 - **Reminder:** triple-check modifications and run tests to prevent regressions.
 
