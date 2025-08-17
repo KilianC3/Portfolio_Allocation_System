@@ -1,13 +1,25 @@
 from __future__ import annotations
 
 import math
-from typing import Iterable, Sequence, Dict, Optional, cast
+import time
+import random
+from typing import Iterable, Sequence, Dict, Optional, cast, Any
 
 from service.logger import get_logger
 
 import numpy as np
 import pandas as pd
 import yfinance as yf
+
+from requests.exceptions import HTTPError as RequestsHTTPError
+
+HTTP_ERRORS: tuple[type[BaseException], ...] = (RequestsHTTPError,)
+try:  # yfinance may use curl_cffi under the hood
+    from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError  # type: ignore
+
+    HTTP_ERRORS = (RequestsHTTPError, CurlHTTPError)
+except Exception:  # pragma: no cover - curl_cffi optional
+    pass
 
 log = get_logger(__name__)
 
@@ -80,10 +92,9 @@ def _piotroski(t: yf.Ticker) -> float:
     return float(score)
 
 
-def _altman(t: yf.Ticker) -> float:
+def _altman(t: yf.Ticker, info: Dict[str, Any]) -> float:
     bs = t.balance_sheet
     fin = t.financials
-    info = t.info
     if bs.empty or fin.empty:
         return math.nan
     ca = _val(bs, ["Current Assets"], 0)
@@ -96,8 +107,8 @@ def _altman(t: yf.Ticker) -> float:
     if math.isnan(tl):
         tl = _val(bs, ["Total Liabilities Net Minority Interest"], 0)
     sales = _val(fin, ["Total Revenue"], 0)
-    price = info.get("currentPrice")
-    shares = info.get("sharesOutstanding")
+    price = info.get("currentPrice") or info.get("lastPrice")
+    shares = info.get("sharesOutstanding") or info.get("shares")
     if not price or not shares or tl == 0 or ta == 0:
         return math.nan
     mve = price * shares
@@ -130,16 +141,15 @@ def _roic(t: yf.Ticker) -> float:
     return _safe_ratio(nopat, invested)
 
 
-def _fcf_yield(t: yf.Ticker) -> float:
+def _fcf_yield(t: yf.Ticker, info: Dict[str, Any]) -> float:
     cf = t.cashflow
     bs = t.balance_sheet
-    info = t.info
     if cf.empty or bs.empty:
         return math.nan
     ocf = _val(cf, ["Operating Cash Flow"], 0)
     capex = _val(cf, ["Capital Expenditure"], 0)
-    price = info.get("currentPrice")
-    shares = info.get("sharesOutstanding")
+    price = info.get("currentPrice") or info.get("lastPrice")
+    shares = info.get("sharesOutstanding") or info.get("shares")
     debt = _val(bs, ["Total Debt"], 0)
     cash = _val(
         bs,
@@ -212,29 +222,52 @@ def _beneish(t: yf.Ticker) -> float:
     )
 
 
+def _fetch_info(t: yf.Ticker) -> Dict[str, Any]:
+    """Return ticker info with retries and fallbacks."""
+    for delay in (0.5, 1.0):
+        try:
+            return t.get_info()
+        except HTTP_ERRORS as e:  # pragma: no cover - network conditions vary
+            msg = str(e)
+            if any(code in msg for code in ("401", "403", "429")):
+                time.sleep(delay + random.random())
+                continue
+            break
+        except Exception:
+            break
+    try:  # fall back to lightweight fast_info
+        fi = t.fast_info
+        return {k: getattr(fi, k) for k in dir(fi) if not k.startswith("_")}
+    except Exception:
+        return {}
+
+
+def _safe_metric(func, *args):
+    try:
+        return func(*args)
+    except Exception:  # pragma: no cover - network optional
+        return math.nan
+
+
 def compute_fundamental_metrics(symbol: str) -> Dict[str, Optional[float]]:
     """Return fundamental metrics for ``symbol`` computed from statements."""
     t = yf.Ticker(yf_symbol(symbol))
-    try:
-        info = t.info
-        metrics = {
-            "piotroski": _piotroski(t),
-            "altman": _altman(t),
-            "roic": _roic(t),
-            "fcf_yield": _fcf_yield(t),
-            "beneish": _beneish(t),
-            "short_ratio": cast(Optional[float], info.get("shortRatio")),
-            "insider_buying": cast(Optional[float], info.get("heldPercentInsiders")),
-        }
-    except Exception as exc:  # pragma: no cover - network optional
-        log.warning(f"fundamental metrics failed for {symbol}: {exc}")
-        metrics = {
-            "piotroski": math.nan,
-            "altman": math.nan,
-            "roic": math.nan,
-            "fcf_yield": math.nan,
-            "beneish": math.nan,
-            "short_ratio": math.nan,
-            "insider_buying": math.nan,
-        }
+    info = _fetch_info(t)
+    if not info:
+        log.warning(f"fundamental metrics missing info for {symbol}")
+    short_ratio = cast(Optional[float], info.get("shortRatio"))
+    if short_ratio is None:
+        short_ratio = math.nan
+    insider = cast(Optional[float], info.get("heldPercentInsiders"))
+    if insider is None:
+        insider = math.nan
+    metrics = {
+        "piotroski": _safe_metric(_piotroski, t),
+        "altman": _safe_metric(_altman, t, info),
+        "roic": _safe_metric(_roic, t),
+        "fcf_yield": _safe_metric(_fcf_yield, t, info),
+        "beneish": _safe_metric(_beneish, t),
+        "short_ratio": short_ratio,
+        "insider_buying": insider,
+    }
     return metrics
