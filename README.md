@@ -63,11 +63,14 @@ trade ledger. All services can run locally or inside Docker containers.
    python -m database.init_db
    ```
 
-5. Start the API and background jobs:
+5. Start the API:
 
-   ```bash
-   python -m service.start &
-   ```
+ ```bash
+  python -m service.start &
+  ```
+
+Scrapers do not run automatically during startup; run `python -m scripts.populate`
+separately when data refresh is needed.
 
 Interactive docs are available at `http://192.168.0.59:8001/docs`.
 
