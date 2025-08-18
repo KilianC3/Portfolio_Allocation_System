@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Dict, Iterable, Optional, Type
+from typing import Any, Dict, Iterable, Optional, Type
 
 from bs4.element import Tag
 
@@ -45,7 +45,7 @@ def validate_row(
     ticker_field: str = "ticker",
     numeric_fields: Optional[Dict[str, Type]] = None,
     log: Optional[logging.Logger] = None,
-) -> Optional[Dict[str, str]]:
+) -> Optional[Dict[str, Any]]:
     ticker = clean_ticker(row.get(ticker_field, ""))
     if not ticker:
         if log:
