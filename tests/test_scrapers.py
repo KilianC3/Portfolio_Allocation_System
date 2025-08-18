@@ -156,6 +156,7 @@ async def test_scraper_suite(
     index = spx.fetch_sp500_history(1)
     assert d and l and g and p and w and index
     assert "open" in index[0]
+    assert w[0]["ticker"]
 
 
 def test_helpers(monkeypatch, tmp_path):
@@ -198,6 +199,23 @@ def test_helpers(monkeypatch, tmp_path):
     data2 = pd.read_csv(p2)
     assert data2.iloc[0][0] == "MSFT"
     print(data2.iloc[0].to_dict())
+
+
+@mock.patch.object(vm, "append_snapshot")
+@mock.patch.object(vm, "vol_mom_coll", new=mock.Mock())
+@mock.patch.object(vm, "load_universe_any")
+@mock.patch.object(vm, "_weekly_closes")
+def test_volatility_momentum_returns_metrics(mock_weekly, mock_universe, *_):
+    mock_universe.return_value = pd.DataFrame({"ticker": ["AAPL", "MSFT"]})
+
+    def fake_weekly(tickers, weeks):
+        dates = pd.date_range("2024-01-01", periods=weeks + 1, freq="W")
+        data = {t: range(1, weeks + 2) for t in tickers}
+        return pd.DataFrame(data, index=dates)
+
+    mock_weekly.side_effect = fake_weekly
+    rows = vm.fetch_volatility_momentum_summary(weeks=12, top_n=1, max_tickers=2)
+    assert "score" in rows[0] and "ret_52w" in rows[0]
 
 
 @pytest.mark.asyncio

@@ -49,6 +49,10 @@ def backup_records(table: str, records: List[Dict]) -> None:
             df_new = pd.concat([df_old, df_new], ignore_index=True)
         except Exception as exc:  # pragma: no cover - corrupted file
             log.warning("backup read failed: %s", exc)
+    # remove exact duplicates ignoring the backup timestamp column
+    subset = [c for c in df_new.columns if c != "_backup_ts"]
+    if subset:
+        df_new = df_new.drop_duplicates(subset=subset, keep="last")
     df_new.to_csv(csv_file, index=False)
 
     repo = _init_repo()

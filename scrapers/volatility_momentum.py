@@ -84,7 +84,15 @@ def fetch_volatility_momentum_summary(
     vol_mom_coll.delete_many({"date": end})
     rows: List[dict] = []
     for sym in top.index:
-        item = {"symbol": sym, "date": end, "_retrieved": now}
+        row = top.loc[sym]
+        item = {
+            "symbol": sym,
+            "score": float(row["score"]),
+            "ret_52w": float(row["ret_52w"]),
+            "vol_12w": float(row["vol_12w"]),
+            "date": end,
+            "_retrieved": now,
+        }
         vol_mom_coll.update_one(
             {"symbol": sym, "date": end}, {"$set": item}, upsert=True
         )
