@@ -54,7 +54,12 @@ def fetch_sector_momentum_summary(weeks: int = 26, top_n: int = _SECTOR_N) -> Li
         rows: List[dict] = []
         sector_mom_coll.delete_many({"date": end})
         for sym in top.index:
-            item = {"symbol": sym, "date": end, "_retrieved": now}
+            item = {
+                "symbol": sym,
+                "ret": float(top.loc[sym]),
+                "date": end,
+                "_retrieved": now,
+            }
             sector_mom_coll.update_one(
                 {"symbol": sym, "date": end}, {"$set": item}, upsert=True
             )

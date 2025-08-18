@@ -73,7 +73,15 @@ async def fetch_upgrade_momentum_summary(
         rows: List[dict] = []
         upgrade_mom_coll.delete_many({"date": end})
         for _, row in top.iterrows():
-            item = {"symbol": row["symbol"], "date": end, "_retrieved": now}
+            item = {
+                "symbol": row["symbol"],
+                "ratio": float(row["ratio"]),
+                "upgrades": int(row["upgrades"]),
+                "downgrades": int(row["downgrades"]),
+                "total": int(row["total"]),
+                "date": end,
+                "_retrieved": now,
+            }
             upgrade_mom_coll.update_one(
                 {"symbol": item["symbol"], "date": end}, {"$set": item}, upsert=True
             )

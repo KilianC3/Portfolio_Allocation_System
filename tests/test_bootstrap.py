@@ -35,9 +35,6 @@ async def test_run_scrapers(monkeypatch):
     monkeypatch.setattr(pop, "fetch_sector_momentum_summary", fake)
     monkeypatch.setattr(pop, "fetch_smallcap_momentum_summary", fake)
     monkeypatch.setattr(pop, "fetch_upgrade_momentum_summary", fake)
-    monkeypatch.setattr(
-        pop.full_fundamentals, "main", lambda *_a, **_k: calls.append("s")
-    )
     monkeypatch.setattr(pop, "fetch_analyst_ratings", fake)
     monkeypatch.setattr(pop, "fetch_stock_news", fake)
     monkeypatch.setattr(pop, "fetch_insider_buying", fake)
@@ -50,7 +47,7 @@ async def test_run_scrapers(monkeypatch):
     monkeypatch.setattr(pop, "update_all_ticker_scores", lambda: calls.append("s"))
 
     await pop.run_scrapers()
-    assert calls.count("s") == 19
+    assert calls.count("s") == 18
 
 
 def test_health(monkeypatch):

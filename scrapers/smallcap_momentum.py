@@ -84,8 +84,14 @@ def fetch_smallcap_momentum_summary(
     )
     smallcap_mom_coll.delete_many({"date": end})
     rows: List[dict] = []
-    for sym in top.index:
-        item = {"symbol": sym, "date": end, "_retrieved": now}
+    for sym, row in top.iterrows():
+        item = {
+            "symbol": sym,
+            "price": float(row["price"]),
+            "ret": float(row["ret"]),
+            "date": end,
+            "_retrieved": now,
+        }
         smallcap_mom_coll.update_one(
             {"symbol": sym, "date": end}, {"$set": item}, upsert=True
         )

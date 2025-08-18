@@ -55,7 +55,12 @@ def fetch_leveraged_sector_summary(
         rows: List[dict] = []
         lev_sector_coll.delete_many({"date": end})
         for sym in top.index:
-            item = {"symbol": sym, "date": end, "_retrieved": now}
+            item = {
+                "symbol": sym,
+                "ret": float(top.loc[sym]),
+                "date": end,
+                "_retrieved": now,
+            }
             lev_sector_coll.update_one(
                 {"symbol": sym, "date": end}, {"$set": item}, upsert=True
             )

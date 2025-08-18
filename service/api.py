@@ -85,7 +85,7 @@ app.add_middleware(
 )
 
 
-OPEN_ENDPOINTS = {"/health", "/readyz"}
+OPEN_ENDPOINTS = {"/health", "/readyz", "/docs", "/redoc", "/api/v1/openapi.json"}
 
 
 @app.middleware("http")

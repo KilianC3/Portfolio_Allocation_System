@@ -10,7 +10,7 @@ analysis can reproduce past views of the data.
 |-------|---------|
 | `politician_trades` | `politician`, `ticker`, `transaction`, `amount`, `date`, `_retrieved` |
 | `lobbying` | `ticker`, `client`, `amount`, `date`, `_retrieved` |
-| `wiki_views` | `page`, `views`, `date`, `_retrieved` |
+| `wiki_views` | `ticker`, `views`, `date`, `_retrieved` |
 | `dc_insider_scores` | `ticker`, `score`, `date`, `_retrieved` |
 | `gov_contracts` | `ticker`, `value`, `date`, `_retrieved` |
 | `app_reviews` | `ticker`, `hype`, `date`, `_retrieved` |
@@ -20,11 +20,11 @@ analysis can reproduce past views of the data.
 | `news_headlines` | `ticker`, `headline`, `link`, `source`, `time`, `sentiment`, `_retrieved` |
 | `insider_buying` | `ticker`, `exec`, `shares`, `date`, `_retrieved` |
 | `sp500_index` | `date`, `open`, `high`, `low`, `close`, `volume`, `_retrieved` |
-| `volatility_momentum` | `symbol`, `date`, `_retrieved` |
-| `leveraged_sector_momentum` | `symbol`, `date`, `_retrieved` |
-| `sector_momentum_weekly` | `symbol`, `date`, `_retrieved` |
-| `smallcap_momentum_weekly` | `symbol`, `date`, `_retrieved` |
-| `upgrade_momentum_weekly` | `symbol`, `date`, `_retrieved` |
+| `volatility_momentum` | `symbol`, `score`, `ret_52w`, `vol_12w`, `date`, `_retrieved` |
+| `leveraged_sector_momentum` | `symbol`, `ret`, `date`, `_retrieved` |
+| `sector_momentum_weekly` | `symbol`, `ret`, `date`, `_retrieved` |
+| `smallcap_momentum_weekly` | `symbol`, `price`, `ret`, `date`, `_retrieved` |
+| `upgrade_momentum_weekly` | `symbol`, `ratio`, `upgrades`, `downgrades`, `total`, `date`, `_retrieved` |
 | `returns` | `date`, `strategy`, `return_pct` |
 | `risk_stats` | `date`, `strategy`, `var95`, `var99`, `es95`, `es99`, `vol30d`, `beta30d`, `max_drawdown` |
 | `risk_rules` | `id`, `name`, `strategy`, `metric`, `operator`, `threshold`, `created_at` |

@@ -26,8 +26,18 @@ wiki_collection = wiki_coll if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 
-async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7) -> List[dict]:
-    """Fetch Wikipedia page views via the Wikimedia API."""
+async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7, ticker: str = "AAPL") -> List[dict]:
+    """Fetch Wikipedia page views via the Wikimedia API.
+
+    Parameters
+    ----------
+    page : str
+        Wikipedia page title using underscores instead of spaces.
+    days : int
+        Number of days of history to retrieve.
+    ticker : str
+        Associated ticker symbol used as the primary key in storage.
+    """
 
     log.info(f"fetch_wiki_views start page={page}")
     init_db()
@@ -53,14 +63,14 @@ async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7) -> List[dict]
     for row in items:
         date = row["timestamp"][:8]
         item = {
-            "page": page,
+            "ticker": ticker,
             "views": row["views"],
             "date": date,
             "_retrieved": now,
         }
         data.append(item)
         wiki_collection.update_one(
-            {"page": page, "date": date},
+            {"ticker": ticker, "date": date},
             {"$set": item},
             upsert=True,
         )
@@ -86,34 +96,49 @@ async def fetch_trending_wiki_views(top_k: int = 10, days: int = 7) -> List[dict
         days,
     )
     log.info("trending_candidates start")
-    cand = list((await trending_candidates()).items())
-    log.info("trending_candidates end %s candidates", len(cand))
+    cand_dict = await trending_candidates()
+    log.info("trending_candidates end %s candidates", len(cand_dict))
     log.info("index_map start")
     mapping = await asyncio.to_thread(index_map)
     log.info("index_map end")
-    if len(cand) < top_k:
-        extra = [(sym, name) for sym, name in mapping.items() if sym not in dict(cand)]
-        cand.extend(extra)
-    pages = []
-    for idx, (_, name) in enumerate(cand, 1):
-        log.info("wiki_title start %s %s/%s", name, idx, len(cand))
+    allowed = set(mapping.keys())
+    cand: List[tuple[str, str]] = [
+        (sym, name) for sym, name in cand_dict.items() if sym in allowed
+    ]
+    seen: set[str] = set()
+    pages: List[tuple[str, str]] = []
+    for sym, name in cand:
+        if sym in seen:
+            continue
+        log.info("wiki_title start %s", name)
         page = await asyncio.to_thread(wiki_title, name)
         log.info("wiki_title end %s -> %s", name, page)
-        if page and page not in pages:
-            pages.append(page)
+        if page:
+            pages.append((page, sym))
+            seen.add(sym)
         if len(pages) >= top_k:
             break
 
-    top = pages[:top_k]
+    if len(pages) < top_k:
+        for sym, name in mapping.items():
+            if sym in seen:
+                continue
+            page = await asyncio.to_thread(wiki_title, name)
+            if page:
+                pages.append((page, sym))
+                seen.add(sym)
+            if len(pages) >= top_k:
+                break
+
     out: List[dict] = []
-    for i, pg in enumerate(top, 1):
-        log.info("fetch_wiki_views progress %s %s/%s", pg, i, len(top))
+    for i, (pg, sym) in enumerate(pages[:top_k], 1):
+        log.info("fetch_wiki_views progress %s %s/%s", pg, i, min(top_k, len(pages)))
         try:
-            out.extend(await fetch_wiki_views(pg, days))
+            out.extend(await fetch_wiki_views(pg, days, ticker=sym))
         except Exception as exc:  # pragma: no cover - network optional
-            log.exception(f"fetch_wiki_views failed for {pg}: {exc}")
+            log.exception(f"fetch_wiki_views failed for %s: %s", pg, exc)
             continue
-    log.info(f"fetched {len(out)} trending wiki rows")
+    log.info("fetched %s trending wiki rows", len(out))
     return out
 
 

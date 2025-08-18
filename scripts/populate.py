@@ -29,7 +29,6 @@ from scrapers.analyst_ratings import fetch_analyst_ratings
 from scrapers.insider_buying import fetch_insider_buying
 from scrapers.news import fetch_stock_news
 from scrapers.sp500_index import fetch_sp500_history
-from scrapers import full_fundamentals
 from scrapers.volatility_momentum import fetch_volatility_momentum_summary
 from scrapers.leveraged_sector_momentum import fetch_leveraged_sector_summary
 from scrapers.sector_momentum import fetch_sector_momentum_summary
@@ -98,7 +97,6 @@ async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
             "upgrade_momentum_weekly",
             lambda: fetch_upgrade_momentum_summary(universe),
         ),
-        ("full_fundamentals", lambda: full_fundamentals.main(sp400)),
         ("analyst_ratings", fetch_analyst_ratings),
         ("insider_buying", fetch_insider_buying),
         ("stock_news", fetch_stock_news),
@@ -116,7 +114,6 @@ async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
         "sector_momentum_weekly": "sector_momentum_weekly",
         "smallcap_momentum_weekly": "smallcap_momentum_weekly",
         "upgrade_momentum_weekly": "upgrade_momentum_weekly",
-        "full_fundamentals": "top_scores",
     }
 
     for name, func in scrapers:
@@ -124,7 +121,7 @@ async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
         try:
             table = table_map.get(name, name)
             if not force:
-                if name in {"ticker_scores", "full_fundamentals"}:
+                if name in {"ticker_scores"}:
                     if (
                         db.conn
                         and db[table].count_documents({"date": today.date()}) > 0
@@ -183,11 +180,21 @@ async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
     return results
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     """Initialise the database and run all scrapers."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Populate the database")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Run all scrapers regardless of existing data",
+    )
+    args = parser.parse_args(argv)
+
     _log.info("initialising database and running scrapers")
     init_db()
-    summary = asyncio.run(run_scrapers(force=True))
+    summary = asyncio.run(run_scrapers(force=args.force))
     _log.info({"scrapers": summary})
     _log.info("populate complete")
 
