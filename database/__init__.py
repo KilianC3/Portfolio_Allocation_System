@@ -422,6 +422,8 @@ def init_db() -> None:
 
 db = PGDatabase(_pool)
 
+schema_coll = db["schema_version"]
+
 pf_coll = db["portfolios"]
 trade_coll = db["trades"]
 position_coll = db["positions"]
@@ -436,6 +438,7 @@ insider_coll = db["dc_insider_scores"]
 contracts_coll = db["gov_contracts"]
 alloc_log_coll = db["alloc_log"]
 alloc_perf_coll = db["allocation_performance"]
+account_metrics_coll = db["account_metrics"]
 cache = db["cache"] if _pool else InMemoryCollection()
 account_paper_coll = db["account_metrics_paper"]
 account_live_coll = db["account_metrics_live"]

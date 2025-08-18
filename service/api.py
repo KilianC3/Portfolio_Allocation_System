@@ -24,12 +24,21 @@ from database import (
     pf_coll,
     trade_coll,
     metric_coll,
+    weight_coll,
+    alloc_perf_coll,
+    alloc_log_coll,
+    cache,
+    account_metrics_coll,
+    account_paper_coll,
+    account_live_coll,
     init_db,
     db,
     db_ping,
     clear_system_logs,
     backup_to_github,
     restore_from_github,
+    schema_coll,
+    universe_coll,
     log_coll,
     vol_mom_coll,
     lev_sector_coll,
@@ -424,6 +433,26 @@ def get_trades(pf_id: str, limit: int = 50):
     return {"trades": res}
 
 
+@app.get("/weight_history/{pf_id}")
+def get_weight_history(pf_id: str, limit: int = 50) -> Dict[str, Any]:
+    docs = list(weight_coll.find({"portfolio_id": pf_id}).sort("date", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        if "date" in d:
+            d["date"] = _iso(d["date"])
+    return {"weights": docs}
+
+
+@app.get("/allocation_performance")
+def get_allocation_performance(limit: int = 50) -> Dict[str, Any]:
+    docs = list(alloc_perf_coll.find().sort("date", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        if "date" in d:
+            d["date"] = _iso(d["date"])
+    return {"records": docs}
+
+
 @app.post("/metrics/{pf_id}")
 def add_metric(pf_id: str, metric: MetricEntry):
     update = {"ret": metric.ret}
@@ -556,6 +585,12 @@ def show_system_logs(limit: int = 100, format: str = "json"):
         csv_data = df.to_csv(index=False)
         return Response(content=csv_data, media_type="text/csv")
     return {"records": records}
+
+
+@app.get("/schema_version")
+def get_schema_version() -> Dict[str, int]:
+    doc = schema_coll.find_one(sort=[("version", -1)]) if schema_coll else None
+    return {"version": doc.get("version") if doc else 0}
 
 
 @app.get("/db")
@@ -808,12 +843,53 @@ def show_insider(limit: int = 50):
     return {"records": docs}
 
 
+@app.post("/collect/news_headlines")
+async def collect_news() -> Dict[str, int]:
+    data = await fetch_stock_news()
+    return {"records": len(data)}
+
+
+@app.get("/news_headlines")
+def show_news(limit: int = 50):
+    docs = list(news_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.post("/collect/reddit_mentions")
+async def collect_reddit() -> Dict[str, int]:
+    data = await fetch_wsb_mentions()
+    return {"records": len(data)}
+
+
+@app.get("/reddit_mentions")
+def show_reddit(limit: int = 50):
+    docs = list(reddit_coll.find().sort("_retrieved", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
 @app.get("/sp500_index")
 def sp500_history(limit: int = 5):
     docs = list(sp500_coll.find().sort("date", -1).limit(limit))
     for d in docs:
         d["id"] = str(d.pop("_id"))
         d["_retrieved"] = _iso(d.get("_retrieved"))
+    return {"records": docs}
+
+
+@app.get("/universe")
+def show_universe(index: Optional[str] = None, limit: int = 1000):
+    q: Dict[str, Any] = {}
+    if index:
+        q["index_name"] = index
+    docs = list(universe_coll.find(q).sort("ticker", 1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
     return {"records": docs}
 
 
@@ -982,6 +1058,25 @@ def show_ticker_scores(symbol: Optional[str] = None, limit: int = 50):
     return {"records": docs}
 
 
+@app.get("/alloc_log")
+def show_alloc_log(limit: int = 50):
+    docs = list(alloc_log_coll.find().sort("id", -1).limit(limit))
+    for d in docs:
+        d["id"] = d.get("id")
+    return {"records": docs}
+
+
+@app.get("/cache")
+def show_cache(key: Optional[str] = None, limit: int = 50):
+    q: Dict[str, Any] = {"cache_key": key} if key else {}
+    docs = list(cache.find(q).sort("expire", -1).limit(limit))
+    for d in docs:
+        d["id"] = d.pop("cache_key")
+        if d.get("expire"):
+            d["expire"] = _iso(d["expire"])
+    return {"records": docs}
+
+
 @app.get("/var")
 def var_history(
     pf_id: Optional[str] = None, start: Optional[str] = None, end: Optional[str] = None
@@ -1082,6 +1177,19 @@ def risk_overview(strategy: str) -> Dict[str, Any]:
     }
 
 
+@app.get("/returns")
+def show_returns(strategy: Optional[str] = None, limit: int = 50):
+    q: Dict[str, Any] = {}
+    if strategy:
+        q["strategy"] = strategy
+    docs = list(returns_coll.find(q).sort("date", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        if "date" in d:
+            d["date"] = _iso(d["date"])
+    return {"records": docs}
+
+
 @app.get("/risk/var")
 def risk_var(strategy: str, window: int = 30, conf: str = "95,99") -> Dict[str, Any]:
     levels = [c.strip() for c in conf.split(",") if c.strip()]
@@ -1098,6 +1206,19 @@ def risk_var(strategy: str, window: int = 30, conf: str = "95,99") -> Dict[str, 
             {"date": _iso(r["date"]), "value": r.get(f"es{level}")} for r in rows
         ]
     return out
+
+
+@app.get("/risk_stats")
+def show_risk_stats(strategy: Optional[str] = None, limit: int = 50):
+    q: Dict[str, Any] = {}
+    if strategy:
+        q["strategy"] = strategy
+    docs = list(risk_stats_coll.find(q).sort("date", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        if "date" in d:
+            d["date"] = _iso(d["date"])
+    return {"records": docs}
 
 
 @app.get("/risk/drawdowns")
@@ -1290,6 +1411,36 @@ def risk_summary(strategies: str) -> Dict[str, Any]:
             }
         )
     return {"summary": out}
+
+
+@app.get("/account_metrics")
+def show_account_metrics(limit: int = 50):
+    docs = list(account_metrics_coll.find().sort("timestamp", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        if "timestamp" in d:
+            d["timestamp"] = _iso(d["timestamp"])
+    return {"records": docs}
+
+
+@app.get("/account_metrics_paper")
+def show_account_metrics_paper(limit: int = 50):
+    docs = list(account_paper_coll.find().sort("timestamp", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        if "timestamp" in d:
+            d["timestamp"] = _iso(d["timestamp"])
+    return {"records": docs}
+
+
+@app.get("/account_metrics_live")
+def show_account_metrics_live(limit: int = 50):
+    docs = list(account_live_coll.find().sort("timestamp", -1).limit(limit))
+    for d in docs:
+        d["id"] = str(d.pop("_id"))
+        if "timestamp" in d:
+            d["timestamp"] = _iso(d["timestamp"])
+    return {"records": docs}
 
 
 @app.get("/stream/account")
