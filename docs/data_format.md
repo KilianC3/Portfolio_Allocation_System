@@ -10,7 +10,7 @@ analysis can reproduce past views of the data.
 |-------|---------|
 | `politician_trades` | `politician`, `ticker`, `transaction`, `amount`, `date`, `_retrieved` |
 | `lobbying` | `ticker`, `client`, `amount`, `date`, `_retrieved` |
-| `wiki_views` | `page`, `views`, `date`, `_retrieved` |
+| `wiki_views` | `page`, `ticker`, `views`, `date`, `_retrieved` |
 | `dc_insider_scores` | `ticker`, `score`, `date`, `_retrieved` |
 | `gov_contracts` | `ticker`, `value`, `date`, `_retrieved` |
 | `app_reviews` | `ticker`, `hype`, `date`, `_retrieved` |
@@ -20,11 +20,11 @@ analysis can reproduce past views of the data.
 | `news_headlines` | `ticker`, `headline`, `link`, `source`, `time`, `sentiment`, `_retrieved` |
 | `insider_buying` | `ticker`, `exec`, `shares`, `date`, `_retrieved` |
 | `sp500_index` | `date`, `open`, `high`, `low`, `close`, `volume`, `_retrieved` |
-| `volatility_momentum` | `symbol`, `date`, `_retrieved` |
-| `leveraged_sector_momentum` | `symbol`, `date`, `_retrieved` |
-| `sector_momentum_weekly` | `symbol`, `date`, `_retrieved` |
-| `smallcap_momentum_weekly` | `symbol`, `date`, `_retrieved` |
-| `upgrade_momentum_weekly` | `symbol`, `date`, `_retrieved` |
+| `volatility_momentum` | `symbol`, `score`, `ret_52w`, `vol_12w`, `date`, `_retrieved` |
+| `leveraged_sector_momentum` | `symbol`, `ret`, `date`, `_retrieved` |
+| `sector_momentum_weekly` | `symbol`, `ret`, `date`, `_retrieved` |
+| `smallcap_momentum_weekly` | `symbol`, `price`, `ret`, `date`, `_retrieved` |
+| `upgrade_momentum_weekly` | `symbol`, `ratio`, `upgrades`, `downgrades`, `total`, `date`, `_retrieved` |
 | `returns` | `date`, `strategy`, `return_pct` |
 | `risk_stats` | `date`, `strategy`, `var95`, `var99`, `es95`, `es99`, `vol30d`, `beta30d`, `max_drawdown` |
 | `risk_rules` | `id`, `name`, `strategy`, `metric`, `operator`, `threshold`, `created_at` |
@@ -49,7 +49,11 @@ set a strategy outside this list will be rejected.
 
 All tables are exposed through the API. Use `/db` to list available tables and `/db/{table}` to retrieve rows in JSON or CSV for tabular display on the front end.
 
-Every column is stored as a string except for the timestamp `_retrieved` which is a `TIMESTAMP` in UTC.
+Most columns are stored as strings. Numeric fields like `views` in
+`wiki_views` use integer types, `date` fields are `DATE` columns and the
+`_retrieved` timestamp is stored as `TIMESTAMP` in UTC. Snapshots without a
+matching ticker symbol are skipped so only bona fide stock pages appear in
+the `wiki_views` table.
 
 Both the `metrics` table and the `account_metrics_paper`/`account_metrics_live` tables are populated nightly by
 the scheduler so that portfolio performance and account equity remain up

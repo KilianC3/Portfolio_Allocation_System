@@ -21,7 +21,9 @@ log = get_scraper_logger(__name__)
 _SECTOR_N = 5
 
 
-def fetch_sector_momentum_summary(weeks: int = 26, top_n: int = _SECTOR_N) -> List[dict]:
+def fetch_sector_momentum_summary(
+    weeks: int = 26, top_n: int = _SECTOR_N
+) -> List[dict]:
     """Store 26-week returns for S&P sector ETFs.
 
     Parameters
@@ -33,9 +35,7 @@ def fetch_sector_momentum_summary(weeks: int = 26, top_n: int = _SECTOR_N) -> Li
         result keeps test runs lightweight and satisfies the requirement to
         collect only a handful of rows.
     """
-    log.info(
-        "fetch_sector_momentum_summary start weeks=%d top_n=%d", weeks, top_n
-    )
+    log.info("fetch_sector_momentum_summary start weeks=%d top_n=%d", weeks, top_n)
     init_db()
     end = dt.date.today()
     now = dt.datetime.now(dt.timezone.utc)
@@ -53,8 +53,13 @@ def fetch_sector_momentum_summary(weeks: int = 26, top_n: int = _SECTOR_N) -> Li
         top = ret.sort_values(ascending=False).head(top_n)
         rows: List[dict] = []
         sector_mom_coll.delete_many({"date": end})
-        for sym in top.index:
-            item = {"symbol": sym, "date": end, "_retrieved": now}
+        for sym, value in top.items():
+            item = {
+                "symbol": sym,
+                "ret": float(value),
+                "date": end,
+                "_retrieved": now,
+            }
             sector_mom_coll.update_one(
                 {"symbol": sym, "date": end}, {"$set": item}, upsert=True
             )

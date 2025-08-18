@@ -79,13 +79,17 @@ def fetch_smallcap_momentum_summary(
     if not rets:
         return []
     all_df = pd.concat(rets)
-    top = (
-        all_df.dropna(subset=["ret"]).sort_values("ret", ascending=False).head(top_n)
-    )
+    top = all_df.dropna(subset=["ret"]).sort_values("ret", ascending=False).head(top_n)
     smallcap_mom_coll.delete_many({"date": end})
     rows: List[dict] = []
-    for sym in top.index:
-        item = {"symbol": sym, "date": end, "_retrieved": now}
+    for sym, row in top.iterrows():
+        item = {
+            "symbol": sym,
+            "price": float(row["price"]),
+            "ret": float(row["ret"]),
+            "date": end,
+            "_retrieved": now,
+        }
         smallcap_mom_coll.update_one(
             {"symbol": sym, "date": end}, {"$set": item}, upsert=True
         )
@@ -100,7 +104,5 @@ if __name__ == "__main__":
     from scrapers.universe import download_russell2000, load_russell2000
 
     download_russell2000()
-    rows = fetch_smallcap_momentum_summary(
-        load_russell2000(), top_n=5, max_tickers=50
-    )
+    rows = fetch_smallcap_momentum_summary(load_russell2000(), top_n=5, max_tickers=50)
     print(f"ROWS={len(rows)}")

@@ -90,10 +90,11 @@ CREATE TABLE IF NOT EXISTS lobbying (
 CREATE TABLE IF NOT EXISTS wiki_views (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
     page TEXT,
-    views TEXT,
-    date TEXT,
+    ticker TEXT,
+    views INTEGER,
+    date DATE,
     _retrieved TIMESTAMP,
-    UNIQUE(page, date)
+    UNIQUE(ticker, date)
 );
 
 CREATE TABLE IF NOT EXISTS dc_insider_scores (
@@ -264,6 +265,9 @@ CREATE TABLE IF NOT EXISTS system_logs (
 CREATE TABLE IF NOT EXISTS volatility_momentum (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
     symbol VARCHAR(16),
+    score DOUBLE,
+    ret_52w DOUBLE,
+    vol_12w DOUBLE,
     date DATE,
     _retrieved TIMESTAMP,
     UNIQUE(symbol, date)
@@ -272,6 +276,7 @@ CREATE TABLE IF NOT EXISTS volatility_momentum (
 CREATE TABLE IF NOT EXISTS leveraged_sector_momentum (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
     symbol VARCHAR(16),
+    ret DOUBLE,
     date DATE,
     _retrieved TIMESTAMP,
     UNIQUE(symbol, date)
@@ -280,6 +285,7 @@ CREATE TABLE IF NOT EXISTS leveraged_sector_momentum (
 CREATE TABLE IF NOT EXISTS sector_momentum_weekly (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
     symbol VARCHAR(16),
+    ret DOUBLE,
     date DATE,
     _retrieved TIMESTAMP,
     UNIQUE(symbol, date)
@@ -288,6 +294,8 @@ CREATE TABLE IF NOT EXISTS sector_momentum_weekly (
 CREATE TABLE IF NOT EXISTS smallcap_momentum_weekly (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
     symbol VARCHAR(16),
+    price DOUBLE,
+    ret DOUBLE,
     date DATE,
     _retrieved TIMESTAMP,
     UNIQUE(symbol, date)
@@ -296,6 +304,10 @@ CREATE TABLE IF NOT EXISTS smallcap_momentum_weekly (
 CREATE TABLE IF NOT EXISTS upgrade_momentum_weekly (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
     symbol VARCHAR(16),
+    ratio DOUBLE,
+    upgrades INTEGER,
+    downgrades INTEGER,
+    total INTEGER,
     date DATE,
     _retrieved TIMESTAMP,
     UNIQUE(symbol, date)
@@ -351,7 +363,8 @@ CREATE TABLE IF NOT EXISTS jobs (
 
 -- Ensure composite unique keys for daily snapshots
 ALTER TABLE wiki_views DROP INDEX IF EXISTS page;
-ALTER TABLE wiki_views ADD UNIQUE KEY IF NOT EXISTS uq_wiki_views_page_date (page, date);
+ALTER TABLE wiki_views DROP INDEX IF EXISTS uq_wiki_views_page_date;
+ALTER TABLE wiki_views ADD UNIQUE KEY IF NOT EXISTS uq_wiki_views_ticker_date (ticker, date);
 
 ALTER TABLE google_trends DROP INDEX IF EXISTS ticker;
 ALTER TABLE google_trends ADD UNIQUE KEY IF NOT EXISTS uq_google_trends (ticker, date);

@@ -85,12 +85,13 @@ app.add_middleware(
 )
 
 
-OPEN_ENDPOINTS = {"/health", "/readyz"}
+OPEN_ENDPOINTS = {"/health", "/readyz", "/docs", "/api/v1/openapi.json"}
 
 
 @app.middleware("http")
 async def auth(request: Request, call_next):
-    if request.url.path in OPEN_ENDPOINTS:
+    path = request.url.path
+    if path in OPEN_ENDPOINTS or path.startswith("/docs"):
         return await call_next(request)
     token = request.headers.get("Authorization")
     if not token:

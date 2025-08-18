@@ -21,9 +21,7 @@ log = get_scraper_logger(__name__)
 _LEV_N = 3
 
 
-def fetch_leveraged_sector_summary(
-    weeks: int = 13, top_n: int = _LEV_N
-) -> List[dict]:
+def fetch_leveraged_sector_summary(weeks: int = 13, top_n: int = _LEV_N) -> List[dict]:
     """Store 13-week returns for leveraged sector ETFs.
 
     Parameters
@@ -34,9 +32,7 @@ def fetch_leveraged_sector_summary(
         Number of ETFs to keep.  Exposing this allows callers to limit rows
         during testing.
     """
-    log.info(
-        "fetch_leveraged_sector_summary start weeks=%d top_n=%d", weeks, top_n
-    )
+    log.info("fetch_leveraged_sector_summary start weeks=%d top_n=%d", weeks, top_n)
     init_db()
     end = dt.date.today()
     now = dt.datetime.now(dt.timezone.utc)
@@ -54,8 +50,13 @@ def fetch_leveraged_sector_summary(
         top = ret.sort_values(ascending=False).head(top_n)
         rows: List[dict] = []
         lev_sector_coll.delete_many({"date": end})
-        for sym in top.index:
-            item = {"symbol": sym, "date": end, "_retrieved": now}
+        for sym, value in top.items():
+            item = {
+                "symbol": sym,
+                "ret": float(value),
+                "date": end,
+                "_retrieved": now,
+            }
             lev_sector_coll.update_one(
                 {"symbol": sym, "date": end}, {"$set": item}, upsert=True
             )
