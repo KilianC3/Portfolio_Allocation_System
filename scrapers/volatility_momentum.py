@@ -31,6 +31,8 @@ def _score_vol_mom(px: pd.DataFrame) -> pd.DataFrame:
     score = ret_52w / vol_12w.replace(0, math.nan)
     df = pd.DataFrame({"score": score, "ret_52w": ret_52w, "vol_12w": vol_12w})
     return df.dropna()
+
+
 def _tickers_from_universe(df: pd.DataFrame) -> List[str]:
     """Extract a list of ticker symbols from ``df``."""
     ticker_col = None
@@ -83,8 +85,15 @@ def fetch_volatility_momentum_summary(
     top = all_scores.sort_values("score", ascending=False).head(top_n)
     vol_mom_coll.delete_many({"date": end})
     rows: List[dict] = []
-    for sym in top.index:
-        item = {"symbol": sym, "date": end, "_retrieved": now}
+    for sym, row in top.iterrows():
+        item = {
+            "symbol": sym,
+            "score": float(row["score"]),
+            "ret_52w": float(row["ret_52w"]),
+            "vol_12w": float(row["vol_12w"]),
+            "date": end,
+            "_retrieved": now,
+        }
         vol_mom_coll.update_one(
             {"symbol": sym, "date": end}, {"$set": item}, upsert=True
         )

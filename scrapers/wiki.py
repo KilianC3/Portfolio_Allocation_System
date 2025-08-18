@@ -13,7 +13,7 @@ import asyncio
 from service.config import QUIVER_RATE_SEC
 from infra.rate_limiter import DynamicRateLimiter
 from infra.smart_scraper import get as scrape_get
-from database import db, pf_coll, wiki_coll, init_db
+from database import db, wiki_coll, init_db, InMemoryCollection
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 from service.logger import get_scraper_logger
@@ -22,14 +22,30 @@ import scrapers.universe as univ
 log = get_scraper_logger(__name__)
 from strategies.wiki_attention import index_map, wiki_title, trending_candidates
 
-wiki_collection = wiki_coll if db else pf_coll
+wiki_collection = (
+    wiki_coll if getattr(wiki_coll, "pool", None) else InMemoryCollection()
+)
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 
-async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7) -> List[dict]:
-    """Fetch Wikipedia page views via the Wikimedia API."""
+async def fetch_wiki_views(
+    page: str = "Apple_Inc", days: int = 7, ticker: str | None = None
+) -> List[dict]:
+    """Fetch Wikipedia page views via the Wikimedia API.
 
-    log.info(f"fetch_wiki_views start page={page}")
+    Parameters
+    ----------
+    page : str
+        Wikipedia page title (underscores instead of spaces).
+    days : int
+        Number of trailing days to fetch.
+    ticker : str | None
+        Symbol associated with ``page``. Rows are only persisted when a
+        ticker is supplied, preventing unrelated pages from polluting the
+        database.
+    """
+
+    log.info(f"fetch_wiki_views start page={page} ticker={ticker}")
     init_db()
 
     end = dt.datetime.utcnow().date() - dt.timedelta(days=2)
@@ -47,6 +63,10 @@ async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7) -> List[dict]
             scrape_errors.labels("wiki_views").inc()
             log.exception(f"fetch_wiki_views failed: {exc}")
             raise
+    if ticker is None:
+        log.warning("fetch_wiki_views missing ticker - skipping persistence")
+        return []
+
     items = json.loads(text).get("items", [])
     now = dt.datetime.now(dt.timezone.utc)
     data: List[dict] = []
@@ -54,18 +74,19 @@ async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7) -> List[dict]
         date = row["timestamp"][:8]
         item = {
             "page": page,
+            "ticker": ticker,
             "views": row["views"],
             "date": date,
             "_retrieved": now,
         }
         data.append(item)
         wiki_collection.update_one(
-            {"page": page, "date": date},
+            {"ticker": ticker, "date": date},
             {"$set": item},
             upsert=True,
         )
     append_snapshot("wiki_views", data)
-    log.info(f"fetched {len(data)} wiki view rows for {page}")
+    log.info(f"fetched {len(data)} wiki view rows for {ticker}")
     return data
 
 
@@ -95,21 +116,24 @@ async def fetch_trending_wiki_views(top_k: int = 10, days: int = 7) -> List[dict
         extra = [(sym, name) for sym, name in mapping.items() if sym not in dict(cand)]
         cand.extend(extra)
     pages = []
-    for idx, (_, name) in enumerate(cand, 1):
+    symbols: List[str] = []
+    for idx, (sym, name) in enumerate(cand, 1):
         log.info("wiki_title start %s %s/%s", name, idx, len(cand))
         page = await asyncio.to_thread(wiki_title, name)
         log.info("wiki_title end %s -> %s", name, page)
         if page and page not in pages:
             pages.append(page)
+            symbols.append(sym)
         if len(pages) >= top_k:
             break
 
     top = pages[:top_k]
+    symbols = symbols[:top_k]
     out: List[dict] = []
-    for i, pg in enumerate(top, 1):
+    for i, (sym, pg) in enumerate(zip(symbols, top), 1):
         log.info("fetch_wiki_views progress %s %s/%s", pg, i, len(top))
         try:
-            out.extend(await fetch_wiki_views(pg, days))
+            out.extend(await fetch_wiki_views(pg, days, ticker=sym))
         except Exception as exc:  # pragma: no cover - network optional
             log.exception(f"fetch_wiki_views failed for {pg}: {exc}")
             continue
