@@ -38,7 +38,7 @@ async def fetch_politician_trades() -> List[dict]:
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))
     data = []
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
     if table:
         col_map = get_column_map(
             table,
@@ -56,18 +56,20 @@ async def fetch_politician_trades() -> List[dict]:
                 field: cells[idx] for field, idx in col_map.items() if idx < len(cells)
             }
             if len(item) == len(col_map):
-                item["_retrieved"] = now
-                item = validate_row(item, numeric_fields={"amount": float}, log=log)
-                if not item:
+                validated = validate_row(
+                    item, numeric_fields={"amount": float}, log=log
+                )
+                if not validated:
                     continue
-                data.append(item)
+                validated["_retrieved"] = now
+                data.append(validated)
                 politician_coll.update_one(
                     {
-                        "politician": item["politician"],
-                        "ticker": item["ticker"],
-                        "date": item["date"],
+                        "politician": validated["politician"],
+                        "ticker": validated["ticker"],
+                        "date": validated["date"],
                     },
-                    {"$set": item},
+                    {"$set": validated},
                     upsert=True,
                 )
     append_snapshot("politician_trades", data)

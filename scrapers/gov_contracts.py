@@ -39,7 +39,7 @@ async def fetch_gov_contracts() -> List[dict]:
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))
     data: List[dict] = []
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
     if table:
         col_map = get_column_map(
             table,
@@ -55,14 +55,14 @@ async def fetch_gov_contracts() -> List[dict]:
                 field: cells[idx] for field, idx in col_map.items() if idx < len(cells)
             }
             if len(item) == len(col_map):
-                item["_retrieved"] = now
-                item = validate_row(item, numeric_fields={"value": float}, log=log)
-                if not item:
+                validated = validate_row(item, numeric_fields={"value": float}, log=log)
+                if not validated:
                     continue
-                data.append(item)
+                validated["_retrieved"] = now
+                data.append(validated)
                 contracts_coll.update_one(
-                    {"ticker": item["ticker"], "date": item["date"]},
-                    {"$set": item},
+                    {"ticker": validated["ticker"], "date": validated["date"]},
+                    {"$set": validated},
                     upsert=True,
                 )
     append_snapshot("gov_contracts", data)

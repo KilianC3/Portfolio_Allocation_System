@@ -2,7 +2,7 @@ import os
 import datetime as dt
 import asyncio
 import json
-from typing import Any, Dict, Optional, List, Union
+from typing import Any, Dict, Optional, List, Union, cast
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, StreamingResponse, Response
@@ -28,6 +28,7 @@ from database import (
     alloc_perf_coll,
     alloc_log_coll,
     cache,
+    PGCollection,
     account_metrics_coll,
     account_paper_coll,
     account_live_coll,
@@ -1069,7 +1070,8 @@ def show_alloc_log(limit: int = 50):
 @app.get("/cache")
 def show_cache(key: Optional[str] = None, limit: int = 50):
     q: Dict[str, Any] = {"cache_key": key} if key else {}
-    docs = list(cache.find(q).sort("expire", -1).limit(limit))
+    coll = cast(PGCollection, cache)
+    docs = list(coll.find(q).sort("expire", -1).limit(limit))
     for d in docs:
         d["id"] = d.pop("cache_key")
         if d.get("expire"):
