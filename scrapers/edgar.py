@@ -1,3 +1,4 @@
+import atexit
 import random
 import time
 from typing import Any, Dict, Optional
@@ -13,6 +14,7 @@ UA = (
 
 session = requests.Session()
 session.headers.update({"User-Agent": UA})
+atexit.register(session.close)
 
 log = get_scraper_logger(__name__)
 

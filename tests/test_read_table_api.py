@@ -1,19 +1,14 @@
-from fastapi.testclient import TestClient
-
 from service import api as api_module
-from service.api import app
 from service.config import API_TOKEN
 
-client = TestClient(app)
 
-
-def _get(path: str):
+def _get(client, path: str):
     token = API_TOKEN or ""
     sep = "&" if "?" in path else "?"
     return client.get(path + (sep + f"token={token}" if token else ""))
 
 
-def _delete(path: str):
+def _delete(client, path: str):
     token = API_TOKEN or ""
     sep = "&" if "?" in path else "?"
     return client.delete(path + (sep + f"token={token}" if token else ""))
@@ -51,12 +46,12 @@ class DummyCollection:
         return DummyCursor(docs)
 
 
-def test_read_table_sort_and_fields(monkeypatch):
+def test_read_table_sort_and_fields(client, monkeypatch):
     docs = [{"_id": 1, "a": 2, "b": 3}, {"_id": 2, "a": 1, "b": 4}]
     monkeypatch.setattr(api_module, "db", {"test": DummyCollection(docs)})
     monkeypatch.setattr(api_module, "db_ping", lambda: None)
 
-    resp = _get("/db/test?sort_by=a&order=desc&fields=a")
+    resp = _get(client, "/db/test?sort_by=a&order=desc&fields=a")
     assert resp.status_code == 200
     data = resp.json()["records"]
     assert data[0]["a"] == 2
@@ -64,11 +59,11 @@ def test_read_table_sort_and_fields(monkeypatch):
     assert "id" in data[0]
 
 
-def test_read_table_invalid_order(monkeypatch):
+def test_read_table_invalid_order(client, monkeypatch):
     monkeypatch.setattr(api_module, "db", {"test": DummyCollection([])})
     monkeypatch.setattr(api_module, "db_ping", lambda: None)
 
-    resp = _get("/db/test?order=sideways")
+    resp = _get(client, "/db/test?order=sideways")
     assert resp.status_code == 400
 
 
@@ -97,19 +92,19 @@ class DummyConn:
         return DummyShowCursor(self._tables)
 
 
-def test_list_tables_includes_system_logs(monkeypatch):
-    dummy_db = type("D", (), {"conn": DummyConn(["alpha", "beta"])} )
+def test_list_tables_includes_system_logs(client, monkeypatch):
+    dummy_db = type("D", (), {"conn": DummyConn(["alpha", "beta"])})
     monkeypatch.setattr(api_module, "db", dummy_db)
     monkeypatch.setattr(api_module, "db_ping", lambda: None)
 
-    resp = _get("/db")
+    resp = _get(client, "/db")
     assert resp.status_code == 200
     tables = resp.json()["tables"]
     assert "system_logs" in tables
 
 
-def test_clear_db_logs(monkeypatch):
+def test_clear_db_logs(client, monkeypatch):
     monkeypatch.setattr(api_module, "clear_system_logs", lambda days: 7)
-    resp = _delete("/db/system_logs")
+    resp = _delete(client, "/db/system_logs")
     assert resp.status_code == 200
     assert resp.json()["removed"] == 7

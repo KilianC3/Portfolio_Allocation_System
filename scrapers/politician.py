@@ -16,6 +16,7 @@ from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 from service.logger import get_scraper_logger
+from .utils import get_column_map, validate_row
 
 politician_coll = db["politician_trades"] if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
@@ -37,27 +38,38 @@ async def fetch_politician_trades() -> List[dict]:
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))
     data = []
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
     if table:
+        col_map = get_column_map(
+            table,
+            {
+                "politician": ["politician", "owner"],
+                "ticker": ["ticker", "symbol"],
+                "transaction": ["transaction", "type"],
+                "amount": ["amount", "value"],
+                "date": ["date"],
+            },
+        )
         for row in cast(List[Tag], table.find_all("tr"))[1:]:
             cells = [c.get_text(strip=True) for c in row.find_all("td")]
-            if len(cells) >= 5:
-                item = {
-                    "politician": cells[0],
-                    "ticker": cells[1],
-                    "transaction": cells[2],
-                    "amount": cells[3],
-                    "date": cells[4],
-                    "_retrieved": now,
-                }
-                data.append(item)
+            item = {
+                field: cells[idx] for field, idx in col_map.items() if idx < len(cells)
+            }
+            if len(item) == len(col_map):
+                validated = validate_row(
+                    item, numeric_fields={"amount": float}, log=log
+                )
+                if not validated:
+                    continue
+                validated["_retrieved"] = now
+                data.append(validated)
                 politician_coll.update_one(
                     {
-                        "politician": item["politician"],
-                        "ticker": item["ticker"],
-                        "date": item["date"],
+                        "politician": validated["politician"],
+                        "ticker": validated["ticker"],
+                        "date": validated["date"],
                     },
-                    {"$set": item},
+                    {"$set": validated},
                     upsert=True,
                 )
     append_snapshot("politician_trades", data)

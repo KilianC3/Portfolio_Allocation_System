@@ -11,6 +11,7 @@ def _mock_ticker(call_counter):
         def history(self, period="1d"):
             call_counter[0] += 1
             return pd.DataFrame({"Close": [5.0]})
+
     return DummyTicker
 
 
@@ -43,9 +44,8 @@ def test_refresh_route(monkeypatch):
 
     reload(config)
     api = reload(api)
-    client = TestClient(api.app)
-
-    resp = client.get("/refresh/treasury_rate?token=token")
-    assert resp.status_code == 200
-    assert resp.json()["rate"] == 0.05
-    assert calls[0] == 1
+    with TestClient(api.app) as client:
+        resp = client.get("/refresh/treasury_rate?token=token")
+        assert resp.status_code == 200
+        assert resp.json()["rate"] == 0.05
+        assert calls[0] == 1

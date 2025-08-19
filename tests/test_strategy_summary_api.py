@@ -1,25 +1,26 @@
-from fastapi.testclient import TestClient
 import datetime as dt
 
-from service.api import app, pf_coll, metric_coll, risk_stats_coll
+from service.api import pf_coll, metric_coll, risk_stats_coll
 from service.config import API_TOKEN
 
-client = TestClient(app)
 
-
-def _get(path: str):
+def _get(client, path: str):
     token = API_TOKEN or ""
     sep = "&" if "?" in path else "?"
     return client.get(path + (sep + f"token={token}" if token else ""))
 
 
-def test_strategy_summary_aggregates(monkeypatch):
+def test_strategy_summary_aggregates(client, monkeypatch):
     portfolios = [{"_id": "pf1", "name": "P1", "weights": {"AAPL": 0.5}}]
 
     monkeypatch.setattr(pf_coll, "find", lambda *a, **k: portfolios)
 
     def fake_metric(q, sort=None):
-        return {"date": dt.date(2024, 1, 1), "ret": 0.1, "portfolio_id": q["portfolio_id"]}
+        return {
+            "date": dt.date(2024, 1, 1),
+            "ret": 0.1,
+            "portfolio_id": q["portfolio_id"],
+        }
 
     def fake_risk(q, sort=None):
         return {"date": dt.date(2024, 1, 1), "var95": 0.05, "strategy": q["strategy"]}
