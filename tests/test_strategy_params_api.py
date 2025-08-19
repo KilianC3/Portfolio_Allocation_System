@@ -1,5 +1,4 @@
 import pytest
-from fastapi.testclient import TestClient
 
 from service.api import app, portfolios
 from service.config import API_TOKEN
@@ -37,16 +36,13 @@ class DummyColl:
             self.docs.append(new_doc)
 
 
-client = TestClient(app)
-
-
 def _auth(path: str) -> str:
     token = API_TOKEN or ""
     sep = "&" if "?" in path else "?"
     return path + (sep + f"token={token}" if token else "")
 
 
-def test_strategy_params_round_trip(monkeypatch):
+def test_strategy_params_round_trip(client, monkeypatch):
     pf_coll = DummyColl()
     weight_coll = DummyColl()
     monkeypatch.setattr(equity_mod, "pf_coll", pf_coll)
