@@ -761,7 +761,6 @@ from scrapers.leveraged_sector_momentum import fetch_leveraged_sector_summary
 from scrapers.sector_momentum import fetch_sector_momentum_summary
 from scrapers.smallcap_momentum import fetch_smallcap_momentum_summary
 from scrapers.upgrade_momentum import fetch_upgrade_momentum_summary
-from scrapers.full_fundamentals import main as run_full_fundamentals
 from scrapers.universe import load_sp500, load_sp400, load_russell2000
 
 
@@ -1020,13 +1019,6 @@ def show_upgrade_mom(limit: int = 50):
         d["id"] = str(d.pop("_id"))
         d["_retrieved"] = _iso(d.get("_retrieved"))
     return {"records": docs}
-
-
-@app.post("/collect/fundamentals")
-async def collect_fundamentals():
-    tickers = load_sp400()
-    await asyncio.to_thread(run_full_fundamentals, tickers)
-    return {"status": "ok"}
 
 
 @app.get("/top_scores")
