@@ -74,10 +74,4 @@ across the entire universe and applying the weights listed in the README.
 The `top_scores` table archives the highest ranked names after each monthly update.
 Fundamental ratios like the Piotroski F‑Score, Altman Z‑Score, ROIC and
 Free Cash Flow Yield are computed entirely from Yahoo Finance statements.
-When Yahoo blocks access the scraper falls back to the SEC EDGAR
-``companyfacts`` endpoint, pulling ``CashAndCashEquivalentsAtCarryingValue``
-as ``totalCash``, ``Debt`` as ``totalDebt`` and
-``CommonStockSharesOutstanding`` as ``sharesOutstanding``. Requests include a
-modern ``User-Agent`` header and are delayed 0.2–0.5 s to respect SEC rate
-limits. `weight_history` simply records the raw weight vector for each
-portfolio.
+`weight_history` simply records the raw weight vector for each portfolio.
