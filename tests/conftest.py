@@ -1,5 +1,4 @@
 import os
-import os
 import asyncio
 import pytest
 from fastapi.testclient import TestClient
@@ -14,13 +13,10 @@ sched.register_jobs = lambda *a, **k: None
 try:  # pragma: no cover - optional dependency
     from curl_cffi.requests.session import Session as _CurlSession
 
-    _orig_del = _CurlSession.__del__
-
+    # Replace destructor entirely to avoid libcurl unraisable warnings
+    # that can prevent pytest from terminating.
     def _safe_del(self):  # type: ignore[no-untyped-def]
-        try:
-            _orig_del(self)
-        except Exception:
-            pass
+        pass
 
     _CurlSession.__del__ = _safe_del  # type: ignore[assignment]
 except Exception:  # pragma: no cover
@@ -29,20 +25,12 @@ except Exception:  # pragma: no cover
 
 @pytest.fixture(scope="session", autouse=True)
 def _close_yf_session():
-    """Ensure yfinance's global HTTP session is closed."""
+    """Expose teardown hook; avoid closing to prevent curl hang."""
     yield
-    try:
-        from yfinance.data import YfData
-
-        sess = getattr(YfData(), "_session", None)
-        if sess is not None:
-            sess.close()
-    except Exception:
-        pass
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def client():
-    """Single TestClient for all API tests."""
+    """Fresh TestClient for each test to avoid lingering threads."""
     with TestClient(app) as c:
         yield c
