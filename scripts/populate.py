@@ -1,6 +1,7 @@
 # Run all scrapers to populate the database.
 import asyncio
 import sys
+import inspect
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -58,9 +59,9 @@ async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
     await asyncio.to_thread(download_sp500)
     await asyncio.to_thread(download_sp400)
     await asyncio.to_thread(download_russell2000)
-    sp500 = load_sp500()
-    sp400 = load_sp400()
-    r2k = load_russell2000()
+    sp500 = await asyncio.to_thread(load_sp500)
+    sp400 = await asyncio.to_thread(load_sp400)
+    r2k = await asyncio.to_thread(load_russell2000)
     universe = set(sp500) | set(sp400) | set(r2k)
     if len(universe) < 2000:
         _log.warning(f"universe size {len(universe)} < 2000")
@@ -69,7 +70,7 @@ async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
     results: dict[str, tuple[int, int]] = {}
 
     wiki_task: asyncio.Task | None = None
-    if force or not has_recent_rows("wiki_views", today):
+    if force or not await asyncio.to_thread(has_recent_rows, "wiki_views", today):
         _log.info("wiki_views start")
         if asyncio.iscoroutinefunction(fetch_trending_wiki_views):
             wiki_task = asyncio.create_task(fetch_trending_wiki_views())
@@ -124,20 +125,27 @@ async def run_scrapers(force: bool = False) -> dict[str, tuple[int, int]]:
                 if name in {"ticker_scores"}:
                     if (
                         db.conn
-                        and db[table].count_documents({"date": today.date()}) > 0
+                        and await asyncio.to_thread(
+                            db[table].count_documents, {"date": today.date()}
+                        )
+                        > 0
                     ):
                         _log.info(f"{name} already current - skipping")
                         continue
                 elif (
-                    name != "analyst_ratings" and has_recent_rows(table, today)
+                    name != "analyst_ratings"
+                    and await asyncio.to_thread(has_recent_rows, table, today)
                 ):
                     _log.info(f"{name} already current - skipping")
                     continue
-            result = func()
-            if asyncio.iscoroutine(result):
-                data = await result
+            if inspect.iscoroutinefunction(func):
+                data = await func()
             else:
-                data = result
+                result = await asyncio.to_thread(func)
+                if inspect.isawaitable(result):
+                    data = await result
+                else:
+                    data = result
             rows = cols = 0
             if isinstance(data, pd.DataFrame):
                 rows, cols = data.shape
