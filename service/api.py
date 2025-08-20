@@ -252,6 +252,7 @@ async def startup_event():
     sched.register_jobs()
     if AUTO_START_SCHED:
         sched.start()
+        log.info("scheduler started")
 
 
 @app.on_event("shutdown")

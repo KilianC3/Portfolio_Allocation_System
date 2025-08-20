@@ -402,7 +402,17 @@ def init_db() -> None:
         conn = _pool.get()
         try:
             with conn.cursor() as cur:
-                cur.execute(sql)
+                try:
+                    cur.execute(sql)
+                except pymysql.err.OperationalError as exc:
+                    # MariaDB versions prior to 10.4 do not support
+                    # ``IF EXISTS`` for DROP COLUMN/INDEX statements.
+                    # Ignore errors for missing columns or keys so
+                    # schema upgrades remain idempotent.
+                    if exc.args and exc.args[0] in {1054, 1072, 1091}:
+                        _log.debug("ignoring sql error %s for %s", exc.args[0], sql)
+                    else:
+                        raise
         finally:
             _pool.put(conn)
 

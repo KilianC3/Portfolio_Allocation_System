@@ -9,7 +9,7 @@ DB_URI: "mysql+pymysql://maria:maria@192.168.0.59:3306/quant_fund"
 DB_POOL_SIZE: 10
 FRED_API_KEY: "your-fred-key"
 API_TOKEN: "changeme"
-AUTO_START_SCHED: false
+AUTO_START_SCHED: true
 API_HOST: "192.168.0.59"
 API_PORT: 8001
 REDIS_URL: "redis://:changeme@192.168.0.59:6379/0"
