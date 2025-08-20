@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import json
+import re
 import pymysql
 from pymysql.cursors import DictCursor
 from pymysql.connections import Connection
@@ -402,15 +403,56 @@ def init_db() -> None:
         conn = _pool.get()
         try:
             with conn.cursor() as cur:
+                stmt = sql.strip()
+                # Older MariaDB versions do not support "IF EXISTS" for
+                # dropping columns or indexes. Perform explicit existence
+                # checks to keep schema upgrades idempotent without raising
+                # OperationalError noise in the logs.
+                drop_col = re.match(
+                    r"ALTER\s+TABLE\s+(\w+)\s+DROP\s+COLUMN\s+IF\s+EXISTS\s+(\w+)",
+                    stmt,
+                    re.I,
+                )
+                if drop_col:
+                    table, column = drop_col.groups()
+                    cur.execute(
+                        """
+                        SELECT 1 FROM information_schema.COLUMNS
+                        WHERE table_schema = DATABASE()
+                          AND table_name = %s
+                          AND column_name = %s
+                        """,
+                        (table, column),
+                    )
+                    if cur.fetchone():
+                        cur.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
+                    return
+
+                drop_idx = re.match(
+                    r"ALTER\s+TABLE\s+(\w+)\s+DROP\s+INDEX\s+IF\s+EXISTS\s+(\w+)",
+                    stmt,
+                    re.I,
+                )
+                if drop_idx:
+                    table, index = drop_idx.groups()
+                    cur.execute(
+                        """
+                        SELECT 1 FROM information_schema.STATISTICS
+                        WHERE table_schema = DATABASE()
+                          AND table_name = %s
+                          AND index_name = %s
+                        """,
+                        (table, index),
+                    )
+                    if cur.fetchone():
+                        cur.execute(f"ALTER TABLE {table} DROP INDEX {index}")
+                    return
+
                 try:
-                    cur.execute(sql)
+                    cur.execute(stmt)
                 except pymysql.err.OperationalError as exc:
-                    # MariaDB versions prior to 10.4 do not support
-                    # ``IF EXISTS`` for DROP COLUMN/INDEX statements.
-                    # Ignore errors for missing columns or keys so
-                    # schema upgrades remain idempotent.
                     if exc.args and exc.args[0] in {1054, 1072, 1091}:
-                        _log.debug("ignoring sql error %s for %s", exc.args[0], sql)
+                        _log.debug("ignoring sql error %s for %s", exc.args[0], stmt)
                     else:
                         raise
         finally:
