@@ -126,6 +126,7 @@ async def main(host: str | None = None, port: int | None = None) -> None:
             resp = await client.get(f"http://{h}:{p}/health", timeout=10)
             resp.raise_for_status()
         log.info(f"API running on http://{h}:{p} - Swagger UI: http://{h}:{p}/docs")
+        log.info("API is on")
     except Exception as exc:  # pragma: no cover - network optional
         log.warning(f"api connection FAIL: {exc}")
         raise

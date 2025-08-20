@@ -5,8 +5,8 @@ set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VENV_DIR="$APP_DIR/venv"
-# Derive the application IP from service configuration
-APP_IP=$(grep '^REDIS_URL:' "$APP_DIR/service/config.yaml" | sed -E 's/.*@([0-9.]+):.*/\1/')
+# Use the fixed application IP required by infrastructure
+APP_IP="192.168.0.59"
 
 # Create or activate virtual environment
 if [ ! -d "$VENV_DIR" ]; then
@@ -65,4 +65,5 @@ echo "Waiting for API to become available"
 until curl -sf "http://${APP_IP}:8001/health" >/dev/null; do
   sleep 2
 done
+echo "API is on at http://${APP_IP}:8001"
 echo "Bootstrap complete. Service portfolio is running."
