@@ -13,6 +13,7 @@ import scrapers.sector_momentum as sm
 import scrapers.leveraged_sector_momentum as lsm
 import scrapers.smallcap_momentum as scm
 import scrapers.upgrade_momentum as um
+import scrapers.wiki as wiki
 from scrapers.yf_utils import flatten_columns
 
 
@@ -109,6 +110,30 @@ def test_volatility_momentum_returns_metrics(mock_weekly, mock_universe, *_):
     mock_weekly.side_effect = fake_weekly
     rows = vm.fetch_volatility_momentum_summary(weeks=12, top_n=1, max_tickers=2)
     assert "score" in rows[0] and "ret_52w" in rows[0]
+
+
+@mock.patch.object(wiki, "fetch_wiki_views")
+@mock.patch.object(wiki, "trending_candidates")
+@mock.patch.object(wiki, "index_map")
+@mock.patch.object(wiki, "load_universe_any")
+@mock.patch.object(wiki, "wiki_title")
+@pytest.mark.asyncio
+async def test_trending_wiki_filters_universe(
+    mock_title, mock_universe, mock_index, mock_trending, mock_fetch
+):
+    mock_universe.return_value = pd.DataFrame({"ticker": ["AAPL", "MSFT"]})
+    mock_index.return_value = {"AAPL": "Apple", "GETY": "Getty", "MSFT": "Microsoft"}
+    mock_trending.return_value = {"AAPL": "Apple", "GETY": "Getty"}
+    mock_title.side_effect = lambda name: name.replace(" ", "_")
+
+    async def fake_fetch(page, days, ticker):
+        return [{"ticker": ticker, "views": 1, "date": "20240101"}]
+
+    mock_fetch.side_effect = fake_fetch
+    rows = await wiki.fetch_trending_wiki_views(top_k=5, days=1)
+    tickers = {r["ticker"] for r in rows}
+    assert "GETY" not in tickers
+    assert tickers <= {"AAPL", "MSFT"}
 
 
 @pytest.mark.asyncio

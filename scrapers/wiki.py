@@ -45,6 +45,7 @@ async def fetch_wiki_views(
     """
 
     log.info(f"fetch_wiki_views start page={page}")
+    ticker = ticker.upper()
     init_db()
 
     end = dt.datetime.utcnow().date() - dt.timedelta(days=2)
@@ -108,7 +109,10 @@ async def fetch_trending_wiki_views(top_k: int = 10, days: int = 7) -> List[dict
     log.info("index_map start")
     mapping = await asyncio.to_thread(index_map)
     log.info("index_map end")
-    allowed = set(mapping.keys())
+    universe_df = await asyncio.to_thread(load_universe_any)
+    ticker_col = "ticker" if "ticker" in universe_df.columns else "symbol"
+    universe = set(universe_df[ticker_col].astype(str).str.upper())
+    allowed = set(mapping.keys()) & universe
     cand: List[tuple[str, str]] = [
         (sym, name) for sym, name in cand_dict.items() if sym in allowed
     ]
@@ -128,7 +132,7 @@ async def fetch_trending_wiki_views(top_k: int = 10, days: int = 7) -> List[dict
 
     if len(pages) < top_k:
         for sym, name in mapping.items():
-            if sym in seen:
+            if sym in seen or sym not in allowed:
                 continue
             page = await asyncio.to_thread(wiki_title, name)
             if page:
