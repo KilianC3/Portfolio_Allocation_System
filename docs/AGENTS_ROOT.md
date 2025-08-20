@@ -33,8 +33,8 @@ This document helps Codex (or any future agent) produce clear, consistent commit
    - Maintain unit tests for critical logic.
 6. **Safety**
    - Detect paper vs live Alpaca endpoints and require `allow_live=True` for real trading.
-   - Use the `AUTO_START_SCHED` flag so deployments can delay trading until explicitly enabled.
-  - Set `ALLOW_LIVE=True` in `service/config.yaml` to switch from paper to live trading.
+   - Scrapers now start automatically; set `AUTO_START_SCHED=false` to delay trading until explicitly enabled.
+   - Set `ALLOW_LIVE=True` in `service/config.yaml` to switch from paper to live trading.
 
 ---
 

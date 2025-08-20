@@ -88,7 +88,7 @@ class Settings(BaseSettings):
 
     ALLOC_METHOD: str = Field("max_sharpe", alias="ALLOC_METHOD")
 
-    AUTO_START_SCHED: bool = False
+    AUTO_START_SCHED: bool = True
 
     model_config = {"case_sensitive": False}
 
