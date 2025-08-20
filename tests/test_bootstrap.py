@@ -104,7 +104,7 @@ def test_bootstrap_main(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_startup_runs_without_scrapers(monkeypatch):
+async def test_startup_triggers_scrapers(monkeypatch):
     import service.start as start_mod
     import service.api as api_mod
     from scripts import populate as pop_mod
@@ -149,10 +149,11 @@ async def test_startup_runs_without_scrapers(monkeypatch):
         called.append("scrapers")
 
     monkeypatch.setattr(pop_mod, "run_scrapers", fake_run_scrapers)
+    monkeypatch.setattr(start_mod, "run_scrapers", fake_run_scrapers)
     monkeypatch.setattr(api_mod.sched, "register_jobs", lambda: None)
     monkeypatch.setattr(api_mod, "AUTO_START_SCHED", False)
 
     await start_mod.main("x", 0)
     await asyncio.sleep(0)
     assert "api" in calls
-    assert called == []
+    assert called == ["scrapers"]
