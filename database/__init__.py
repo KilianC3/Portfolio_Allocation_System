@@ -467,7 +467,14 @@ def init_db() -> None:
                         (table, column),
                     )
                     if cur.fetchone():
-                        cur.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
+                        try:
+                            cur.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
+                        except pymysql.err.OperationalError as exc:
+                            # ignore race conditions where the column was removed
+                            # after the information_schema check or foreign key
+                            # metadata references a non-existent column
+                            if exc.args and exc.args[0] not in {1072, 1091, 1054}:
+                                raise
                     return
 
                 drop_idx = re.match(
@@ -487,7 +494,13 @@ def init_db() -> None:
                         (table, index),
                     )
                     if cur.fetchone():
-                        cur.execute(f"ALTER TABLE {table} DROP INDEX {index}")
+                        try:
+                            cur.execute(f"ALTER TABLE {table} DROP INDEX {index}")
+                        except pymysql.err.OperationalError as exc:
+                            # ignore cases where the index disappears between the
+                            # existence check and execution
+                            if exc.args and exc.args[0] not in {1091, 1072}:
+                                raise
                     return
 
                 try:
