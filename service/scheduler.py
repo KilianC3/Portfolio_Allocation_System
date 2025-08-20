@@ -15,7 +15,6 @@ from analytics.allocation_engine import compute_weights
 from database import metric_coll, jobs_coll
 from analytics import update_all_metrics, record_account, update_all_ticker_scores
 from scrapers.wallstreetbets import fetch_wsb_mentions
-from scrapers import full_fundamentals
 from scrapers.politician import fetch_politician_trades
 from scrapers.lobbying import fetch_lobbying_data
 from scrapers.wiki import fetch_trending_wiki_views, fetch_wiki_views
@@ -121,9 +120,6 @@ class StrategyScheduler:
                 finally:
                     await gw_paper.close()
 
-        async def fundamentals_job():
-            await asyncio.to_thread(full_fundamentals.main)
-
         async def politician_job():
             await fetch_politician_trades()
 
@@ -178,7 +174,6 @@ class StrategyScheduler:
             "ticker_scores": ticker_job,
             "wsb_mentions": wsb_job,
             "account": account_job,
-            "full_fundamentals": fundamentals_job,
             "politician_trades": politician_job,
             "lobbying": lobbying_job,
             "wiki_trending": wiki_trending_job,
@@ -201,9 +196,6 @@ class StrategyScheduler:
             if job_id == "realloc":
                 trigger = CronTrigger(day_of_week="fri", hour=21, minute=0)
                 self.scheduler.add_job(func, trigger, id=job_id)
-            elif job_id == "full_fundamentals":
-                run_time = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)
-                self.scheduler.add_job(func, "date", run_date=run_time, id=job_id)
             else:
                 sched = SCHEDULES.get(job_id)
                 if not sched:

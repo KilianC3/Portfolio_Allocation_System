@@ -16,6 +16,7 @@ from database import db, pf_coll, init_db
 from infra.data_store import append_snapshot
 from metrics import scrape_latency, scrape_errors
 from service.logger import get_scraper_logger
+from .utils import get_column_map, validate_row
 
 # fallback to pf_coll when db not available in testing
 insider_coll = db["dc_insider_scores"] if db else pf_coll
@@ -23,8 +24,14 @@ rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 log = get_scraper_logger(__name__)
 
 
-async def fetch_dc_insider_scores() -> List[dict]:
-    """Scrape DC Insider scores from QuiverQuant."""
+async def fetch_dc_insider_scores(limit: int | None = None) -> List[dict]:
+    """Scrape DC Insider scores from QuiverQuant.
+
+    Parameters
+    ----------
+    limit:
+        Maximum number of rows to return. ``None`` fetches all rows.
+    """
     log.info("fetch_dc_insider_scores start")
     init_db()
     url = "https://www.quiverquant.com/scores/dcinsider"
@@ -39,23 +46,30 @@ async def fetch_dc_insider_scores() -> List[dict]:
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))
     data: List[dict] = []
-    now = dt.datetime.now(dt.timezone.utc)
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
     if table:
+        col_map = get_column_map(
+            table,
+            {"ticker": ["ticker", "symbol"], "score": ["score"], "date": ["date"]},
+        )
         for row in cast(List[Tag], table.find_all("tr"))[1:]:
             cells = [c.get_text(strip=True) for c in row.find_all("td")]
-            if len(cells) >= 3:
-                item = {
-                    "ticker": cells[0],
-                    "score": cells[1],
-                    "date": cells[2],
-                    "_retrieved": now,
-                }
-                data.append(item)
+            item = {
+                field: cells[idx] for field, idx in col_map.items() if idx < len(cells)
+            }
+            if len(item) == len(col_map):
+                validated = validate_row(item, numeric_fields={"score": float}, log=log)
+                if not validated:
+                    continue
+                validated["_retrieved"] = now
+                data.append(validated)
                 insider_coll.update_one(
-                    {"ticker": item["ticker"], "date": item["date"]},
-                    {"$set": item},
+                    {"ticker": validated["ticker"], "date": validated["date"]},
+                    {"$set": validated},
                     upsert=True,
                 )
+                if limit and len(data) >= limit:
+                    break
     append_snapshot("dc_insider_scores", data)
     log.info(f"fetched {len(data)} dc insider rows")
     return data
