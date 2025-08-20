@@ -20,6 +20,7 @@ from service.api import load_portfolios
 from execution.gateway import AlpacaGateway
 from ledger.master_ledger import MasterLedger
 from analytics.allocation_engine import compute_weights
+from scripts.populate import run_scrapers
 
 log = get_logger("startup")
 
@@ -129,6 +130,15 @@ async def main(host: str | None = None, port: int | None = None) -> None:
             resp.raise_for_status()
         log.info(f"API running on http://{h}:{p} - Swagger UI: http://{h}:{p}/docs")
         log.info("API is on")
+        log.info("triggering scrapers")
+        def _scraper_done(task: asyncio.Task) -> None:
+            exc = task.exception()
+            if exc:
+                log.warning(f"scrapers FAIL: {exc}")
+            else:
+                log.info({"scrapers": task.result()})
+
+        asyncio.create_task(run_scrapers()).add_done_callback(_scraper_done)
     except Exception as exc:  # pragma: no cover - network optional
         log.warning(f"api connection FAIL: {exc}")
         raise

@@ -905,7 +905,7 @@ def show_wiki(limit: int = 50):
     docs = list(wiki_collection.find().sort("_retrieved", -1).limit(limit))
     res = []
     for d in docs:
-        d["id"] = str(d.pop("_id"))
+        d.pop("_id", None)
         d["_retrieved"] = _iso(d.get("_retrieved"))
         res.append(d)
     return {"records": res}
@@ -955,7 +955,7 @@ async def collect_vol_mom():
 def show_vol_mom(limit: int = 50):
     docs = list(vol_mom_coll.find().sort("_retrieved", -1).limit(limit))
     for d in docs:
-        d["id"] = str(d.pop("_id"))
+        d.pop("_id", None)
         d["_retrieved"] = _iso(d.get("_retrieved"))
     return {"records": docs}
 
@@ -970,7 +970,7 @@ async def collect_lev_sector():
 def show_lev_sector(limit: int = 50):
     docs = list(lev_sector_coll.find().sort("_retrieved", -1).limit(limit))
     for d in docs:
-        d["id"] = str(d.pop("_id"))
+        d.pop("_id", None)
         d["_retrieved"] = _iso(d.get("_retrieved"))
     return {"records": docs}
 
@@ -985,7 +985,7 @@ async def collect_sector_mom():
 def show_sector_mom(limit: int = 50):
     docs = list(sector_mom_coll.find().sort("_retrieved", -1).limit(limit))
     for d in docs:
-        d["id"] = str(d.pop("_id"))
+        d.pop("_id", None)
         d["_retrieved"] = _iso(d.get("_retrieved"))
     return {"records": docs}
 
@@ -1001,7 +1001,7 @@ async def collect_smallcap_mom():
 def show_smallcap_mom(limit: int = 50):
     docs = list(smallcap_mom_coll.find().sort("_retrieved", -1).limit(limit))
     for d in docs:
-        d["id"] = str(d.pop("_id"))
+        d.pop("_id", None)
         d["_retrieved"] = _iso(d.get("_retrieved"))
     return {"records": docs}
 
@@ -1017,7 +1017,7 @@ async def collect_upgrade_mom():
 def show_upgrade_mom(limit: int = 50):
     docs = list(upgrade_mom_coll.find().sort("_retrieved", -1).limit(limit))
     for d in docs:
-        d["id"] = str(d.pop("_id"))
+        d.pop("_id", None)
         d["_retrieved"] = _iso(d.get("_retrieved"))
     return {"records": docs}
 
