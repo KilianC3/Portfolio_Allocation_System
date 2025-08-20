@@ -90,14 +90,16 @@ async def system_checklist() -> None:
 
 
 async def _launch_server(host: str, port: int) -> asyncio.Task:
-    """Start the FastAPI server and return the serving task."""
+    """Start the FastAPI server and return the serving task.
+
+    Using ``Server.startup`` avoids the polling loop previously used to wait
+    for uvicorn to mark itself as started, reducing CPU spin during bootstrap.
+    """
     config = uvicorn.Config("service.api:app", host=host, port=port)
     server = uvicorn.Server(config)
-    task = asyncio.create_task(server.serve())
-    while not server.started:
-        await asyncio.sleep(0.1)
+    await server.startup()
     log.info(f"api server initialised on http://{host}:{port}")
-    return task
+    return asyncio.create_task(server.main_loop())
 
 
 async def main(host: str | None = None, port: int | None = None) -> None:

@@ -17,6 +17,16 @@ CREATE TABLE IF NOT EXISTS trades (
     price DOUBLE,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS positions (
+    id INTEGER AUTO_INCREMENT PRIMARY KEY,
+    portfolio_id VARCHAR(36) REFERENCES portfolios(id),
+    symbol VARCHAR(16),
+    qty DOUBLE,
+    cost_basis DOUBLE,
+    realized_pnl DOUBLE,
+    UNIQUE(portfolio_id, symbol)
+);
 CREATE TABLE IF NOT EXISTS weight_history (
     id INTEGER AUTO_INCREMENT PRIMARY KEY,
     portfolio_id VARCHAR(36) REFERENCES portfolios(id),
@@ -361,20 +371,25 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 
 -- Ensure composite unique keys for daily snapshots
+ALTER TABLE wiki_views ADD COLUMN IF NOT EXISTS ticker TEXT;
 ALTER TABLE wiki_views DROP INDEX IF EXISTS ticker;
 ALTER TABLE wiki_views ADD UNIQUE KEY IF NOT EXISTS uq_wiki_views_ticker_date (ticker, date);
 ALTER TABLE wiki_views DROP COLUMN IF EXISTS page;
 ALTER TABLE wiki_views MODIFY COLUMN views BIGINT;
 
+ALTER TABLE google_trends ADD COLUMN IF NOT EXISTS ticker TEXT;
 ALTER TABLE google_trends DROP INDEX IF EXISTS ticker;
 ALTER TABLE google_trends ADD UNIQUE KEY IF NOT EXISTS uq_google_trends (ticker, date);
 
+ALTER TABLE reddit_mentions ADD COLUMN IF NOT EXISTS ticker TEXT;
 ALTER TABLE reddit_mentions DROP INDEX IF EXISTS ticker;
 ALTER TABLE reddit_mentions ADD UNIQUE KEY IF NOT EXISTS uq_reddit_mentions (ticker, date);
 
+ALTER TABLE app_reviews ADD COLUMN IF NOT EXISTS ticker TEXT;
 ALTER TABLE app_reviews DROP INDEX IF EXISTS ticker;
 ALTER TABLE app_reviews ADD UNIQUE KEY IF NOT EXISTS uq_app_reviews (ticker, date);
 
+ALTER TABLE gov_contracts ADD COLUMN IF NOT EXISTS ticker TEXT;
 ALTER TABLE gov_contracts DROP INDEX IF EXISTS ticker;
 ALTER TABLE gov_contracts ADD UNIQUE KEY IF NOT EXISTS uq_gov_contracts (ticker, date, value);
 
@@ -393,6 +408,7 @@ ALTER TABLE smallcap_momentum_weekly ADD UNIQUE KEY IF NOT EXISTS uq_smallmom (s
 ALTER TABLE upgrade_momentum_weekly DROP INDEX IF EXISTS symbol;
 ALTER TABLE upgrade_momentum_weekly ADD UNIQUE KEY IF NOT EXISTS uq_upgdmom (symbol, date);
 
+ALTER TABLE analyst_ratings ADD COLUMN IF NOT EXISTS ticker TEXT;
 ALTER TABLE analyst_ratings DROP INDEX IF EXISTS ticker;
 ALTER TABLE news_headlines ADD COLUMN IF NOT EXISTS sentiment FLOAT;
 ALTER TABLE analyst_ratings
