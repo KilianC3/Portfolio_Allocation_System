@@ -23,9 +23,11 @@ if ! git -C "$APP_DIR" remote | grep -q backup; then
   git -C "$APP_DIR" remote add backup https://github.com/KilianC3/Backup
 fi
 git -C "$APP_DIR" lfs install --local
-# Bind MariaDB to the same IP and port as Redis so remote clients can connect
+# Bind MariaDB to the deployment IP so remote clients can connect. Keep the
+# default MySQL port to avoid clashes with the API server which listens on
+# ``8001``.
 sudo sed -i "s/^bind-address.*/bind-address = ${APP_IP}/" /etc/mysql/mariadb.conf.d/50-server.cnf
-sudo sed -i "s/^#\?port.*/port = 8001/" /etc/mysql/mariadb.conf.d/50-server.cnf
+sudo sed -i "s/^#\?port.*/port = 3306/" /etc/mysql/mariadb.conf.d/50-server.cnf
 "$APP_DIR/scripts/setup_redis.sh" "$APP_IP"
 sudo systemctl enable mariadb
 sudo systemctl start mariadb

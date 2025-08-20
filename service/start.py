@@ -96,7 +96,9 @@ async def _launch_server(host: str, port: int) -> asyncio.Task:
     for uvicorn to mark itself as started, reducing CPU spin during bootstrap.
     """
     config = uvicorn.Config("service.api:app", host=host, port=port)
+    config.load()
     server = uvicorn.Server(config)
+    server.lifespan = config.lifespan_class(config)
     await server.startup()
     log.info(f"api server initialised on http://{host}:{port}")
     return asyncio.create_task(server.main_loop())
