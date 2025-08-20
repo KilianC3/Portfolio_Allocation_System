@@ -28,7 +28,7 @@ def test_strategy_summary_aggregates(client, monkeypatch):
     monkeypatch.setattr(metric_coll, "find_one", fake_metric)
     monkeypatch.setattr(risk_stats_coll, "find_one", fake_risk)
 
-    resp = _get("/strategies/summary")
+    resp = _get(client, "/strategies/summary")
     assert resp.status_code == 200
     data = resp.json()["strategies"][0]
     assert data["metrics"]["ret"] == 0.1

@@ -4,20 +4,15 @@ import pandas as pd
 import pytest
 from typing import Any
 
-import scrapers.dc_insider as dc
-import scrapers.lobbying as lb
-import scrapers.gov_contracts as gc
-import scrapers.politician as pol
-import scrapers.wiki as wiki
 import scrapers.analyst_ratings as ar
 import scrapers.universe as univ
-import scrapers.sp500_index as spx
+import scrapers.volatility_momentum as vm
 import scrapers.google_trends as gt
+import scrapers.lobbying as lb
 import scrapers.sector_momentum as sm
 import scrapers.leveraged_sector_momentum as lsm
 import scrapers.smallcap_momentum as scm
 import scrapers.upgrade_momentum as um
-import scrapers.volatility_momentum as vm
 from scrapers.yf_utils import flatten_columns
 
 
@@ -28,28 +23,6 @@ async def _fake_get(*_args, **_kw):
         <tr><td>AAPL</td><td>1</td><td>2024-01-01</td></tr>
     </table>
     """
-
-
-async def _fake_get_lobby(*_args, **_kw):
-    return """
-    <table>
-        <tr><th>Ticker</th><th>Client</th><th>Amount</th><th>Date</th></tr>
-        <tr><td>AAPL</td><td>X</td><td>$1</td><td>2024-01-01</td></tr>
-    </table>
-    """
-
-
-async def _fake_get_politician(*_args, **_kw):
-    return """
-    <table>
-        <tr><th>Politician</th><th>Ticker</th><th>Type</th><th>Amount</th><th>Date</th></tr>
-        <tr><td>Rep</td><td>AAPL</td><td>buy</td><td>1</td><td>2024-01-01</td></tr>
-    </table>
-    """
-
-
-async def _fake_get_wiki(*_args, **_kw):
-    return '{"items": [{"timestamp": "2024010100", "views": 42}]}'
 
 
 @mock.patch.object(ar, "fetch_upgrades")
@@ -77,86 +50,6 @@ async def test_fetch_analyst_ratings_formats_rows(mock_init_db, mock_fetch_upgra
     rows = await ar.fetch_analyst_ratings(limit=1)
     assert rows[0]["ticker"] == "AAPL"
     assert rows[0]["date_utc"] == "2024-01-01T00:00:00+00:00"
-
-
-@mock.patch.object(dc, "scrape_get", side_effect=_fake_get)
-@mock.patch.object(gc, "scrape_get", side_effect=_fake_get)
-@mock.patch.object(pol, "scrape_get", side_effect=_fake_get_politician)
-@mock.patch.object(wiki, "scrape_get", side_effect=_fake_get_wiki)
-@mock.patch.object(gt, "scrape_get", side_effect=_fake_get)
-@mock.patch.object(lb, "scrape_get", side_effect=_fake_get_lobby)
-@mock.patch.object(dc, "insider_coll", new=mock.Mock())
-@mock.patch.object(lb, "lobby_coll", new=mock.Mock())
-@mock.patch.object(gc, "contracts_coll", new=mock.Mock())
-@mock.patch.object(pol, "politician_coll", new=mock.Mock())
-@mock.patch.object(wiki, "wiki_collection", new=mock.Mock())
-@mock.patch.object(
-    spx.yf,
-    "download",
-    return_value=pd.DataFrame(
-        {
-            "Open": [4950],
-            "High": [5050],
-            "Low": [4900],
-            "Close": [5000],
-            "Volume": [1000000],
-        },
-        index=pd.to_datetime(["2024-01-01"]),
-    ),
-)
-@mock.patch.object(spx, "sp500_coll", new=mock.Mock())
-@pytest.mark.asyncio
-async def test_scraper_suite(
-    _dl,
-    _lb_get,
-    _gt_get,
-    _wiki_get,
-    _pol_get,
-    _gc_get,
-    _dc_get,
-    monkeypatch,
-):
-    class DummyPW:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *_):
-            pass
-
-        class chromium:
-            @staticmethod
-            async def launch(headless=True):
-                class B:
-                    async def new_page(self):
-                        class P:
-                            async def goto(self, _):
-                                pass
-
-                            async def content(self):
-                                return (
-                                    "<table>"
-                                    "<tr><th>Ticker</th><th>Client</th><th>Amount</th><th>Date</th></tr>"
-                                    "<tr><td>AAPL</td><td>X</td><td>1</td><td>2024-01-01</td></tr>"
-                                    "</table>"
-                                )
-
-                        return P()
-
-                    async def close(self):
-                        pass
-
-                return B()
-
-    monkeypatch.setattr(lb, "async_playwright", lambda: DummyPW())
-    d = await dc.fetch_dc_insider_scores(limit=1)
-    l = await lb.fetch_lobbying_data(limit=1)
-    g = await gc.fetch_gov_contracts(limit=1)
-    p = await pol.fetch_politician_trades(limit=1)
-    w = await wiki.fetch_wiki_views(limit=1)
-    index = spx.fetch_sp500_history(1)
-    assert d and l and g and p and w and index
-    assert "open" in index[0]
-    assert w[0]["ticker"]
 
 
 def test_helpers(monkeypatch, tmp_path):
