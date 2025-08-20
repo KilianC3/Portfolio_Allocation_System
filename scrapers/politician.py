@@ -23,7 +23,14 @@ rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 log = get_scraper_logger(__name__)
 
 
-async def fetch_politician_trades() -> List[dict]:
+async def fetch_politician_trades(limit: int | None = None) -> List[dict]:
+    """Scrape congressional trading disclosures from QuiverQuant.
+
+    Parameters
+    ----------
+    limit:
+        Maximum number of rows to return. ``None`` fetches all rows.
+    """
     log.info("fetch_politician_trades start")
     init_db()
     url = "https://www.quiverquant.com/congresstrading/"
@@ -72,6 +79,8 @@ async def fetch_politician_trades() -> List[dict]:
                     {"$set": validated},
                     upsert=True,
                 )
+                if limit and len(data) >= limit:
+                    break
     append_snapshot("politician_trades", data)
     log.info(f"fetched {len(data)} politician trade rows")
     return data

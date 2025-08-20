@@ -25,8 +25,14 @@ insider_buy_coll = db["insider_buying"] if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 
-async def fetch_insider_buying() -> List[dict]:
-    """Scrape corporate insider filings from QuiverQuant."""
+async def fetch_insider_buying(limit: int | None = None) -> List[dict]:
+    """Scrape corporate insider filings from QuiverQuant.
+
+    Parameters
+    ----------
+    limit:
+        Maximum number of rows to return. ``None`` fetches all rows.
+    """
     log.info("fetch_insider_buying start")
     init_db()
     url = "https://www.quiverquant.com/insiders/"
@@ -72,6 +78,8 @@ async def fetch_insider_buying() -> List[dict]:
                     {"$set": validated},
                     upsert=True,
                 )
+                if limit and len(data) >= limit:
+                    break
     append_snapshot("insider_buying", data)
     log.info(f"fetched {len(data)} insider buying rows")
     return data

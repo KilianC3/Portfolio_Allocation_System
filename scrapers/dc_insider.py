@@ -24,8 +24,14 @@ rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 log = get_scraper_logger(__name__)
 
 
-async def fetch_dc_insider_scores() -> List[dict]:
-    """Scrape DC Insider scores from QuiverQuant."""
+async def fetch_dc_insider_scores(limit: int | None = None) -> List[dict]:
+    """Scrape DC Insider scores from QuiverQuant.
+
+    Parameters
+    ----------
+    limit:
+        Maximum number of rows to return. ``None`` fetches all rows.
+    """
     log.info("fetch_dc_insider_scores start")
     init_db()
     url = "https://www.quiverquant.com/scores/dcinsider"
@@ -62,6 +68,8 @@ async def fetch_dc_insider_scores() -> List[dict]:
                     {"$set": validated},
                     upsert=True,
                 )
+                if limit and len(data) >= limit:
+                    break
     append_snapshot("dc_insider_scores", data)
     log.info(f"fetched {len(data)} dc insider rows")
     return data

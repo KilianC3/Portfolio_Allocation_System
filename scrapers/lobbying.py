@@ -35,7 +35,7 @@ lobby_coll = lobbying_coll if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 
-def parse_lobbying(html: str) -> List[dict]:
+def parse_lobbying(html: str, limit: int | None = None) -> List[dict]:
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))
     rows: List[dict] = []
@@ -67,11 +67,19 @@ def parse_lobbying(html: str) -> List[dict]:
                 "date": date,
             }
         )
+        if limit and len(rows) >= limit:
+            break
     return rows
 
 
-async def fetch_lobbying_data() -> List[dict]:
-    """Scrape corporate lobbying spending from QuiverQuant."""
+async def fetch_lobbying_data(limit: int | None = None) -> List[dict]:
+    """Scrape corporate lobbying spending from QuiverQuant.
+
+    Parameters
+    ----------
+    limit:
+        Maximum number of rows to return. ``None`` fetches all rows.
+    """
     log.info("fetch_lobbying_data start")
     init_db()
     url = "https://www.quiverquant.com/lobbying/"
@@ -81,7 +89,7 @@ async def fetch_lobbying_data() -> List[dict]:
         try:
             async with rate:
                 html = await scrape_get(url)
-            rows = parse_lobbying(html)
+            rows = parse_lobbying(html, limit)
         except Exception as exc:  # pragma: no cover - network optional
             log.exception(f"lobbying http failed: {exc}")
             scrape_errors.labels("lobbying").inc()
@@ -95,7 +103,7 @@ async def fetch_lobbying_data() -> List[dict]:
                     await page.wait_for_selector("table", timeout=60000)
                     html = await page.content()
                     await browser.close()
-                rows = parse_lobbying(html)
+                rows = parse_lobbying(html, limit)
             except Exception as exc:  # pragma: no cover - network optional
                 log.exception(f"lobbying playwright failed: {exc}")
 

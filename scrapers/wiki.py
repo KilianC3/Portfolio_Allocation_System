@@ -26,7 +26,12 @@ wiki_collection = wiki_coll if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 
-async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7, ticker: str = "AAPL") -> List[dict]:
+async def fetch_wiki_views(
+    page: str = "Apple_Inc",
+    days: int = 7,
+    ticker: str = "AAPL",
+    limit: int | None = None,
+) -> List[dict]:
     """Fetch Wikipedia page views via the Wikimedia API.
 
     Parameters
@@ -74,6 +79,8 @@ async def fetch_wiki_views(page: str = "Apple_Inc", days: int = 7, ticker: str =
             {"$set": item},
             upsert=True,
         )
+        if limit and len(data) >= limit:
+            break
     append_snapshot("wiki_views", data)
     log.info(f"fetched {len(data)} wiki view rows for {page}")
     return data

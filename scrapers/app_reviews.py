@@ -24,8 +24,14 @@ rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 log = get_scraper_logger(__name__)
 
 
-async def fetch_app_reviews() -> List[dict]:
-    """Scrape app review hype scores from QuiverQuant."""
+async def fetch_app_reviews(limit: int | None = None) -> List[dict]:
+    """Scrape app review hype scores from QuiverQuant.
+
+    Parameters
+    ----------
+    limit:
+        Maximum number of rows to return. ``None`` fetches all rows.
+    """
     log.info("fetch_app_reviews start")
     init_db()
     url = "https://www.quiverquant.com/sources/appratings"
@@ -62,6 +68,8 @@ async def fetch_app_reviews() -> List[dict]:
                     {"$set": validated},
                     upsert=True,
                 )
+                if limit and len(data) >= limit:
+                    break
     append_snapshot("app_reviews", data)
     log.info(f"fetched {len(data)} app review rows")
     return data

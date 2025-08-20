@@ -23,8 +23,14 @@ rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 log = get_scraper_logger(__name__)
 
 
-async def fetch_gov_contracts() -> List[dict]:
-    """Scrape top government contract recipients from QuiverQuant."""
+async def fetch_gov_contracts(limit: int | None = None) -> List[dict]:
+    """Scrape top government contract recipients from QuiverQuant.
+
+    Parameters
+    ----------
+    limit:
+        Maximum number of rows to return. ``None`` fetches all rows.
+    """
     log.info("fetch_gov_contracts start")
     init_db()
     url = "https://www.quiverquant.com/sources/govcontracts"
@@ -65,6 +71,8 @@ async def fetch_gov_contracts() -> List[dict]:
                     {"$set": validated},
                     upsert=True,
                 )
+                if limit and len(data) >= limit:
+                    break
     append_snapshot("gov_contracts", data)
     log.info(f"fetched {len(data)} gov contract rows")
     return data

@@ -95,7 +95,7 @@ async def test_quiver_scrapers_mapping(
     monkeypatch.setattr(module, coll, mock.Mock())
     monkeypatch.setattr(module, "append_snapshot", lambda *a, **k: None)
     monkeypatch.setattr(module, "init_db", lambda: None)
-    rows = await getattr(module, func_name)()
+    rows = await getattr(module, func_name)(limit=1)
     assert len(rows) == 1
     row = rows[0]
     for key, val in expected.items():

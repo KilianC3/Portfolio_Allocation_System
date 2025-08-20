@@ -35,7 +35,7 @@ trends_coll = db["google_trends"] if db else pf_coll
 rate = DynamicRateLimiter(1, QUIVER_RATE_SEC)
 
 
-def parse_google_trends(html: str) -> List[dict]:
+def parse_google_trends(html: str, limit: int | None = None) -> List[dict]:
     soup = BeautifulSoup(html, "html.parser")
     table = cast(Optional[Tag], soup.find("table"))
     rows: List[dict] = []
@@ -57,11 +57,19 @@ def parse_google_trends(html: str) -> List[dict]:
         except Exception:
             continue
         rows.append({"ticker": ticker, "score": score_f, "date": date})
+        if limit and len(rows) >= limit:
+            break
     return rows
 
 
-async def fetch_google_trends() -> List[dict]:
-    """Scrape Google Trends scores from QuiverQuant."""
+async def fetch_google_trends(limit: int | None = None) -> List[dict]:
+    """Scrape Google Trends scores from QuiverQuant.
+
+    Parameters
+    ----------
+    limit:
+        Maximum number of rows to return. ``None`` fetches all rows.
+    """
     log.info("fetch_google_trends start")
     init_db()
     url = "https://www.quiverquant.com/googletrends/"
@@ -71,7 +79,7 @@ async def fetch_google_trends() -> List[dict]:
         try:
             async with rate:
                 html = await scrape_get(url)
-            rows = parse_google_trends(html)
+            rows = parse_google_trends(html, limit)
         except Exception as exc:  # pragma: no cover - network optional
             log.exception(f"google_trends http failed: {exc}")
             scrape_errors.labels("google_trends").inc()
@@ -85,7 +93,7 @@ async def fetch_google_trends() -> List[dict]:
                     await page.wait_for_selector("table", timeout=60000)
                     html = await page.content()
                     await browser.close()
-                rows = parse_google_trends(html)
+                rows = parse_google_trends(html, limit)
             except Exception as exc:  # pragma: no cover - network optional
                 log.exception(f"google_trends playwright failed: {exc}")
 

@@ -148,11 +148,11 @@ async def test_scraper_suite(
                 return B()
 
     monkeypatch.setattr(lb, "async_playwright", lambda: DummyPW())
-    d = await dc.fetch_dc_insider_scores()
-    l = await lb.fetch_lobbying_data()
-    g = await gc.fetch_gov_contracts()
-    p = await pol.fetch_politician_trades()
-    w = await wiki.fetch_wiki_views()
+    d = await dc.fetch_dc_insider_scores(limit=1)
+    l = await lb.fetch_lobbying_data(limit=1)
+    g = await gc.fetch_gov_contracts(limit=1)
+    p = await pol.fetch_politician_trades(limit=1)
+    w = await wiki.fetch_wiki_views(limit=1)
     index = spx.fetch_sp500_history(1)
     assert d and l and g and p and w and index
     assert "open" in index[0]
@@ -332,9 +332,7 @@ async def test_momentum_scrapers(monkeypatch):
 
     monkeypatch.setattr(scm, "_weekly_closes", _fake_weekly_closes)
     monkeypatch.setattr(scm, "smallcap_mom_coll", mock.Mock())
-    rows = scm.fetch_smallcap_momentum_summary(
-        tickers, weeks=1, top_n=5, max_tickers=5
-    )
+    rows = scm.fetch_smallcap_momentum_summary(tickers, weeks=1, top_n=5, max_tickers=5)
     assert len(rows) == 5
 
     async def fake_changes(symbols, weeks=4):
@@ -354,10 +352,10 @@ async def test_momentum_scrapers(monkeypatch):
 
     monkeypatch.setattr(vm, "_weekly_closes", _fake_weekly_closes)
     monkeypatch.setattr(vm, "vol_mom_coll", mock.Mock())
-    monkeypatch.setattr(vm, "load_universe_any", lambda: pd.DataFrame({"ticker": tickers}))
-    rows = vm.fetch_volatility_momentum_summary(
-        weeks=2, top_n=5, max_tickers=5
+    monkeypatch.setattr(
+        vm, "load_universe_any", lambda: pd.DataFrame({"ticker": tickers})
     )
+    rows = vm.fetch_volatility_momentum_summary(weeks=2, top_n=5, max_tickers=5)
     assert len(rows) == 5
 
 
