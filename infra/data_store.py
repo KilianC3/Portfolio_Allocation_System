@@ -9,7 +9,7 @@ import pandas as pd
 
 import time
 
-from database import db
+from database import db, validate_docs
 from infra.github_backup import backup_records
 from service.logger import get_logger
 
@@ -21,6 +21,7 @@ def append_snapshot(table: str, records: List[Dict]) -> None:
     """Insert ``records`` into the MariaDB table and GitHub backup."""
     if not records:
         return
+    validate_docs(table, records)
     data = []
     for row in records:
         item = row.copy()

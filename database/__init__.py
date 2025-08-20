@@ -131,6 +131,47 @@ def db_ping() -> bool:
         _pool.put(conn)
 
 
+_schema_cache: Dict[str, set[str]] = {}
+
+
+def _table_columns(table: str) -> set[str]:
+    """Return the column names for ``table`` from ``information_schema``."""
+    if table in _schema_cache:
+        return _schema_cache[table]
+    if not _pool:
+        return set()
+    conn = _pool.get()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA=%s AND TABLE_NAME=%s",
+                (_conn_args["database"], table),
+            )
+            cols = {row["COLUMN_NAME"] for row in cur}
+            _schema_cache[table] = cols
+            return cols
+    finally:
+        _pool.put(conn)
+
+
+def validate_docs(table: str, docs: List[Dict[str, Any]]) -> List[str]:
+    """Validate ``docs`` share identical columns and exist in ``table`` schema."""
+    if not docs:
+        return []
+    cols = list(docs[0].keys())
+    col_set = set(cols)
+    for d in docs[1:]:
+        if set(d.keys()) != col_set:
+            raise ValueError(f"inconsistent columns for {table}")
+    schema = _table_columns(table)
+    if schema:
+        unknown = col_set - schema
+        if unknown:
+            raise ValueError(f"unknown columns {unknown} for {table}")
+    return cols
+
+
 class InMemoryCollection:
     """Minimal in-memory fallback used when MariaDB is unavailable."""
 
@@ -310,9 +351,10 @@ class PGCollection:
         if not self.pool or not docs:
             return
         db_ping()
-        cols = ["id" if c == "_id" else c for c in docs[0].keys()]
+        cols = validate_docs(self.table, docs)
+        cols = ["id" if c == "_id" else c for c in cols]
         values = [
-            [json.dumps(d[c]) if isinstance(d[c], (dict, list)) else d[c] for c in d]
+            [json.dumps(d[c]) if isinstance(d[c], (dict, list)) else d[c] for c in cols]
             for d in docs
         ]
         placeholders = ",".join(
