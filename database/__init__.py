@@ -447,9 +447,11 @@ def init_db() -> None:
             with conn.cursor() as cur:
                 stmt = sql.strip()
                 # Older MariaDB versions do not support "IF EXISTS" for
-                # dropping columns or indexes. Perform explicit existence
-                # checks to keep schema upgrades idempotent without raising
-                # OperationalError noise in the logs.
+                # dropping columns or indexes. Older MariaDB versions (<10.5)
+                # do not support ``IF EXISTS`` for these operations. Try the
+                # modern syntax first and fall back to plain ``DROP`` while
+                # ignoring "doesn't exist" errors so repeated bootstraps remain
+                # idempotent.
                 drop_col = re.match(
                     r"ALTER\s+TABLE\s+(\w+)\s+DROP\s+COLUMN\s+IF\s+EXISTS\s+(\w+)",
                     stmt,
@@ -457,24 +459,26 @@ def init_db() -> None:
                 )
                 if drop_col:
                     table, column = drop_col.groups()
-                    cur.execute(
-                        """
-                        SELECT 1 FROM information_schema.COLUMNS
-                        WHERE table_schema = DATABASE()
-                          AND table_name = %s
-                          AND column_name = %s
-                        """,
-                        (table, column),
-                    )
-                    if cur.fetchone():
-                        try:
-                            cur.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
-                        except pymysql.err.OperationalError as exc:
-                            # ignore race conditions where the column was removed
-                            # after the information_schema check or foreign key
-                            # metadata references a non-existent column
-                            if exc.args and exc.args[0] not in {1072, 1091, 1054}:
-                                raise
+                    try:
+                        cur.execute(
+                            f"ALTER TABLE {table} DROP COLUMN IF EXISTS {column}"
+                        )
+                    except pymysql.err.OperationalError as exc:
+                        if exc.args and exc.args[0] == 1064:
+                            # Fallback for MariaDB <10.5
+                            try:
+                                cur.execute(
+                                    f"ALTER TABLE {table} DROP COLUMN {column}"
+                                )
+                            except pymysql.err.OperationalError as inner_exc:
+                                if inner_exc.args and inner_exc.args[0] not in {
+                                    1054,
+                                    1072,
+                                    1091,
+                                }:
+                                    raise
+                        elif exc.args and exc.args[0] not in {1054, 1072, 1091}:
+                            raise
                     return
 
                 drop_idx = re.match(
@@ -484,23 +488,25 @@ def init_db() -> None:
                 )
                 if drop_idx:
                     table, index = drop_idx.groups()
-                    cur.execute(
-                        """
-                        SELECT 1 FROM information_schema.STATISTICS
-                        WHERE table_schema = DATABASE()
-                          AND table_name = %s
-                          AND index_name = %s
-                        """,
-                        (table, index),
-                    )
-                    if cur.fetchone():
-                        try:
-                            cur.execute(f"ALTER TABLE {table} DROP INDEX {index}")
-                        except pymysql.err.OperationalError as exc:
-                            # ignore cases where the index disappears between the
-                            # existence check and execution
-                            if exc.args and exc.args[0] not in {1091, 1072}:
-                                raise
+                    try:
+                        cur.execute(
+                            f"ALTER TABLE {table} DROP INDEX IF EXISTS {index}"
+                        )
+                    except pymysql.err.OperationalError as exc:
+                        if exc.args and exc.args[0] == 1064:
+                            # Fallback for MariaDB <10.5
+                            try:
+                                cur.execute(
+                                    f"ALTER TABLE {table} DROP INDEX {index}"
+                                )
+                            except pymysql.err.OperationalError as inner_exc:
+                                if inner_exc.args and inner_exc.args[0] not in {
+                                    1091,
+                                    1072,
+                                }:
+                                    raise
+                        elif exc.args and exc.args[0] not in {1091, 1072}:
+                            raise
                     return
 
                 try:
