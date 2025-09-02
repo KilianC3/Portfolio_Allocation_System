@@ -14,21 +14,11 @@ from execution.gateway import AlpacaGateway
 from analytics.allocation_engine import compute_weights
 from database import metric_coll, jobs_coll
 from analytics import update_all_metrics, record_account, update_all_ticker_scores
-from scrapers.wallstreetbets import fetch_wsb_mentions
-from scrapers.politician import fetch_politician_trades
-from scrapers.lobbying import fetch_lobbying_data
-from scrapers.wiki import fetch_trending_wiki_views, fetch_wiki_views
-from scrapers.dc_insider import fetch_dc_insider_scores
-from scrapers.gov_contracts import fetch_gov_contracts
-from scrapers.app_reviews import fetch_app_reviews
-from scrapers.google_trends import fetch_google_trends
-from scrapers.insider_buying import fetch_insider_buying
-from scrapers.volatility_momentum import fetch_volatility_momentum_summary
-from scrapers.leveraged_sector_momentum import fetch_leveraged_sector_summary
-from scrapers.sector_momentum import fetch_sector_momentum_summary
-from scrapers.smallcap_momentum import fetch_smallcap_momentum_summary
-from scrapers.upgrade_momentum import fetch_upgrade_momentum_summary
 from risk.tasks import compute_risk_stats, evaluate_risk_rules
+
+# Scraper modules are imported lazily within job functions so that
+# importing the scheduler does not trigger heavy network setup during
+# bootstrap or testing.
 
 _log = get_logger("sched")
 logging.getLogger("apscheduler").setLevel(logging.WARNING)
@@ -104,6 +94,8 @@ class StrategyScheduler:
             await asyncio.to_thread(update_all_ticker_scores)
 
         async def wsb_job():
+            from scrapers.wallstreetbets import fetch_wsb_mentions
+
             await fetch_wsb_mentions()
 
         async def account_job():
@@ -121,45 +113,75 @@ class StrategyScheduler:
                     await gw_paper.close()
 
         async def politician_job():
+            from scrapers.politician import fetch_politician_trades
+
             await fetch_politician_trades()
 
         async def lobbying_job():
+            from scrapers.lobbying import fetch_lobbying_data
+
             await fetch_lobbying_data()
 
         async def wiki_trending_job():
+            from scrapers.wiki import fetch_trending_wiki_views
+
             await fetch_trending_wiki_views()
 
         async def wiki_views_job():
+            from scrapers.wiki import fetch_wiki_views
+
             await fetch_wiki_views()
 
         async def dc_insider_job():
+            from scrapers.dc_insider import fetch_dc_insider_scores
+
             await fetch_dc_insider_scores()
 
         async def gov_contracts_job():
+            from scrapers.gov_contracts import fetch_gov_contracts
+
             await fetch_gov_contracts()
 
         async def app_reviews_job():
+            from scrapers.app_reviews import fetch_app_reviews
+
             await fetch_app_reviews()
 
         async def google_trends_job():
+            from scrapers.google_trends import fetch_google_trends
+
             await fetch_google_trends()
 
         async def insider_buying_job():
+            from scrapers.insider_buying import fetch_insider_buying
+
             await fetch_insider_buying()
 
         async def vol_mom_job():
+            from scrapers.volatility_momentum import fetch_volatility_momentum_summary
+
             await fetch_volatility_momentum_summary()
 
         async def lev_sector_job():
+            from scrapers.leveraged_sector_momentum import (
+                fetch_leveraged_sector_summary,
+            )
+
             await fetch_leveraged_sector_summary()
 
         async def sector_mom_job():
+            from scrapers.sector_momentum import fetch_sector_momentum_summary
+
             await fetch_sector_momentum_summary()
 
         async def smallcap_mom_job():
+            from scrapers.smallcap_momentum import fetch_smallcap_momentum_summary
+
             await fetch_smallcap_momentum_summary()
 
         async def upgrade_mom_job():
+            from scrapers.upgrade_momentum import fetch_upgrade_momentum_summary
+
             await fetch_upgrade_momentum_summary()
 
         async def risk_stats_job():
@@ -167,6 +189,11 @@ class StrategyScheduler:
 
         async def risk_rules_job():
             await asyncio.to_thread(evaluate_risk_rules)
+
+        async def db_backup_job():
+            from database.backup import backup_to_github
+
+            await asyncio.to_thread(backup_to_github)
 
         job_funcs = {
             "realloc": realloc_job,
@@ -190,6 +217,7 @@ class StrategyScheduler:
             "upgrade_mom": upgrade_mom_job,
             "risk_stats": risk_stats_job,
             "risk_rules": risk_rules_job,
+            "db_backup": db_backup_job,
         }
 
         for job_id, func in job_funcs.items():

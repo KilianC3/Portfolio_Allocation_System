@@ -151,6 +151,7 @@ DEFAULT_SCHEDULES = {
     "ticker_scores": "0 3 1 * *",
     "wsb_mentions": "0 3 * * *",
     "account": "0 0 * * *",
+    "db_backup": "0 1 * * *",
     "risk_stats": "30 0 * * *",
     "risk_rules": "*/5 * * * *",
     "politician_trades": "0 2 * * *",
