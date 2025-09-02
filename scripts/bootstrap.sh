@@ -63,9 +63,21 @@ systemctl daemon-reload
 systemctl enable portfolio
 systemctl start portfolio
 
+# Retry health check with a bounded loop so bootstrap never blocks indefinitely
 echo "Waiting for API to become available"
-until curl -sf "http://${APP_IP}:8001/health" >/dev/null; do
-  sleep 2
+for attempt in {1..6}; do
+  if curl -sf --connect-timeout 5 "http://${APP_IP}:8001/health" >/dev/null; then
+    echo "API is on at http://${APP_IP}:8001"
+    API_UP=1
+    break
+  fi
+  if [ "$attempt" -lt 6 ]; then
+    echo "Attempt ${attempt}/6 failed; retrying in 5s..."
+    sleep 5
+  fi
 done
-echo "API is on at http://${APP_IP}:8001"
+if [ -z "${API_UP:-}" ]; then
+  echo "API failed to respond after 6 attempts; check 'journalctl -u portfolio' for details" >&2
+  exit 1
+fi
 echo "Bootstrap complete. Service portfolio is running."
