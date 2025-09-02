@@ -468,8 +468,13 @@ def init_db() -> None:
                             # Fallback for MariaDB <10.5
                             try:
                                 cur.execute(
-                                    f"ALTER TABLE {table} DROP COLUMN {column}"
+                                    f"SHOW COLUMNS FROM {table} LIKE %s",
+                                    (column,),
                                 )
+                                if cur.fetchone():
+                                    cur.execute(
+                                        f"ALTER TABLE {table} DROP COLUMN {column}"
+                                    )
                             except pymysql.err.OperationalError as inner_exc:
                                 if inner_exc.args and inner_exc.args[0] not in {
                                     1054,
@@ -489,16 +494,12 @@ def init_db() -> None:
                 if drop_idx:
                     table, index = drop_idx.groups()
                     try:
-                        cur.execute(
-                            f"ALTER TABLE {table} DROP INDEX IF EXISTS {index}"
-                        )
+                        cur.execute(f"ALTER TABLE {table} DROP INDEX IF EXISTS {index}")
                     except pymysql.err.OperationalError as exc:
                         if exc.args and exc.args[0] == 1064:
                             # Fallback for MariaDB <10.5
                             try:
-                                cur.execute(
-                                    f"ALTER TABLE {table} DROP INDEX {index}"
-                                )
+                                cur.execute(f"ALTER TABLE {table} DROP INDEX {index}")
                             except pymysql.err.OperationalError as inner_exc:
                                 if inner_exc.args and inner_exc.args[0] not in {
                                     1091,

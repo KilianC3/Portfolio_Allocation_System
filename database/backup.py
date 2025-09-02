@@ -15,7 +15,8 @@ BACKUP_DIR = Path(__file__).resolve().parent / "backups"
 def _dump_tables() -> List[Path]:
     """Dump all database tables to ``BACKUP_DIR`` and return written paths."""
     if not db.conn:  # type: ignore[attr-defined]
-        return []
+        log.error("database connection not available")
+        raise RuntimeError("database connection not available")
     BACKUP_DIR.mkdir(exist_ok=True)
     paths: List[Path] = []
     with db.conn.cursor() as cur:  # type: ignore[attr-defined]
@@ -35,12 +36,26 @@ def backup_to_github(message: str | None = None) -> None:
     """Export all tables and commit the snapshot to the git repository."""
     paths = _dump_tables()
     if not paths:
-        return
-    for p in paths:
-        subprocess.run(["git", "add", str(p)], check=False)
-    msg = message or f"DB backup {dt.datetime.utcnow().isoformat()}"
-    subprocess.run(["git", "commit", "-m", msg], check=False)
-    subprocess.run(["git", "push"], check=False)
+        log.error("no tables dumped")
+        raise RuntimeError("no tables dumped")
+    try:
+        for p in paths:
+            subprocess.run(["git", "add", str(p)], check=True)
+        msg = message or f"DB backup {dt.datetime.utcnow().isoformat()}"
+        subprocess.run(
+            [
+                "git",
+                "commit",
+                "--allow-empty",
+                "-m",
+                msg,
+            ],
+            check=True,
+        )
+        subprocess.run(["git", "push"], check=True)
+    except subprocess.CalledProcessError as exc:
+        log.error("git backup failed", exc_info=exc)
+        raise
     log.info("backed up %d tables", len(paths))
 
 
