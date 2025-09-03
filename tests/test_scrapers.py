@@ -95,6 +95,17 @@ def test_helpers(monkeypatch, tmp_path):
     print(data2.iloc[0].to_dict())
 
 
+def test_tickers_from_wiki_no_table(monkeypatch):
+    class Resp:
+        text = "<html></html>"
+
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(univ.requests, "get", lambda *a, **k: Resp())
+    assert univ._tickers_from_wiki("http://example.com") == []
+
+
 @mock.patch.object(vm, "append_snapshot")
 @mock.patch.object(vm, "vol_mom_coll", new=mock.Mock())
 @mock.patch.object(vm, "load_universe_any")
