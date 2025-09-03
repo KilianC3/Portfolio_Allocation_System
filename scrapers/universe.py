@@ -63,8 +63,15 @@ def _clean_symbols(symbols: List[str]) -> List[str]:
 
 
 def _tickers_from_wiki(url: str) -> List[str]:
-    html = requests.get(url, timeout=30).text
-    dfs = pd.read_html(StringIO(html))
+    """Fetch ticker symbols from a Wikipedia table."""
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; PortfolioBot/1.0)"}
+    response = requests.get(url, headers=headers, timeout=30)
+    response.raise_for_status()
+    try:
+        dfs = pd.read_html(StringIO(response.text))
+    except ValueError as exc:
+        log.error("no tables found at %s: %s", url, exc)
+        return []
     out: list[str] = []
     for tbl in dfs:
         for col in tbl.columns:
